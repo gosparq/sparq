@@ -1,0 +1,110 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("Scheduled Leave") }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('pto_bp.index') }}" class="btn btn-sm btn-light">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{{ _("Scheduled Leave") }}</h5>
+</div>
+
+<!-- Summary -->
+{% if upcoming %}
+<div class="summary-card mb-3" style="background: var(--color-success);">
+    <span class="summary-card-value">{{ upcoming|length }}</span>
+    <span class="summary-card-label">{{ _("upcoming") }}</span>
+</div>
+{% endif %}
+
+{% if upcoming or past %}
+    <!-- Upcoming -->
+    {% if upcoming %}
+    <h6 class="text-muted mb-2">{{ _("Upcoming") }}</h6>
+    {% for req in upcoming %}
+    <a href="{{ url_for('pto_bp.detail', request_id=req.id) }}" class="mobile-card d-block text-decoration-none">
+        <div class="mobile-card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <div class="fw-bold text-dark">{{ req.member.user.first_name }} {{ req.member.user.last_name }}</div>
+                    <small class="text-muted">{{ req.member.position or _("Person") }}</small>
+                </div>
+                <span class="status-badge approved">{{ _("Upcoming") }}</span>
+            </div>
+
+            <div class="d-flex flex-wrap gap-3 mb-2 text-muted small">
+                <div>
+                    <i class="fas fa-calendar me-1"></i>
+                    {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d') }}{% endif %}
+                </div>
+                <div>
+                    <i class="fas fa-clock me-1"></i>
+                    {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+                </div>
+                <div>
+                    <i class="fas fa-umbrella-beach me-1"></i>
+                    {{ req.leave_type.value }}
+                </div>
+            </div>
+
+            {% if req.reviewed_by %}
+            <small class="text-muted">
+                {{ _("Approved by") }} {{ req.reviewed_by.first_name }} {{ _("on") }} {{ req.reviewed_at|format_datetime('%b %d, %Y') }}
+            </small>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Past -->
+    {% if past %}
+    <h6 class="text-muted mb-2 {% if upcoming %}mt-4{% endif %}">{{ _("Past") }}</h6>
+    {% for req in past %}
+    <a href="{{ url_for('pto_bp.detail', request_id=req.id) }}" class="mobile-card d-block text-decoration-none">
+        <div class="mobile-card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <div class="fw-bold text-dark">{{ req.member.user.first_name }} {{ req.member.user.last_name }}</div>
+                    <small class="text-muted">{{ req.member.position or _("Person") }}</small>
+                </div>
+                <span class="status-badge draft">{{ _("Past") }}</span>
+            </div>
+
+            <div class="d-flex flex-wrap gap-3 mb-2 text-muted small">
+                <div>
+                    <i class="fas fa-calendar me-1"></i>
+                    {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d') }}{% endif %}
+                </div>
+                <div>
+                    <i class="fas fa-clock me-1"></i>
+                    {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+                </div>
+                <div>
+                    <i class="fas fa-umbrella-beach me-1"></i>
+                    {{ req.leave_type.value }}
+                </div>
+            </div>
+
+            {% if req.reviewed_by %}
+            <small class="text-muted">
+                {{ _("Approved by") }} {{ req.reviewed_by.first_name }} {{ _("on") }} {{ req.reviewed_at|format_datetime('%b %d, %Y') }}
+            </small>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+    {% endif %}
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-calendar-check" style="color: var(--color-success);"></i>
+    <h5>{{ _("No approved leave") }}</h5>
+    <p>{{ _("There are no approved leave requests to display.") }}</p>
+    <a href="{{ url_for('pto_bp.index') }}" class="btn btn-primary btn-touch">
+        <i class="fas fa-arrow-left me-2"></i>{{ _("Back to Leave") }}
+    </a>
+</div>
+{% endif %}
+{% endblock %}

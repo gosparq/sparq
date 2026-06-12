@@ -1,0 +1,20 @@
+<div id="prop-area" class="task-prop-section">
+    <div class="task-prop-header">
+        <span class="task-prop-label">{{ _("Area") }}</span>
+        {% if can_inline_edit %}
+        <button class="task-prop-edit-trigger"
+                hx-get="{{ url_for('tasks_bp.inline_edit_prop', item_id=item.id, prop='area') }}"
+                hx-target="#prop-area"
+                hx-swap="outerHTML">
+            <i class="fas fa-pen"></i>
+        </button>
+        {% endif %}
+    </div>
+    <div>
+        {% if item.area %}
+        <span><span class="task-area-dot" style="background:{{ item.area.color }};"></span>{{ item.area.name }}</span>
+        {% else %}
+        <span class="text-muted small">{{ _("None") }}</span>
+        {% endif %}
+    </div>
+</div>

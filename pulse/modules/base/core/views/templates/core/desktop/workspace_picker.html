@@ -1,0 +1,71 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Choose Workspace") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Choose Workspace") }}</h2>
+        <p class="text-muted mb-4">{{ _("You belong to multiple workspaces. Choose one to continue.") }}</p>
+
+        <div class="workspace-list">
+            {% for membership in memberships %}
+            <form method="POST" action="{{ url_for('core_bp.switch_workspace', workspace_id=membership.workspace_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="workspace-card">
+                    <div class="workspace-info">
+                        <span class="workspace-name">{{ membership.workspace.name if membership.workspace else 'Workspace' }}</span>
+                        <span class="workspace-role text-muted">{{ membership.role | capitalize }}</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-muted"></i>
+                </button>
+            </form>
+            {% endfor %}
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('core_bp.logout') }}" class="text-muted">{{ _("Sign out") }}</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.workspace-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.workspace-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg-secondary, #f8f9fa);
+    border: 1px solid var(--border, #dee2e6);
+    border-radius: var(--radius-md, 6px);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    text-align: left;
+}
+.workspace-card:hover {
+    background: var(--bg-tertiary, #e9ecef);
+    border-color: var(--accent, #2563eb);
+}
+.workspace-info {
+    display: flex;
+    flex-direction: column;
+}
+.workspace-name {
+    font-weight: 600;
+    font-size: 1rem;
+}
+.workspace-role {
+    font-size: 0.85rem;
+}
+</style>
+{% endblock %}

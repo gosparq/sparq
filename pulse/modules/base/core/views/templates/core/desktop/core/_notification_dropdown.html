@@ -1,0 +1,118 @@
+<!-- Notification Dropdown Content -->
+<div class="notification-dropdown-header d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+    <span class="fw-semibold">Notifications</span>
+    {% if notifications %}
+    <div class="dropdown-header-actions">
+        <button class="btn btn-link btn-sm text-muted p-0 me-2"
+                hx-post="{{ url_for('core_bp.notifications_mark_all_read') }}"
+                hx-target="#header-notification-content"
+                hx-swap="innerHTML"
+                title="{{ _('Mark all as read') }}">
+            <i class="fas fa-check-double"></i>
+        </button>
+        <button class="btn btn-link btn-sm text-muted p-0"
+                hx-post="{{ url_for('core_bp.notifications_dismiss_all') }}"
+                hx-target="#header-notification-content"
+                hx-swap="innerHTML"
+                title="{{ _('Dismiss all') }}">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- System Alerts (pinned to top, cannot be dismissed) -->
+{% if system_alerts %}
+<div class="system-alerts">
+    {% for alert in system_alerts %}
+    <div class="notification-item system-alert unread px-3 py-2 border-bottom"
+         style="background: rgba(220, 53, 69, 0.15);">
+        <div class="d-flex">
+            <div class="notification-icon me-2" style="color: {{ alert.color }}">
+                <i class="fas {{ alert.icon }}"></i>
+            </div>
+            <div class="notification-content flex-grow-1">
+                <div class="notification-title fw-semibold small">{{ alert.title }}</div>
+                {% if alert.message %}
+                <div class="notification-message text-muted small">
+                    {{ alert.message }}
+                </div>
+                {% endif %}
+            </div>
+            <!-- No dismiss button - system alerts persist until resolved -->
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if notifications %}
+<div class="notification-list">
+    {% for notification in notifications %}
+    <div class="notification-item {% if not notification.is_read %}unread{% endif %} px-3 py-2 border-bottom cursor-pointer"
+         {% if notification.action_url %}
+         data-href="{{ notification.action_url }}"
+         {% endif %}>
+        <div class="d-flex">
+            <div class="notification-icon me-2" style="color: {{ notification.color }}">
+                <i class="fas {{ notification.icon }}"></i>
+            </div>
+            <div class="notification-content flex-grow-1">
+                <div class="notification-title fw-semibold small">{{ notification.title }}</div>
+                {% if notification.message %}
+                <div class="notification-message text-muted small text-truncate" style="max-width: 250px;">
+                    {{ notification.message }}
+                </div>
+                {% endif %}
+                <div class="notification-time text-muted text-2xs">
+                    {{ notification.time_ago() }}
+                </div>
+            </div>
+            <div class="notification-actions ms-2">
+                {% if not notification.is_read %}
+                <button class="btn btn-link btn-sm text-muted p-0"
+                        hx-post="{{ url_for('core_bp.notification_mark_read', notification_id=notification.id) }}"
+                        hx-target="#header-notification-content"
+                        hx-swap="innerHTML"
+                        @click.stop=""
+                        title="Mark as read">
+                    <i class="fas fa-check"></i>
+                </button>
+                {% endif %}
+                <button class="btn btn-link btn-sm text-muted p-0"
+                        hx-post="{{ url_for('core_bp.notification_dismiss', notification_id=notification.id) }}"
+                        hx-target="#header-notification-content"
+                        hx-swap="innerHTML"
+                        @click.stop=""
+                        title="Dismiss">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="notification-footer text-center py-2 border-top">
+    <a href="{{ url_for('core_bp.notifications_all') }}" class="text-decoration-none small">
+        View all notifications
+    </a>
+</div>
+{% else %}
+{% if not system_alerts %}
+<div class="notification-empty text-center py-4 text-muted">
+    <i class="fas fa-bell-slash mb-2" style="font-size: 1.5rem;"></i>
+    <p class="mb-0 small">No notifications</p>
+</div>
+{% endif %}
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    document.addEventListener('click', function(e) {
+        var item = e.target.closest('[data-href]');
+        if (item && !e.target.closest('button')) {
+            window.location.href = item.dataset.href;
+        }
+    });
+})();
+</script>

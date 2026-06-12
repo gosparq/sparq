@@ -1,0 +1,526 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Onboarding") }} - {{ record.full_name }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <a href="{{ url_for('people_bp.onboarding_list') }}" class="text-muted text-decoration-none small">
+                        <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Onboarding") }}
+                    </a>
+                    <h2 class="mt-2 mb-0">{{ record.full_name }}</h2>
+                    <div class="text-muted">{{ record.personal_email }}</div>
+                </div>
+                <div>
+                    {% if record.status == OnboardingStatus.DRAFT %}
+                    <span class="badge bg-secondary fs-6">{{ _("Draft") }}</span>
+                    {% elif record.status == OnboardingStatus.SENT %}
+                    <span class="badge bg-info fs-6">{{ _("Sent") }}</span>
+                    {% elif record.status == OnboardingStatus.IN_PROGRESS %}
+                    <span class="badge bg-primary fs-6">{{ _("In Progress") }}</span>
+                    {% elif record.status == OnboardingStatus.PENDING_REVIEW %}
+                    <span class="badge bg-warning text-dark fs-6">{{ _("Pending Review") }}</span>
+                    {% elif record.status == OnboardingStatus.COMPLETED %}
+                    <span class="badge bg-success fs-6">{{ _("Completed") }}</span>
+                    {% elif record.status == OnboardingStatus.CANCELLED %}
+                    <span class="badge bg-danger fs-6">{{ _("Cancelled") }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if record.status == OnboardingStatus.PENDING_REVIEW %}
+            {% set admin_tasks_complete = admin_tasks | selectattr('status', 'equalto', TaskStatus.COMPLETED) | list | length == admin_tasks | length %}
+            <!-- Review Alert - Admin Tasks Pending -->
+            <div id="admin-tasks-pending-alert" class="alert alert-info d-flex align-items-center mb-4" {% if not admin_tasks or admin_tasks_complete %}style="display: none;"{% endif %}>
+                <i class="fas fa-tasks fa-2x me-3"></i>
+                <div class="flex-grow-1">
+                    <h5 class="mb-1">{{ _("Complete Admin Tasks") }}</h5>
+                    <p class="mb-0">{{ record.full_name }} {{ _("has completed their tasks. Please complete the admin tasks below (e.g., create accounts, verify documents) before approving.") }}</p>
+                </div>
+            </div>
+            <!-- Review Alert - Ready for Approval -->
+            <div id="ready-for-approval-alert" class="alert alert-warning d-flex align-items-center mb-4" {% if admin_tasks and not admin_tasks_complete %}style="display: none;"{% endif %}>
+                <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                <div class="flex-grow-1">
+                    <h5 class="mb-1">{{ _("Ready for Approval") }}</h5>
+                    <p class="mb-0">{{ record.full_name }} {{ _("has completed all required tasks and is waiting for your approval.") }}</p>
+                </div>
+                <form action="{{ url_for('people_bp.onboarding_approve', record_id=record.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-check-circle me-1"></i>{{ _("Approve & Complete") }}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <!-- Left Column: Details & Actions -->
+                <div class="col-md-4">
+                    <!-- Employment Details -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Employment Details") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="text-muted small">{{ _("Type") }}</div>
+                                <span class="badge {% if record.onboarding_type.name == 'W2' %}bg-primary{% else %}bg-info{% endif %}">
+                                    {{ record.onboarding_type.value }}
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small">{{ _("Position") }}</div>
+                                <div>{{ record.position or '-' }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small">{{ _("Department") }}</div>
+                                <div>{{ record.department or '-' }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small">{{ _("Start Date") }}</div>
+                                <div>{{ record.start_date.strftime('%b %d, %Y') if record.start_date else '-' }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted small">{{ _("Salary") }}</div>
+                                <div>{{ '${:,.2f}'.format(record.salary) if record.salary else '-' }}</div>
+                            </div>
+                            <div class="mb-0">
+                                <div class="text-muted small">{{ _("Manager") }}</div>
+                                <div>{{ record.manager.user.first_name + ' ' + record.manager.user.last_name if record.manager else '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Timeline") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                <div class="timeline-item {% if record.created_at %}completed{% endif %}">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="fw-bold">{{ _("Created") }}</div>
+                                        <div class="text-muted small">{{ record.created_at|format_datetime('%b %d, %Y %I:%M %p') if record.created_at else '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item {% if record.sent_at %}completed{% endif %}">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="fw-bold">{{ _("Invite Sent") }}</div>
+                                        <div class="text-muted small">{{ record.sent_at|format_datetime('%b %d, %Y %I:%M %p') if record.sent_at else '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item {% if record.started_at %}completed{% endif %}">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="fw-bold">{{ _("Started") }}</div>
+                                        <div class="text-muted small">{{ record.started_at|format_datetime('%b %d, %Y %I:%M %p') if record.started_at else '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item {% if record.submitted_at %}completed{% endif %}">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="fw-bold">{{ _("Submitted for Review") }}</div>
+                                        <div class="text-muted small">{{ record.submitted_at|format_datetime('%b %d, %Y %I:%M %p') if record.submitted_at else '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item {% if record.completed_at %}completed{% endif %}">
+                                    <div class="timeline-marker"></div>
+                                    <div class="timeline-content">
+                                        <div class="fw-bold">{{ _("Completed") }}</div>
+                                        <div class="text-muted small">{{ record.completed_at|format_datetime('%b %d, %Y %I:%M %p') if record.completed_at else '-' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Actions") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if record.status == OnboardingStatus.DRAFT %}
+                            <a href="{{ url_for('people_bp.onboarding_edit', record_id=record.id) }}"
+                               class="btn btn-primary btn-sm w-100 mb-2">
+                                <i class="fas fa-edit me-1"></i>{{ _("Edit") }}
+                            </a>
+                            <form action="{{ url_for('people_bp.onboarding_send', record_id=record.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-sm btn-primary w-100 mb-2">
+                                    <i class="fas fa-paper-plane me-1"></i>{{ _("Send Invite") }}
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if record.status in [OnboardingStatus.SENT, OnboardingStatus.IN_PROGRESS] %}
+                            <form action="{{ url_for('people_bp.onboarding_resend', record_id=record.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                                    <i class="fas fa-redo me-1"></i>{{ _("Resend Invite") }}
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if record.status != OnboardingStatus.COMPLETED and record.status != OnboardingStatus.CANCELLED %}
+                            <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                                    data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                <i class="fas fa-times me-1"></i>{{ _("Cancel Onboarding") }}
+                            </button>
+                            {% endif %}
+
+                            {% if record.status == OnboardingStatus.CANCELLED %}
+                            <form action="{{ url_for('people_bp.onboarding_resume', record_id=record.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                    <i class="fas fa-redo me-1"></i>{{ _("Resume Onboarding") }}
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Admin Notes -->
+                    {% if record.admin_notes %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Admin Notes") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0">{{ record.admin_notes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Right Column: Tasks -->
+                <div class="col-md-8">
+                    <!-- Progress -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">{{ _("Progress") }}</h6>
+                                <span class="fw-bold">{{ record.progress_percent }}%</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar {% if record.progress_percent == 100 %}bg-success{% endif %}"
+                                     role="progressbar" style="width: {{ record.progress_percent }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Tasks") }}</h6>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for task in employee_tasks %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <div class="me-3">
+                                    {% if task.status == TaskStatus.COMPLETED %}
+                                    <i class="fas fa-check-circle text-success fa-lg"></i>
+                                    {% elif task.status == TaskStatus.SKIPPED %}
+                                    <i class="fas fa-minus-circle text-muted fa-lg"></i>
+                                    {% else %}
+                                    <i class="far fa-circle text-muted fa-lg"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">
+                                        {{ task.label }}
+                                        {% if task.required %}
+                                        <span class="badge bg-danger ms-1">{{ _("Required") }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-muted small">{{ task.description }}</div>
+                                </div>
+                                <div>
+                                    {% if task.status == TaskStatus.COMPLETED %}
+                                    <span class="badge bg-success">{{ _("Completed") }}</span>
+                                    {% if task.completed_at %}
+                                    <div class="text-muted small">{{ task.completed_at|format_datetime('%b %d') }}</div>
+                                    {% endif %}
+                                    {% elif task.status == TaskStatus.SKIPPED %}
+                                    <span class="badge bg-secondary">{{ _("Skipped") }}</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark">{{ _("Pending") }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Admin Tasks -->
+                    {% if admin_tasks %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Admin Tasks") }}</h6>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for task in admin_tasks %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <div class="me-3">
+                                    <input type="checkbox" class="form-check-input admin-task-checkbox cursor-pointer"
+                                           data-task-id="{{ task.id }}"
+                                           {% if task.status == TaskStatus.COMPLETED %}checked{% endif %}>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold {% if task.status == TaskStatus.COMPLETED %}text-decoration-line-through text-muted{% endif %}">
+                                        {{ task.label }}
+                                    </div>
+                                    <div class="text-muted small">{{ task.description }}</div>
+                                </div>
+                                <div>
+                                    {% if task.status == TaskStatus.COMPLETED %}
+                                    <span class="badge bg-success">{{ _("Done") }}</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark">{{ _("Pending") }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Submitted Documents -->
+                    {% if record.tax_form_attachment or (record.offer_letter_request and record.offer_letter_request.signed_attachment) or (record.contract_request and record.contract_request.signed_attachment) %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">{{ _("Submitted Documents") }}</h6>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% if record.tax_form_attachment %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <i class="fas fa-file-alt text-primary me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">{{ _("W-9 Tax Form") if record.onboarding_type.name == 'CONTRACTOR' else _("W-4 Tax Form") }}</div>
+                                    <div class="text-muted small">{{ record.tax_form_attachment.filename }}</div>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=record.tax_form_attachment.id) }}"
+                                       class="btn btn-sm btn-primary me-1" target="_blank" title="{{ _('View') }}">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=record.tax_form_attachment.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="{{ _('Download') }}">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if record.offer_letter_request and record.offer_letter_request.signed_attachment %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <i class="fas fa-file-signature text-success me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">{{ _("Signed Offer Letter") }}</div>
+                                    <div class="text-muted small">{{ record.offer_letter_request.signed_attachment.filename }}</div>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=record.offer_letter_request.signed_attachment.id) }}"
+                                       class="btn btn-sm btn-primary me-1" target="_blank" title="{{ _('View') }}">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=record.offer_letter_request.signed_attachment.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="{{ _('Download') }}">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if record.contract_request and record.contract_request.signed_attachment %}
+                            <div class="list-group-item d-flex align-items-center">
+                                <i class="fas fa-file-contract text-info me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">{{ _("Signed Contract") }}</div>
+                                    <div class="text-muted small">{{ record.contract_request.signed_attachment.filename }}</div>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=record.contract_request.signed_attachment.id) }}"
+                                       class="btn btn-sm btn-primary me-1" target="_blank" title="{{ _('View') }}">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=record.contract_request.signed_attachment.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="{{ _('Download') }}">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _("Cancel Onboarding") }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ _("Are you sure you want to cancel onboarding for") }} <strong>{{ record.full_name }}</strong>?</p>
+                <p class="text-danger small mb-3">{{ _("This will stop the onboarding process. The employee will not be able to continue.") }}</p>
+                <div class="mb-0">
+                    <label class="form-label">{{ _("Type") }} <strong>Cancel</strong> {{ _("to confirm:") }}</label>
+                    <input type="text" class="form-control" id="cancelConfirmInput" placeholder="Cancel" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Keep Onboarding") }}</button>
+                <form action="{{ url_for('people_bp.onboarding_cancel', record_id=record.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-danger" id="cancelConfirmBtn" disabled>{{ _("Cancel Onboarding") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+.timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+    padding-left: 15px;
+}
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -23px;
+    top: 8px;
+    bottom: -12px;
+    width: 2px;
+    background: #dee2e6;
+}
+.timeline-item:last-child::before {
+    display: none;
+}
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    top: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #dee2e6;
+}
+.timeline-item.completed .timeline-marker {
+    background: #198754;
+    border-color: #198754;
+}
+.timeline-item.completed .timeline-marker::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    color: white;
+    font-size: 8px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to check if all admin tasks are complete
+    function checkAllAdminTasksComplete() {
+        const checkboxes = document.querySelectorAll('.admin-task-checkbox');
+        if (checkboxes.length === 0) return true;
+        return Array.from(checkboxes).every(cb => cb.checked);
+    }
+
+    // Function to update the alert banners
+    function updateAlertBanners() {
+        const pendingAlert = document.getElementById('admin-tasks-pending-alert');
+        const readyAlert = document.getElementById('ready-for-approval-alert');
+        if (!pendingAlert || !readyAlert) return;
+
+        const allComplete = checkAllAdminTasksComplete();
+        pendingAlert.style.display = allComplete ? 'none' : 'flex';
+        readyAlert.style.display = allComplete ? 'flex' : 'none';
+    }
+
+    // Handle admin task checkbox toggles
+    document.querySelectorAll('.admin-task-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const taskId = this.dataset.taskId;
+            fetch(`{{ url_for('people_bp.onboarding_toggle_task', record_id=record.id, task_id=0) }}`.replace('/0', '/' + taskId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI
+                    const listItem = checkbox.closest('.list-group-item');
+                    const label = listItem.querySelector('.fw-bold');
+                    const badge = listItem.querySelector('.badge');
+
+                    if (data.status === 'Completed') {
+                        label.classList.add('text-decoration-line-through', 'text-muted');
+                        badge.className = 'badge bg-success';
+                        badge.textContent = '{{ _("Done") }}';
+                    } else {
+                        label.classList.remove('text-decoration-line-through', 'text-muted');
+                        badge.className = 'badge bg-light text-dark';
+                        badge.textContent = '{{ _("Pending") }}';
+                    }
+
+                    // Update alert banners based on all tasks status
+                    updateAlertBanners();
+                }
+            });
+        });
+    });
+
+    // Cancel confirmation input validation
+    const cancelInput = document.getElementById('cancelConfirmInput');
+    const cancelBtn = document.getElementById('cancelConfirmBtn');
+    if (cancelInput && cancelBtn) {
+        cancelInput.addEventListener('input', function() {
+            cancelBtn.disabled = this.value.toLowerCase() !== 'cancel';
+        });
+        // Reset input when modal is closed
+        const cancelModal = document.getElementById('cancelModal');
+        if (cancelModal) {
+            cancelModal.addEventListener('hidden.bs.modal', function() {
+                cancelInput.value = '';
+                cancelBtn.disabled = true;
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{# OAuth SSO buttons partial — include in login and magic link pages.
+   Expects `oauth_providers` list of dicts with: name, display_name, login_url, svg_icon.
+   Renders nothing when no providers are enabled. #}
+{% if oauth_providers %}
+<div class="oauth-buttons">
+    {% for provider in oauth_providers %}
+    <a href="{{ provider.login_url }}" class="btn-oauth btn-oauth-{{ provider.name }}">
+        {{ provider.svg_icon|safe }}
+        {{ _("Continue with") }} {{ provider.display_name }}
+    </a>
+    {% endfor %}
+</div>
+<div class="auth-divider"><span>{{ _("or") }}</span></div>
+{% endif %}

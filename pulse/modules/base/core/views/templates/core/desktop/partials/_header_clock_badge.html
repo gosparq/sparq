@@ -1,0 +1,13 @@
+{# Clock status badge for top bar #}
+{% if header_time_clock_enabled %}
+<a href="{{ url_for('clock_bp.index') }}"
+   class="header-clock-pill {% if header_clock_status and header_clock_status.is_clocked_in %}header-clock-pill--in{% else %}header-clock-pill--out{% endif %}"
+   title="{{ _('Time Clock') }}">
+    <span class="clock-dot"></span>
+    {% if header_clock_status and header_clock_status.is_clocked_in %}
+    {{ _("Clocked in") }}<span class="clock-sep">·</span><span style="font-variant-numeric:tabular-nums;">{{ header_clock_status.elapsed_str or '' }}</span>
+    {% else %}
+    {{ _("Clock In") }}
+    {% endif %}
+</a>
+{% endif %}

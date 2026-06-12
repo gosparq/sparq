@@ -1,0 +1,31 @@
+{# Loaded via HTMX into the palette action slot when "Create Issue" is selected.
+   Alpine component (ghPaletteCreate) is defined in _slash_palette_script.html so it
+   is always available before Alpine initialises this element. Data is passed via
+   data-* attributes to avoid any script-execution race with HTMX nested swaps. #}
+<div x-data="ghPaletteCreate()"
+     data-task-id="{{ task_id }}"
+     data-csrf="{{ csrf_token }}"
+     data-prefill-title="{{ prefill_title | e }}">
+  <div class="palette-subpanel-title">{{ _("Create GitHub Issue") }}</div>
+  <input type="text" class="form-control form-control-sm mb-2"
+         x-model="title"
+         placeholder="{{ _('Title') }}"
+         x-init="$nextTick(() => $el.focus())"
+         @keydown.enter.prevent="title.trim() && !loading && submit()">
+  <textarea class="form-control form-control-sm mb-2" rows="6"
+            x-model="body"
+            placeholder="{{ _('Body (optional)') }}"></textarea>
+  <div x-show="error" class="text-danger small mb-1" x-text="error"></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-sm btn-outline-primary"
+            @click="submit()"
+            :disabled="loading || !title.trim()">
+      <span x-show="!loading">{{ _("Create") }}</span>
+      <span x-show="loading"><i class="fas fa-spinner fa-spin"></i></span>
+    </button>
+    <button class="btn btn-sm btn-outline-secondary"
+            @click="window.dispatchEvent(new CustomEvent('palette-action-back'))">
+      {{ _("Back") }}
+    </button>
+  </div>
+</div>

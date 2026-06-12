@@ -1,0 +1,26 @@
+<!-- Geofence Block Alert - Hard Enforcement -->
+<div class="alert alert-danger mb-4" role="alert">
+    <div class="d-flex align-items-start">
+        <i class="fas fa-map-marker-alt fa-2x me-3 text-danger"></i>
+        <div>
+            <h5 class="alert-heading mb-2">{{ _("Location Restricted") }}</h5>
+            <p class="mb-3">{{ message or _("You are outside the designated work area and cannot clock in or out from this location.") }}</p>
+            <hr>
+            <p class="mb-0 small">
+                <i class="fas fa-info-circle me-1"></i>
+                {{ _("Please move to an approved location and try again, or contact your administrator if you believe this is an error.") }}
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Show current status -->
+<div class="mb-3">
+    <span class="badge bg-secondary fs-5 px-4 py-2">
+        <i class="fas fa-ban me-2"></i>{{ _("Action Blocked") }}
+    </span>
+</div>
+
+<a href="{{ url_for('clock_bp.index') }}" class="btn btn-sm btn-primary">
+    <i class="fas fa-refresh me-2"></i>{{ _("Try Again") }}
+</a>

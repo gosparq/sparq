@@ -1,0 +1,56 @@
+<!-- Hard Delete Person Modal -->
+<div class="modal-header bg-danger text-white">
+    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>{{ _("Permanently Delete Person") }}</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+<form action="{{ url_for('people_bp.delete_person', employee_id=employee.id) }}" method="POST" id="deleteForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="modal-body">
+        <div class="alert alert-danger">
+            <strong>{{ _("Warning: This action cannot be undone!") }}</strong>
+            <p class="mb-0 mt-2">
+                {{ _("This will permanently delete all records for") }}
+                <strong>{{ employee.user.first_name }} {{ employee.user.last_name }}</strong>,
+                {{ _("including their timesheets, documents, and all related data.") }}
+            </p>
+        </div>
+
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>{{ _("Consider a less destructive option:") }}</strong>
+            <ul class="mb-0 mt-2">
+                <li>{{ _("Terminate — preserves historical data, prevents login") }}</li>
+                <li>{{ _("Remove from Workspace — revokes workspace access, keeps user account") }}</li>
+            </ul>
+            <div class="mt-2">{{ _("Use Delete only for removing test accounts or duplicate records.") }}</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="confirmName" class="form-label">
+                {{ _("Type the employee's full name to confirm:") }}
+                <strong>{{ employee.user.first_name }} {{ employee.user.last_name }}</strong>
+            </label>
+            <input type="text" class="form-control" id="confirmName"
+                   placeholder="{{ employee.user.first_name }} {{ employee.user.last_name }}"
+                   autocomplete="off" required>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+        <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+            <i class="fas fa-trash me-1"></i>{{ _("Permanently Delete") }}
+        </button>
+    </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    const confirmInput = document.getElementById('confirmName');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const expectedName = "{{ employee.user.first_name }} {{ employee.user.last_name }}";
+
+    confirmInput.addEventListener('input', function() {
+        deleteBtn.disabled = this.value.trim() !== expectedName;
+    });
+})();
+</script>

@@ -1,0 +1,591 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Status Updates") }}{% endblock %}
+
+{% block module_content %}
+{% include "updates/desktop/partials/_blocker_modal_styles.html" %}
+{# Short button labels for built-in templates whose full names are too long for a button. #}
+{# Falls back to tmpl.name for custom templates. #}
+{% set short_names = {
+    'Async - Standup': 'Standup',
+    'Async - End of Day (EOD)': 'End of Day',
+} %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Status Updates") }}</h2>
+            <span class="text-muted text-sm">{{ _("What the team is working on") }}</span>
+        </div>
+
+        {% if not is_digest and templates %}
+            {% if filter_template_id %}
+                {% if is_blocked_template %}
+                {# "I'm blocked" filter — open the same modal the Blockers board uses #}
+                <button type="button"
+                        class="btn btn-sm btn-primary"
+                        data-bs-toggle="modal" data-bs-target="#newBlockerModal">
+                    <i class="fas fa-plus me-1"></i>{{ _("New Blocker") }}
+                </button>
+                {% else %}
+                {# Specific template filter — generic Post button (active filter chip already shows which template) #}
+                <a href="{{ url_for('sync_bp.post_new', template_id=filter_template_id) }}"
+                   class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>{{ _("New Update") }}
+                </a>
+                {% endif %}
+            {% else %}
+                {# All view — Post dropdown listing every template #}
+                <div class="position-relative" x-data="{ postMenuOpen: false }">
+                    <button type="button"
+                            class="btn btn-sm btn-primary"
+                            @click="postMenuOpen = !postMenuOpen"
+                            @click.outside="postMenuOpen = false"
+                            :aria-expanded="postMenuOpen"
+                            aria-haspopup="menu">
+                        <i class="fas fa-plus me-1"></i>{{ _("New Update") }}
+                        <i class="fas fa-chevron-down ms-1 text-icon" style="opacity:0.7"></i>
+                    </button>
+                    <div x-show="postMenuOpen" x-cloak x-transition.opacity.duration.150ms
+                         role="menu"
+                         style="position:absolute;top:calc(100% + 4px);right:0;min-width:200px;background:var(--color-bg, #fff);border:1px solid var(--color-gray-200, #e5e7eb);border-radius:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:1000;padding:0.25rem 0;">
+                        {% for tmpl in templates %}
+                        {% if tmpl.name == "I'm blocked" %}
+                        <button type="button"
+                                role="menuitem"
+                                class="btn btn-link d-block text-decoration-none px-3 py-2 w-100 text-start text-sm" style="color:var(--color-gray-700, #374151)"
+                                data-bs-toggle="modal" data-bs-target="#newBlockerModal"
+                                @click="postMenuOpen = false">
+                            {{ short_names.get(tmpl.name, tmpl.name) }}
+                        </button>
+                        {% else %}
+                        <a href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}"
+                           role="menuitem"
+                           class="d-block text-decoration-none px-3 py-2 text-sm" style="color:var(--color-gray-700, #374151)"
+                           @click="postMenuOpen = false">
+                            {{ short_names.get(tmpl.name, tmpl.name) }}
+                            {% if tmpl.post_type == 'win' %}<i class="fas fa-trophy ms-1 text-3xs" style="color:#d97706"></i>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {# ── Top bar: Feed/Digest toggle + member/area filters ── #}
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2 ms-auto">
+            {% if filter_template_id and is_daily_template %}
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ url_for('updates_bp.updates_index', template=filter_template_id, view='feed') }}"
+                   class="btn {% if not is_digest %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    {{ _("Feed") }}
+                </a>
+                <a href="{{ url_for('updates_bp.updates_index', template=filter_template_id, view='digest') }}"
+                   class="btn {% if is_digest %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    {{ _("Digest") }}
+                </a>
+            </div>
+            {% endif %}
+            {% if not is_digest %}
+            {% if areas %}
+            <select id="area-filter" class="form-select form-select-sm text-sm" style="width:auto">
+                <option value="">{{ _("All areas") }}</option>
+                {% for area in areas %}
+                <option value="{{ area.id }}" {% if filter_area_id == area.id %}selected{% endif %}>
+                    {{ area.name }}
+                </option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <a href="{{ url_for('updates_bp.updates_index', template=filter_template_id, area=filter_area_id) }}"
+                   class="upd-member-pill {% if not filter_member_id %}upd-member-pill--active{% endif %}">
+                    {{ _("All") }}
+                </a>
+                {% for m in active_members %}
+                <a href="{{ url_for('updates_bp.updates_index', template=filter_template_id, area=filter_area_id, member=m.id) }}"
+                   class="upd-member-pill {% if filter_member_id == m.id %}upd-member-pill--active{% endif %}">
+                    <span class="avatar-circle" style="width:18px;height:18px;font-size:0.4rem;background:{{ m.avatar_color|default('#6b7280') }};">
+                        {{ m.first_name[0]|upper }}{{ m.last_name[0]|upper }}
+                    </span>
+                    <span>{{ m.first_name }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_digest %}
+    {# ── Digest View ── #}
+    <div class="d-flex gap-3 mb-4">
+        <div class="card px-3 py-2 sync-card">
+            <span class="text-muted text-uppercase text-2xs sync-tracking">{{ _("Responded") }}</span>
+            <span class="fw-semibold" style="font-size:1.25rem; color:#059669">{{ digest_responses|length }}</span>
+        </div>
+        <div class="card px-3 py-2 sync-card">
+            <span class="text-muted text-uppercase text-2xs sync-tracking">{{ _("Pending") }}</span>
+            <span class="fw-semibold" style="font-size:1.25rem; color:#d97706">{{ digest_pending|length }}</span>
+        </div>
+    </div>
+
+    {# Responded #}
+    {% if digest_responses %}
+    <div class="mb-1">
+        <small class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ _("Checked In") }}</small>
+    </div>
+    {% for post in digest_responses %}
+    <div id="post-{{ post.id }}" class="card mb-2 sync-card">
+        <div class="card-body py-3 px-4">
+            <div class="d-flex align-items-start gap-3">
+                <div class="flex-shrink-0">
+                    {% if post.member_first_name %}
+                    <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8125rem;background:{{ post.member_avatar_color|default('#6b7280') }};">
+                        {{ post.member_first_name[0]|upper }}{{ post.member_last_name[0]|upper if post.member_last_name else '' }}
+                    </span>
+                    {% else %}
+                    <span class="avatar-circle text-sm" style="width:36px; height:36px; background:#6b7280">
+                        <i class="fas fa-user text-2xs"></i>
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1 min-width-0">
+                    <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                        {% if post.member_first_name %}
+                        <span class="fw-semibold text-base">{{ post.member_full_name }}</span>
+                        {% else %}
+                        <span class="fw-semibold text-muted text-base">{{ _("Unknown") }}</span>
+                        {% endif %}
+                        <span class="text-muted ms-auto text-sm">{{ post.created_at|format_datetime('%I:%M %p') }}</span>
+                    </div>
+                    {% for field in post.template_fields %}
+                        {% set val = post.payload.get(field.key) %}
+                        {% if val %}
+                        <div class="mb-2">
+                            <div class="text-muted fw-semibold text-xs" style="margin-bottom:0.125rem">{{ field.label }}</div>
+                            {% if field.type == 'bullets' %}
+                            <ul class="mb-0 ps-3 text-base">
+                                {% for item in val %}<li>{{ item|urlize(target="_blank") }}</li>{% endfor %}
+                            </ul>
+                            {% elif field.type == 'scale' %}
+                            <span>
+                                {% for i in range(val | int) %}<i class="fas fa-star text-warning"></i>{% endfor %}
+                                {% for i in range(5 - (val | int)) %}<i class="far fa-star text-muted"></i>{% endfor %}
+                            </span>
+                            {% else %}
+                            <p class="mb-0 text-base sync-pre-wrap">{{ val|urlize(target="_blank") }}</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="text-center py-4 text-muted mb-4">
+        <i class="fas fa-clipboard-check fa-lg mb-2 d-block opacity-50"></i>
+        <p class="mb-0 text-sm">{{ _("No responses yet today.") }}</p>
+    </div>
+    {% endif %}
+
+    {# Pending #}
+    {% if digest_pending %}
+    <div class="mb-1 mt-4">
+        <small class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ _("Waiting On") }}</small>
+    </div>
+    <div class="card sync-card">
+        <div class="card-body py-2 px-4">
+            {% for member in digest_pending %}
+            <div class="d-flex align-items-center gap-3 {% if not loop.last %}border-bottom{% endif %}" style="padding:0.5rem 0;{% if not loop.last %}border-color:var(--color-gray-100, #f3f4f6) !important;{% endif %}">
+                <span class="avatar-circle" style="width:28px;height:28px;font-size:0.7rem;background:{{ member.avatar_color|default('#6b7280') }};opacity:0.6;">
+                    {{ member.first_name[0]|upper }}{{ member.last_name[0]|upper }}
+                </span>
+                <span class="text-sm" style="color:var(--color-gray-500, #6b7280)">{{ member.full_name }}</span>
+                <span class="ms-auto">
+                    <span class="badge text-3xs badge-template">{{ _("Pending") }}</span>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# ── Two-column layout: filters | posts ── #}
+    <div class="d-flex gap-4 align-items-start">
+
+        {# ── Left: vertical filter pills ── #}
+        <div class="flex-shrink-0" style="min-width:130px; max-width:150px">
+            <div class="d-flex flex-column gap-1">
+                <a href="{{ url_for('updates_bp.updates_index', member=filter_member_id) }}"
+                   class="btn btn-sm text-start {% if not filter_template_id %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    {{ _("All") }}
+                </a>
+                {% for tmpl in templates %}
+                <a href="{{ url_for('updates_bp.updates_index', template=tmpl.id, member=filter_member_id) }}"
+                   class="btn btn-sm text-start {% if filter_template_id == tmpl.id %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    {{ tmpl.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Right: posts feed ── #}
+        <div class="flex-grow-1 min-width-0">
+        {% if posts %}
+            <div id="updates-feed">
+                {% include "updates/desktop/partials/_updates_feed.html" %}
+            </div>
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-bullhorn fa-2x mb-3 d-block opacity-50"></i>
+                <p class="mb-3">{{ _("No updates yet.") }}</p>
+                {% set cta_template = templates | selectattr('id', 'equalto', filter_template_id) | first if filter_template_id else none %}
+                {% if not cta_template %}{% set cta_template = templates | selectattr('post_type', 'equalto', 'update') | first %}{% endif %}
+                {% if cta_template %}
+                <a href="{{ url_for('sync_bp.post_new', template_id=cta_template.id) }}" class="btn btn-primary btn-sm">
+                    {{ _("Post your first update") }}
+                </a>
+                {% endif %}
+            </div>
+        {% endif %}
+        </div>
+
+    </div>{# end two-column #}
+
+    <script nonce="{{ csp_nonce }}">
+    document.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-action="copy-post-link"]');
+        if (t) {
+            e.preventDefault();
+            var url = window.location.origin + t.dataset.url;
+            navigator.clipboard.writeText(url).then(function() {
+                var icon = t.querySelector('i');
+                icon.className = 'fas fa-check text-success';
+                setTimeout(function() { icon.className = 'fas fa-link'; }, 1500);
+            });
+        }
+    });
+
+    // Area filter dropdown
+    var areaFilter = document.getElementById('area-filter');
+    if (areaFilter) {
+        areaFilter.addEventListener('change', function() {
+            var params = new URLSearchParams(window.location.search);
+            if (this.value) {
+                params.set('area', this.value);
+            } else {
+                params.delete('area');
+            }
+            window.location.href = window.location.pathname + '?' + params.toString();
+        });
+    }
+
+</script>
+
+    <style>
+    .upd-member-pill {
+        display: inline-flex; align-items: center; gap: 0.25rem;
+        padding: 0.2rem 0.5rem; border-radius: 999px;
+        border: 1px solid var(--color-gray-200); background: transparent;
+        font-size: 0.75rem; font-weight: 500; color: var(--color-gray-600);
+        text-decoration: none; transition: all 0.15s;
+    }
+    .upd-member-pill:hover {
+        background: var(--color-gray-50); border-color: var(--color-gray-300);
+        color: var(--color-gray-700);
+    }
+    .upd-member-pill--active,
+    .upd-member-pill--active:hover {
+        background: var(--color-primary-lightest); border-color: var(--color-primary);
+        color: var(--color-primary-dark);
+    }
+    </style>
+
+    <style>
+    /* Action item ref pills in feed */
+    .ai-feed-pill {
+        display: inline-flex; align-items: center; gap: 0.25rem;
+        padding: 0.2rem 0.45rem; border-radius: 999px;
+        background: var(--color-gray-100, #f3f4f6); border: 1px solid var(--color-gray-200, #e5e7eb);
+        font-size: 0.7rem; font-weight: 500; color: var(--color-gray-600, #4b5563);
+        line-height: 1.3; transition: background 0.1s;
+    }
+    .ai-feed-pill:hover { background: var(--color-gray-200, #e5e7eb); color: var(--color-gray-700, #374151); }
+    .ai-feed-pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .ai-feed-pill-project {
+        font-size: 0.6rem; font-weight: 600; padding: 0 4px; border-radius: 3px;
+        background: var(--color-gray-200, #e5e7eb); color: var(--color-gray-500, #6b7280);
+    }
+    /* Structured list project badge in feed */
+    .sl-feed-project-badge {
+        display: inline-block; font-size: 0.65rem; font-weight: 600;
+        padding: 1px 6px; border-radius: 4px; margin-left: 0.25rem;
+        background: var(--color-gray-100, #f3f4f6); color: var(--color-gray-500, #6b7280);
+        border: 1px solid var(--color-gray-200, #e5e7eb);
+    }
+    .sl-feed-project-badge:hover { background: var(--color-gray-200, #e5e7eb); color: var(--color-gray-600, #4b5563); }
+    </style>
+
+    <style>
+    @keyframes feedFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    #updates-feed > .feed-batch:not(:first-child) {
+        animation: feedFadeIn 0.3s ease-out both;
+    }
+    </style>
+
+    {% if current_user.is_admin %}
+    {# Create Template Modal #}
+    <div class="modal fade" id="createTemplateModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('core_bp.settings_templates_create') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="next" value="{{ url_for('updates_bp.updates_index') }}">
+                    <input type="hidden" name="post_type" value="update">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ _("New Template") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">{{ _("Name") }}</label>
+                                <input type="text" name="name" class="form-control" required placeholder="{{ _('e.g. Weekly standup') }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ _("Description") }}</label>
+                                <input type="text" name="description" class="form-control" placeholder="{{ _('Short description (optional)') }}">
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6>{{ _("Fields") }}</h6>
+                        <div id="fieldsContainer">
+                            <div class="row g-2 mb-2 field-row">
+                                <div class="col-3">
+                                    <input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="{{ _('Key') }}" value="body">
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="{{ _('Label') }}" value="Body">
+                                </div>
+                                <div class="col-2">
+                                    <select name="field_type[]" class="form-select form-select-sm">
+                                        <option value="text" selected>{{ _("Text") }}</option>
+                                        <option value="title">{{ _("Title") }}</option>
+                                        <option value="bullets">{{ _("Bullets") }}</option>
+                                        <option value="scale">{{ _("Scale") }}</option>
+                                        <option value="choice">{{ _("Choice") }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="{{ _('Placeholder') }}">
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addFieldRow()">
+                            <i class="fas fa-plus"></i> {{ _("Add Field") }}
+                        </button>
+
+                        <hr>
+                        <div class="form-check">
+                            <input type="checkbox" name="anonymous" class="form-check-input" id="anonymousCheck">
+                            <label class="form-check-label" for="anonymousCheck">{{ _("Anonymous posts") }}</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-primary">{{ _("Create Template") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        if (new URLSearchParams(window.location.search).get('action') === 'new_template') {
+            new bootstrap.Modal(document.getElementById('createTemplateModal')).show();
+            const url = new URL(window.location); url.searchParams.delete('action'); history.replaceState(null, '', url);
+        }
+    });
+    function addFieldRow() {
+        const container = document.getElementById('fieldsContainer');
+        const row = document.createElement('div');
+        row.className = 'row g-2 mb-2 field-row';
+        row.innerHTML = `
+            <div class="col-3"><input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="Key"></div>
+            <div class="col-3"><input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="Label"></div>
+            <div class="col-2"><select name="field_type[]" class="form-select form-select-sm"><option value="text">Text</option><option value="title">Title</option><option value="bullets">Bullets</option><option value="scale">Scale</option><option value="choice">Choice</option></select></div>
+            <div class="col-3"><input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="Placeholder"></div>
+            <div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()"><i class="fas fa-times"></i></button></div>
+        `;
+        container.appendChild(row);
+    }
+    </script>
+    {% endif %}
+    {% endif %}{# end: is_digest else #}
+</div>
+
+{# New Blocker modal — rendered once so both the filter-specific button
+   and the "I'm blocked" item in the All-view dropdown can open it. #}
+{% include "updates/desktop/partials/_new_blocker_modal.html" %}
+
+{# Reaction styles #}
+<style>
+.post-reactions { display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.5rem; }
+.post-reaction-badge { display:inline-flex;align-items:center;gap:0.25rem;padding:0.125rem 0.5rem;border-radius:999px;border:1px solid var(--color-gray-200,#e5e7eb);background:var(--color-gray-50,#f9fafb);font-size:0.75rem;cursor:pointer;transition:all 0.15s; }
+.post-reaction-badge:hover { background:var(--color-gray-100,#f3f4f6);border-color:var(--color-gray-300,#d1d5db); }
+.post-reaction-badge.user-reacted { background:var(--color-primary-lightest,#eff6ff);border-color:var(--color-primary,#2563eb); }
+.post-reaction-emoji { font-size: var(--font-size-base); }
+.post-reaction-count { font-size:0.75rem;color:var(--color-gray-600,#4b5563); }
+.post-reaction-add { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;border:1px solid var(--color-gray-200,#e5e7eb);background:transparent;color:var(--color-gray-400,#9ca3af);font-size:0.75rem;cursor:pointer;transition:all 0.15s; }
+.post-reaction-add:hover { background:var(--color-gray-100,#f3f4f6);color:var(--color-gray-600,#4b5563); }
+.post-footer-actions { display:flex;align-items:center;gap:1rem;margin-top:0.5rem;padding-top:0.375rem; }
+.post-footer-btn { display:inline-flex;align-items:center;gap:0.25rem;background:none;border:none;padding:0;font-size:0.75rem;color:var(--color-gray-400,#9ca3af);cursor:pointer;transition:color 0.15s; }
+.post-footer-btn:hover { color:var(--color-gray-600,#4b5563); }
+.post-footer-btn i { font-size:0.7rem; }
+.reaction-picker-overlay { position:fixed;top:0;left:0;right:0;bottom:0;z-index:999; }
+.post-reaction-picker { position:fixed;z-index:1000;background:white;border:1px solid var(--color-gray-200,#e5e7eb);border-radius:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.1);padding:0.5rem;width:280px; }
+.post-reaction-picker-grid { display:grid;grid-template-columns:repeat(8,1fr);gap:0.125rem; }
+.post-reaction-picker-btn { display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:none;background:none;border-radius:0.25rem;font-size:1.125rem;cursor:pointer;transition:background 0.1s; }
+.post-reaction-picker-btn:hover { background:var(--color-gray-100,#f3f4f6); }
+.post-reaction-picker-label { font-size:0.65rem;font-weight:600;color:var(--color-gray-400,#9ca3af);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem; }
+.post-reaction-picker-divider { height:1px;background:var(--color-gray-200,#e5e7eb);margin:0.375rem 0; }
+.post-reaction-picker-all { max-height:160px;overflow-y:auto; }
+</style>
+
+{# Reaction JS #}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var frequentEmojis = ['👍','❤️','😂','😮','😢','🎉','🔥','👀'];
+    var allEmojis = [
+        '😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😛',
+        '🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱','😴',
+        '👍','👎','👏','🙌','🤝','👊','✊','🤛','🤜','🤞','✌️','🤟','🤘','👌','🤌','🤏',
+        '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘',
+        '🎉','🎊','🎈','🎁','🏆','🥇','🥈','🥉','⭐','🌟','✨','💫','🔥','💥','💯','💢',
+        '👀','✅','❌','⚠️','❓','❗','💡','🔔','📌'
+    ];
+    var currentPicker = null, currentPostId = null;
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfInput = document.querySelector('input[name="csrf_token"]');
+    var csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
+
+    function showPicker(event, postId) {
+        event.stopPropagation();
+        closePicker();
+        currentPostId = postId;
+        var picker = document.createElement('div');
+        picker.className = 'post-reaction-picker';
+        var fLabel = document.createElement('div'); fLabel.className = 'post-reaction-picker-label'; fLabel.textContent = 'Frequently Used'; picker.appendChild(fLabel);
+        var fGrid = document.createElement('div'); fGrid.className = 'post-reaction-picker-grid';
+        frequentEmojis.forEach(function(e) { var b = document.createElement('button'); b.className = 'post-reaction-picker-btn'; b.type = 'button'; b.textContent = e; b.onclick = function() { selectEmoji(e); }; fGrid.appendChild(b); });
+        picker.appendChild(fGrid);
+        var div = document.createElement('div'); div.className = 'post-reaction-picker-divider'; picker.appendChild(div);
+        var aLabel = document.createElement('div'); aLabel.className = 'post-reaction-picker-label'; aLabel.textContent = 'All Emojis'; picker.appendChild(aLabel);
+        var aGrid = document.createElement('div'); aGrid.className = 'post-reaction-picker-grid post-reaction-picker-all';
+        allEmojis.forEach(function(e) { var b = document.createElement('button'); b.className = 'post-reaction-picker-btn'; b.type = 'button'; b.textContent = e; b.onclick = function() { selectEmoji(e); }; aGrid.appendChild(b); });
+        picker.appendChild(aGrid);
+        var overlay = document.createElement('div'); overlay.className = 'reaction-picker-overlay'; overlay.onclick = closePicker; document.body.appendChild(overlay);
+        var btn = event.target.closest('.post-reaction-add, [data-action="post-show-picker"]');
+        var rect = btn.getBoundingClientRect();
+        picker.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
+        picker.style.top = (rect.bottom + 4) + 'px';
+        document.body.appendChild(picker);
+        currentPicker = picker;
+    }
+    function closePicker() { if (currentPicker) { currentPicker.remove(); currentPicker = null; } var ov = document.querySelector('.reaction-picker-overlay'); if (ov) ov.remove(); currentPostId = null; }
+    function selectEmoji(emoji) { var pid = currentPostId; closePicker(); toggleReaction(pid, emoji); }
+    function toggleReaction(postId, emoji) {
+        fetch('/sync/posts/' + postId + '/react', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken}, body: 'emoji=' + encodeURIComponent(emoji) })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { updateReactionsUI(postId, data.reactions); })
+        .catch(function(e) { console.error('Error toggling reaction:', e); });
+    }
+    function updateReactionsUI(postId, reactions) {
+        var container = document.getElementById('post-reactions-' + postId);
+        if (!container) return;
+        var html = '';
+        for (var emoji in reactions) {
+            var d = reactions[emoji];
+            var reacted = d.user_ids.indexOf({{ current_user.id }}) !== -1;
+            html += '<button class="post-reaction-badge ' + (reacted ? 'user-reacted' : '') + '" data-action="post-toggle-reaction" data-post-id="' + postId + '" data-emoji="' + emoji + '" title="' + d.users.join(', ') + '">';
+            html += '<span class="post-reaction-emoji">' + emoji + '</span>';
+            html += '<span class="post-reaction-count">' + d.count + '</span>';
+            html += '</button>';
+        }
+        html += '<button class="post-reaction-add" data-action="post-show-picker" data-post-id="' + postId + '" title="Add reaction"><i class="far fa-smile"></i></button>';
+        container.innerHTML = html;
+    }
+    function _fmtTime(s) {
+        if (!isFinite(s) || isNaN(s)) return '0:00';
+        var m = Math.floor(s / 60); s = Math.floor(s % 60);
+        return m + ':' + String(s).padStart(2, '0');
+    }
+    function _getDur(pill, audio) {
+        if (audio.duration && isFinite(audio.duration)) return audio.duration;
+        var d = parseInt(pill.dataset.duration, 10);
+        return d > 0 ? d : 0;
+    }
+    function _audioToggle(btn) {
+        var pill = btn.closest('.audio-playback-pill');
+        var audio = pill ? pill.querySelector('audio') : null;
+        if (!audio) return;
+        var icon = btn.querySelector('i');
+        var bar = pill.querySelector('.audio-progress-bar');
+        var timeEl = pill.querySelector('.audio-time');
+        if (audio.paused) {
+            audio.play();
+            if (icon) icon.classList.replace('fa-play', 'fa-pause');
+            audio.ontimeupdate = function() {
+                var dur = _getDur(pill, audio);
+                if (bar && dur) bar.style.width = (audio.currentTime / dur * 100) + '%';
+                if (timeEl) timeEl.textContent = _fmtTime(audio.currentTime);
+            };
+        } else {
+            audio.pause();
+            if (icon) icon.classList.replace('fa-pause', 'fa-play');
+        }
+        audio.onended = function() {
+            if (icon) icon.classList.replace('fa-pause', 'fa-play');
+            if (bar) bar.style.width = '0%';
+            var dur = _getDur(pill, audio);
+            if (timeEl) timeEl.textContent = dur ? _fmtTime(dur) : '0:00';
+        };
+    }
+    function _audioSeek(wrap, e) {
+        var pill = wrap.closest('.audio-playback-pill');
+        var audio = pill ? pill.querySelector('audio') : null;
+        var dur = pill ? _getDur(pill, audio) : 0;
+        if (!audio || !dur) return;
+        var rect = wrap.getBoundingClientRect();
+        var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        audio.currentTime = pct * dur;
+    }
+    document.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-action="post-toggle-reaction"]');
+        if (t) { toggleReaction(parseInt(t.dataset.postId), t.dataset.emoji); return; }
+        t = e.target.closest('[data-action="post-show-picker"]');
+        if (t) { showPicker(e, parseInt(t.dataset.postId)); return; }
+        t = e.target.closest('[data-action="audio-toggle"]');
+        if (t) { _audioToggle(t); return; }
+        t = e.target.closest('[data-action="audio-seek"]');
+        if (t) { _audioSeek(t, e); return; }
+    });
+})();
+</script>
+{% endblock %}

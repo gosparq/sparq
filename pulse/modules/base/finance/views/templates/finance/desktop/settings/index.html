@@ -1,0 +1,81 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Finance Settings") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ _("Finance Settings") }}</h2>
+    </div>
+
+    <!-- Horizontal Tabs for Features -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if not active_tab or active_tab == 'expenses' %}active{% endif %}"
+                    id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expenses-content"
+                    type="button" role="tab">
+                <i class="fas fa-receipt me-1"></i>{{ _("Expenses") }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'reimbursements' %}active{% endif %}"
+                    id="reimbursements-tab" data-bs-toggle="tab" data-bs-target="#reimbursements-content"
+                    type="button" role="tab">
+                <i class="fas fa-hand-holding-usd me-1"></i>{{ _("Reimbursements") }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'accounting' %}active{% endif %}"
+                    id="accounting-tab" data-bs-toggle="tab" data-bs-target="#accounting-content"
+                    type="button" role="tab">
+                <i class="fas fa-calculator me-1"></i>{{ _("Accounting") }}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Expenses Tab -->
+        <div class="tab-pane fade {% if not active_tab or active_tab == 'expenses' %}show active{% endif %}"
+             id="expenses-content" role="tabpanel">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-0">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reimbursements Tab -->
+        <div class="tab-pane fade {% if active_tab == 'reimbursements' %}show active{% endif %}"
+             id="reimbursements-content" role="tabpanel">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-0">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accounting Tab -->
+        <div class="tab-pane fade {% if active_tab == 'accounting' %}show active{% endif %}"
+             id="accounting-content" role="tabpanel">
+            <!-- Chart of Accounts Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list-ol me-2"></i>{{ _("Chart of Accounts") }}</h5>
+                    <a href="{{ url_for('finance_bp.accounts_settings') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-cog me-1"></i>{{ _("Manage Accounts") }}
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">
+                        {{ _("Manage expense categories and account codes for tax reporting.") }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

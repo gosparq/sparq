@@ -1,0 +1,88 @@
+<!-- New PTO Request Modal -->
+<div class="modal fade show" id="newPtoRequestModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{{ url_for('pto_bp.new_request') }}"
+                  hx-target="#modals"
+                  hx-swap="innerHTML"
+                  x-data="{
+                      startDate: '{{ form_data.start_date if form_data else '' }}',
+                      endDate: '{{ form_data.end_date if form_data else '' }}',
+                      get totalDays() {
+                          if (!this.startDate || !this.endDate) return 0;
+                          const start = new Date(this.startDate);
+                          const end = new Date(this.endDate);
+                          const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                          return diff > 0 ? diff : 0;
+                      }
+                  }">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-umbrella-beach me-2"></i>{{ _("Request Time Off") }}
+                    </h5>
+                    <button type="button" class="btn-close"
+                            hx-get="{{ url_for('pto_bp.clear_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML"></button>
+                </div>
+                <div class="modal-body">
+                    {% if overlap_error %}
+                    <div class="alert alert-danger mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>{{ overlap_error }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Leave Type -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="leave_type">{{ _("Type") }} <span class="text-danger">*</span></label>
+                            <select name="leave_type" id="leave_type" class="form-select" required>
+                                <option value="">{{ _("Select type...") }}</option>
+                                {% for lt in leave_types %}
+                                <option value="{{ lt.name }}" {% if form_data and form_data.leave_type == lt.name %}selected{% endif %}>{{ lt.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{{ _("Total Days") }}</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge bg-primary fs-6" x-text="totalDays + ' {{ _('days') }}'"></span>
+                            </div>
+                        </div>
+
+                        <!-- Dates -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="start_date">{{ _("Start Date") }} <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="start_date" class="form-control" required
+                                   x-model="startDate" min="{{ today }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="end_date">{{ _("End Date") }} <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="end_date" class="form-control" required
+                                   x-model="endDate" :min="startDate">
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label class="form-label" for="employee_notes">{{ _("Notes") }} <small class="text-muted">({{ _("optional") }})</small></label>
+                            <textarea name="employee_notes" id="employee_notes" class="form-control" rows="2"
+                                      placeholder="{{ _('Reason for time off request...') }}">{{ form_data.employee_notes if form_data else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            hx-get="{{ url_for('pto_bp.clear_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" name="action" value="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>{{ _("Submit Request") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

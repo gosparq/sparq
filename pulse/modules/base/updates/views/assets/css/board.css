@@ -1,0 +1,137 @@
+/* extends: base.css, desktop.css */
+/* -----------------------------------------------------------------------------
+ * sparQ - Connect Module: Board Styles
+ *
+ * Bulletin board styling. Inherits Connect module color (--color-success).
+ * -------------------------------------------------------------------------- */
+
+/* Board Header */
+.board-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+/* Post Cards */
+.board-post-card {
+    background: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.15s ease;
+}
+
+.board-post-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.board-post-card.pinned {
+    border-left: 3px solid var(--workspace-color);
+}
+
+.board-post-card .card-title {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.board-post-card .card-title a:hover {
+    color: var(--workspace-color) !important;
+}
+
+/* Featured Image */
+.board-post-image {
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.board-post-featured-image img {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+/* Post Meta */
+.board-post-meta {
+    font-size: 0.875rem;
+    color: var(--color-gray-500);
+}
+
+/* Pin Badge */
+.pin-badge {
+    background: var(--workspace-color);
+    color: white;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* Post Detail Title */
+.board-post-detail h1 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* Post Content */
+.board-post-content {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--color-gray-700);
+}
+
+.board-post-content p {
+    margin-bottom: 1rem;
+}
+
+.board-post-content h1,
+.board-post-content h2,
+.board-post-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-gray-900);
+}
+
+.board-post-content ul,
+.board-post-content ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.board-post-content a {
+    color: var(--workspace-color);
+}
+
+/* Form Styling */
+.board-post-form .form-control:focus {
+    border-color: var(--workspace-color);
+    box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.15);
+}
+
+/* Quill Editor Customization */
+.board-post-form .ql-toolbar {
+    border-radius: 0.375rem 0.375rem 0 0;
+    border-color: var(--color-gray-300);
+}
+
+.board-post-form .ql-container {
+    border-radius: 0 0 0.375rem 0.375rem;
+    border-color: var(--color-gray-300);
+    font-size: 1rem;
+}
+
+.board-post-form .ql-editor {
+    min-height: 200px;
+}
+
+.board-post-form .ql-editor.ql-blank::before {
+    color: var(--color-gray-400);
+    font-style: normal;
+}
+
+/* Empty State */
+.board-posts .text-center i {
+    color: var(--color-gray-300);
+}

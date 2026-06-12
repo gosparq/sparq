@@ -1,0 +1,197 @@
+<!-- Edit Time Entry Modal -->
+<div class="modal fade show modal-active-backdrop" id="editTimeModal" tabindex="-1"
+     data-job-id="{{ entry.job_id if entry.job else '' }}"
+     data-job-text="{% if entry.job %}#{{ entry.job.job_number }} {{ entry.job.title }}{% endif %}"
+     x-data="{
+         timeMode: '{{ 'range' if entry.timer_start and entry.timer_end else 'duration' }}',
+         selectedJobId: '',
+         selectedJobText: '',
+     }"
+     x-init="
+         selectedJobId = $el.dataset.jobId || '';
+         selectedJobText = $el.dataset.jobText || '';
+         window.selectJob = (id, text) => {
+             selectedJobId = String(id);
+             selectedJobText = text;
+             document.getElementById('edit_job_search_results').innerHTML = '';
+             document.getElementById('edit_job_search').value = '';
+         };
+     ">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('presence_bp.update_entry', entry_id=entry.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="time_mode" :value="timeMode">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>{{ _("Edit Time Entry") }}
+                    </h5>
+                    <button type="button" class="btn-close"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML"></button>
+                </div>
+                <div class="modal-body">
+                    {% if entry.status.name == 'REJECTED' and entry.rejected_reason %}
+                    <div class="alert alert-danger py-2 mb-3">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        <strong>{{ _("Rejected:") }}</strong> {{ entry.rejected_reason }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Date (read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">{{ _("Date") }}</label>
+                        <div class="form-control-plaintext form-control-sm fw-medium">{{ entry.date|format_date('long') }}</div>
+                    </div>
+
+                    <!-- Category + Time Mode Toggle + Billable -->
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-md-4">
+                            <select name="category" class="form-select form-select-sm">
+                                <option value="" {% if not entry.category or entry.category == "General" %}selected{% endif %}>{{ _("General") }}</option>
+                                {% for cat in ["Admin", "Training", "Meeting", "Break", "Travel"] %}
+                                <option value="{{ cat }}" {% if entry.category == cat %}selected{% endif %}>{{ _(cat) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-auto">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="edit_time_mode_radio" id="edit_mode_duration" value="duration"
+                                       :checked="timeMode === 'duration'"
+                                       @click="timeMode = 'duration'">
+                                <label class="btn btn-sm btn-outline-secondary" for="edit_mode_duration">{{ _("Duration") }}</label>
+                                <input type="radio" class="btn-check" name="edit_time_mode_radio" id="edit_mode_range" value="range"
+                                       :checked="timeMode === 'range'"
+                                       @click="timeMode = 'range'">
+                                <label class="btn btn-sm btn-outline-secondary" for="edit_mode_range">{{ _("Start/End Time") }}</label>
+                            </div>
+                        </div>
+
+                        <div class="col-auto">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_billable" id="edit_is_billable"
+                                       {% if entry.is_billable %}checked{% endif %}>
+                                <label class="form-check-label" for="edit_is_billable">
+                                    {{ _("Billable") }}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time inputs row -->
+                    <div class="row g-2 mb-3">
+                        <!-- Duration input -->
+                        <div class="col-md-4" x-show="timeMode === 'duration'">
+                            <label class="form-label small text-muted">{{ _("Hours") }}</label>
+                            <input type="number" name="hours" id="edit_hours_input" class="form-control form-control-sm"
+                                   step="0.25" min="0" max="24" value="{{ '%.2f'|format(entry.hours) }}"
+                                   :required="timeMode === 'duration'">
+                        </div>
+                        <!-- Range inputs -->
+                        <div x-show="timeMode === 'range'" x-cloak>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">{{ _("Start") }}</label>
+                                    <input type="text" name="start_time" id="edit_start_time" class="form-control form-control-sm" placeholder="HH:MM"
+                                           :required="timeMode === 'range'"
+                                           {% if entry.timer_start %}value="{{ entry.timer_start|format_datetime('%H:%M') }}"{% endif %}>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">{{ _("End") }}</label>
+                                    <input type="text" name="end_time" id="edit_end_time" class="form-control form-control-sm" placeholder="HH:MM"
+                                           :required="timeMode === 'range'"
+                                           {% if entry.timer_end %}value="{{ entry.timer_end|format_datetime('%H:%M') }}"{% endif %}>
+                                    <div id="edit-end-time-error" class="text-danger small mt-1 d-none">{{ _("End Time must occur after Start Time") }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Job Selection (only if Service module enabled) -->
+                    {% if service_enabled %}
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">{{ _("Job") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                        <input type="text" class="form-control form-control-sm" id="edit_job_search"
+                               placeholder="{{ _('Search jobs by number, title, or contact...') }}"
+                               hx-get="{{ url_for('presence_bp.search_jobs') }}"
+                               hx-trigger="keyup changed delay:300ms"
+                               hx-target="#edit_job_search_results"
+                               name="q"
+                               autocomplete="off"
+                               x-show="!selectedJobId">
+                        <input type="hidden" name="job_id" :value="selectedJobId">
+                        <div id="edit_job_search_results" class="mt-2"></div>
+                        <div class="mt-2" x-show="selectedJobId">
+                            <div class="alert alert-success d-flex align-items-center py-2 mb-0">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <span x-text="selectedJobText"></span>
+                                <button type="button" class="btn-close ms-auto" @click="selectedJobId = ''; selectedJobText = ''"></button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes -->
+                    <div class="mb-0">
+                        <label class="form-label small text-muted mb-1">{{ _("Notes") }}</label>
+                        <textarea name="description" class="form-control form-control-sm" rows="2"
+                                  placeholder="{{ _('Description of work performed') }}">{{ entry.description or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-check me-1"></i>{{ _("Save Changes") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+var editStartPicker = flatpickr("#edit_start_time", {
+    enableTime: true, noCalendar: true, dateFormat: "H:i",
+    altInput: true, altFormat: "h:i K",
+    time_24hr: false, minuteIncrement: 5,
+    onChange: function() { editValidateEndTime(); editCalculateHours(); }
+});
+var editEndPicker = flatpickr("#edit_end_time", {
+    enableTime: true, noCalendar: true, dateFormat: "H:i",
+    altInput: true, altFormat: "h:i K",
+    time_24hr: false, minuteIncrement: 5,
+    onChange: function() { editValidateEndTime(); editCalculateHours(); }
+});
+
+function editValidateEndTime() {
+    var errorEl = document.getElementById('edit-end-time-error');
+    if (editStartPicker.selectedDates.length > 0 && editEndPicker.selectedDates.length > 0) {
+        if (editEndPicker.selectedDates[0] <= editStartPicker.selectedDates[0]) {
+            errorEl.classList.remove('d-none');
+            editEndPicker.altInput.classList.add('is-invalid');
+        } else {
+            errorEl.classList.add('d-none');
+            editEndPicker.altInput.classList.remove('is-invalid');
+        }
+    }
+}
+
+function editCalculateHours() {
+    if (editStartPicker.selectedDates.length > 0 && editEndPicker.selectedDates.length > 0) {
+        var start = editStartPicker.selectedDates[0];
+        var end = editEndPicker.selectedDates[0];
+        var diff = (end - start) / 1000 / 3600;
+        if (diff < 0) diff += 24;
+        if (diff > 0) {
+            document.getElementById('edit_hours_input').value = diff.toFixed(2);
+        }
+    }
+}
+</script>

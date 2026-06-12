@@ -1,0 +1,19 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+<link rel="stylesheet" href="{{ url_for('presence_bp.static', filename='css/timesheets.css') }}">
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people-mobile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="team-mobile-wrapper">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{# People (Team) is a single-section module — no sub-nav.
+   Default (empty) mobile_bottom_nav block from core/mobile/base.html is kept.
+   Presence routes flow through presence/mobile/layout.html, which owns its own sub-nav. #}

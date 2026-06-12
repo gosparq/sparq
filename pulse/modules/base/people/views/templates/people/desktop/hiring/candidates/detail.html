@@ -1,0 +1,237 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ candidate.full_name }}{% endblock %}
+
+{% block module_content %}
+<div class="row g-3">
+    <!-- Left Column - Candidate Info -->
+    <div class="col-lg-4">
+        <!-- Profile Card -->
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-user me-2"></i>{{ _("Profile") }}
+                </h6>
+                <a href="{{ url_for('people_bp.hiring_candidate_edit', candidate_id=candidate.id) }}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-edit"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                <h5 class="mb-1">{{ candidate.full_name }}</h5>
+                {% if candidate.current_title %}
+                <p class="text-muted mb-2">
+                    {{ candidate.current_title }}
+                    {% if candidate.current_company %}@ {{ candidate.current_company }}{% endif %}
+                </p>
+                {% endif %}
+
+                <hr class="my-2">
+
+                <div class="small">
+                    <!-- Email -->
+                    <div class="mb-2">
+                        <i class="fas fa-envelope text-muted me-2"></i>
+                        <a href="mailto:{{ candidate.email }}">{{ candidate.email }}</a>
+                    </div>
+
+                    <!-- Phone -->
+                    {% if candidate.phone %}
+                    <div class="mb-2">
+                        <i class="fas fa-phone text-muted me-2"></i>
+                        <a href="tel:{{ candidate.phone }}">{{ candidate.phone }}</a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Location -->
+                    {% if candidate.location_display %}
+                    <div class="mb-2">
+                        <i class="fas fa-map-marker-alt text-muted me-2"></i>
+                        {{ candidate.location_display }}
+                    </div>
+                    {% endif %}
+
+                    <!-- LinkedIn -->
+                    {% if candidate.linkedin_url %}
+                    <div class="mb-2">
+                        <i class="fab fa-linkedin text-muted me-2"></i>
+                        <a href="{{ candidate.linkedin_url }}" target="_blank">LinkedIn Profile</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <hr class="my-2">
+
+                <!-- Source -->
+                <div class="small">
+                    <span class="text-muted">{{ _("Source") }}:</span>
+                    <span class="badge bg-light text-dark">{{ candidate.source.value }}</span>
+                    {% if candidate.source_detail %}
+                    <span class="text-muted">({{ candidate.source_detail }})</span>
+                    {% endif %}
+                </div>
+
+                <!-- Added -->
+                <div class="small text-muted mt-2">
+                    {{ _("Added") }}: {{ candidate.created_at|format_datetime('%b %d, %Y') }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Resume Card -->
+        {% if candidate.resume %}
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-file-pdf me-2"></i>{{ _("Resume") }}
+                </h6>
+            </div>
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="small">
+                        <i class="fas fa-paperclip text-muted me-1"></i>
+                        {{ candidate.resume.filename }}
+                        <span class="text-muted">({{ candidate.resume.size_display }})</span>
+                    </div>
+                    <a href="{{ url_for('people_bp.hiring_download_resume', candidate_id=candidate.id) }}"
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-download me-1"></i>{{ _("Download") }}
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Notes Card -->
+        {% if candidate.notes %}
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-sticky-note me-2"></i>{{ _("Notes") }}
+                </h6>
+            </div>
+            <div class="card-body small">
+                {{ candidate.notes|nl2br }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Delete -->
+        {% if not candidate.applications %}
+        <div class="card border-danger">
+            <div class="card-body py-2">
+                <form action="{{ url_for('people_bp.hiring_candidate_delete', candidate_id=candidate.id) }}"
+                      method="post"
+                      data-confirm="{{ _('Are you sure you want to delete this candidate?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                        <i class="fas fa-trash me-1"></i>{{ _("Delete Candidate") }}
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column - Applications -->
+    <div class="col-lg-8">
+        <!-- Applications List -->
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-briefcase me-2"></i>{{ _("Applications") }}
+                    {% if candidate.applications %}
+                    <span class="badge bg-secondary ms-1">{{ candidate.applications|length }}</span>
+                    {% endif %}
+                </h6>
+                {% if open_jobs %}
+                <form action="{{ url_for('people_bp.hiring_candidate_apply', candidate_id=candidate.id) }}"
+                      method="post"
+                      class="d-flex gap-2 align-items-center">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <select name="job_id" class="form-select form-select-sm" style="min-width: 180px;" required>
+                        <option value="">{{ _("Select a job...") }}</option>
+                        {% for job in open_jobs %}
+                        {% set already_applied = candidate.applications|selectattr('job_posting_id', 'equalto', job.id)|list %}
+                        <option value="{{ job.id }}" {{ 'disabled' if already_applied }}>
+                            {{ job.title }}
+                            {% if already_applied %}({{ _("already applied") }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>{{ _("Apply") }}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if candidate.applications %}
+                <div class="list-group list-group-flush">
+                    {% for app in candidate.applications %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('people_bp.hiring_application_detail', application_id=app.id) }}" class="text-decoration-none">
+                                        {{ app.job_posting.title }}
+                                    </a>
+                                </h6>
+                                <div class="small text-muted">
+                                    {% if app.job_posting.department %}{{ app.job_posting.department }} &bull; {% endif %}
+                                    {{ _("Applied") }}: {{ app.applied_at|format_datetime('%b %d, %Y') }}
+                                    <span class="mx-1">&bull;</span>
+                                    <a href="{{ url_for('people_bp.hiring_job_detail', job_id=app.job_posting.id) }}" class="text-muted text-decoration-none">
+                                        {{ _("View Job") }}
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                {% if app.status == ApplicationStatus.NEW %}
+                                <span class="badge bg-info">{{ _("New") }}</span>
+                                {% elif app.status == ApplicationStatus.SCREENING %}
+                                <span class="badge bg-warning text-dark">{{ _("Screening") }}</span>
+                                {% elif app.status == ApplicationStatus.INTERVIEWING %}
+                                <span class="badge bg-primary">{{ _("Interviewing") }}</span>
+                                {% elif app.status == ApplicationStatus.OFFER %}
+                                <span class="badge bg-success">{{ _("Offer") }}</span>
+                                {% elif app.status == ApplicationStatus.HIRED %}
+                                <span class="badge bg-success">{{ _("Hired") }}</span>
+                                {% elif app.status == ApplicationStatus.REJECTED %}
+                                <span class="badge bg-secondary">{{ _("Rejected") }}</span>
+                                {% elif app.status == ApplicationStatus.WITHDRAWN %}
+                                <span class="badge bg-secondary">{{ _("Withdrawn") }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-briefcase fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">{{ _("No applications yet") }}</p>
+                    {% if open_jobs %}
+                    <p class="text-muted small">{{ _("Use the dropdown above to apply this candidate to a job") }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock module_content %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

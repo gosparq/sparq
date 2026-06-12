@@ -1,0 +1,169 @@
+{# Mobile message partial - used for WebSocket broadcasts and HTMX loads #}
+{% if oob_swap %}
+<div id="chat-messages" hx-swap-oob="{% if replace %}innerHTML:#message-{{ message.id }}{% else %}beforeend{% endif %}" data-channel="{{ channel_name }}">
+{% endif %}
+
+{% set is_ai_message = message.content.startswith('AI_PROPOSAL::') or message.content.startswith('AI_MESSAGE::') or message.content.startswith('AI_CONTEXT_CLEAR::') %}
+{% set is_webhook = message.webhook_id is not none %}
+{% set is_github = message.content.startswith('GITHUB_HTML::') %}
+<div class="message {% if message.pinned %}pinned{% endif %} {% if is_continuation is defined and is_continuation %}continuation{% endif %}" id="message-{{ message.id }}" data-author-id="{{ message.author_id }}">
+    <span class="hover-time">{{ (message.created_at|format_datetime('%I:%M')).lstrip('0') }}</span>
+    {% if is_webhook and is_github %}
+    <div class="message-avatar avatar-github">
+        <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}">
+    </div>
+    {% else %}
+    <div class="message-avatar {% if is_ai_message %}avatar-ai{% elif is_webhook %}avatar-webhook{% elif message.author %}{% else %}avatar-fallback{% endif %}"
+         {% if message.author and not is_ai_message and not is_webhook %}style="background-color: {{ message.author.avatar_color }}"{% endif %}>
+        <i class="{% if is_ai_message %}fas fa-robot{% elif is_webhook %}fas fa-plug{% else %}fas fa-user{% endif %}"></i>
+    </div>
+    {% endif %}
+    <div class="message-body">
+        <div class="message-meta">
+            <span class="author">
+                {% if is_ai_message %}
+                    🤖 sparQy
+                {% elif is_webhook %}
+                    {{ message.webhook_username or ('GitHub' if is_github else 'Webhook') }}
+                    <span class="badge bg-secondary ms-1 badge-bot">{{ 'APP' if is_github else 'BOT' }}</span>
+                {% elif message.author %}
+                    {{ message.author.first_name }} {{ message.author.last_name }}
+                {% else %}
+                    {{ _('Unknown User') }}
+                {% endif %}
+            </span>
+            <span class="timestamp" data-bs-toggle="tooltip" title="{{ message.created_at|format_datetime('%B %d, %Y %I:%M %p') }}">
+                {{ message.created_at|timeago }}
+            </span>
+            {% if message.pinned %}
+            <span class="badge bg-warning">
+                <i class="fas fa-thumbtack"></i> {{ _('Pinned') }}
+            </span>
+            {% endif %}
+        </div>
+        <div class="message-content">
+            {% if message.content.startswith('AI_PROPOSAL::') %}
+                {% set action_id = message.content.split('::')[1]|int %}
+                {% set action = get_pending_action(action_id) %}
+                {% if action %}
+                    {% include 'ai/desktop/partials/_proposal.html' %}
+                {% else %}
+                    <span class="text-muted"><i class="fas fa-robot me-1"></i> Action no longer available</span>
+                {% endif %}
+            {% elif message.content.startswith('AI_MESSAGE::') %}
+                {{ message.content[12:] | markdown | safe }}
+            {% elif message.content.startswith('AI_CONTEXT_CLEAR::') %}
+                <span class="text-muted fst-italic"><i class="fas fa-broom me-1"></i> Context cleared</span>
+            {% elif is_github %}
+                <div class="github-webhook-mobile">
+                    {{ message.content[13:] | safe }}
+                </div>
+            {% else %}
+                {{ message.formatted_content }}
+            {% endif %}
+        </div>
+        {% set attachment_links = AttachmentLink.get_for_entity('chat_message', message.id) if AttachmentLink else [] %}
+        {% if attachment_links %}
+        <div class="message-attachments">
+            {% for link in attachment_links %}
+            {% set att = link.attachment %}
+            <div class="attachment-item">
+                {% if att.mime_type.startswith('image/') %}
+                <div class="attachment-image-wrapper">
+                    <a href="#" class="attachment-image"
+                       data-action="open-image-lightbox"
+                       data-src="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}"
+                       data-filename="{{ att.filename }}"
+                       data-sender-name="{% if is_ai_message %}sparQy{% elif message.author %}{{ message.author.first_name }} {{ message.author.last_name }}{% else %}{{ _('Unknown User') }}{% endif %}"
+                       data-avatar-color="{% if is_ai_message %}#6366f1{% elif message.author %}{{ message.author.avatar_color }}{% else %}#ccc{% endif %}"
+                       data-relative-time="{{ message.created_at|timeago }}"
+                       data-channel-name="{{ channel_name|default('general', true) }}"
+                       data-is-ai="{{ 'true' if is_ai_message else 'false' }}">
+                        <img src="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" alt="{{ att.filename }}" class="attachment-thumb-msg">
+                    </a>
+                    <div class="attachment-overlay">
+                        <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}?download=1" class="overlay-btn" title="{{ _('Download') }}" download="{{ att.filename }}">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" target="_blank" class="overlay-btn" title="{{ _('Open in new tab') }}">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" class="attachment-doc" target="_blank">
+                    <i class="fas fa-file"></i>
+                    <span class="attachment-name">{{ att.filename }}</span>
+                    <span class="attachment-size">{{ att.size_display }}</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% set reactions = UpdatePostReaction.get_for_message(message.id) if UpdatePostReaction else {} %}
+        {% if reactions %}
+        <div class="message-reactions" id="reactions-{{ message.id }}">
+            {% for emoji, data in reactions.items() %}
+            <button class="reaction-badge {% if current_user.id in data.user_ids %}user-reacted{% endif %}"
+                    data-action="toggle-reaction" data-message-id="{{ message.id }}" data-emoji="{{ emoji }}"
+                    title="{{ data.users|join(', ') }}">
+                <span class="reaction-emoji">{{ emoji }}</span>
+                <span class="reaction-count">{{ data.count }}</span>
+            </button>
+            {% endfor %}
+            <button class="reaction-add-btn" data-action="show-reaction-picker" data-message-id="{{ message.id }}" title="{{ _('Add reaction') }}">
+                <i class="far fa-smile"></i>
+            </button>
+        </div>
+        {% endif %}
+        {% set show_ten_four = not is_ai_message and UpdatePostAck is defined and UpdatePostAck and channel is defined and channel and ((channel.require_ten_four and not is_webhook) or (is_webhook and message.webhook and message.webhook.enable_ten_four)) %}
+        {% if show_ten_four %}
+        {% set ack_data = UpdatePostAck.get_for_message(message.id, current_member_id) %}
+        <div class="ten4-inline" id="ten4-{{ message.id }}" data-message-id="{{ message.id }}">
+            {% for m in ack_data.acked %}
+            <span class="ten4-check-item acked" title="{{ m.name }}">✓ {{ m.initials }}</span>
+            {% endfor %}
+            {% for m in ack_data.pending %}
+            <span class="ten4-check-item pending" title="{{ m.name }}">· {{ m.initials }}</span>
+            {% endfor %}
+            {% if not ack_data.current_user_acked and (oob_swap is defined and oob_swap or (current_member_id and message.member_id != current_member_id)) %}
+            <button class="ten4-inline-btn"
+                    data-action="toggle-ten-four" data-message-id="{{ message.id }}"
+                    data-author-member-id="{{ message.member_id }}">
+                10-4
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="message-actions">
+            <button class="btn btn-sm btn-link action-btn"
+                    data-action="show-reaction-picker" data-message-id="{{ message.id }}"
+                    title="{{ _('Add reaction') }}">
+                <i class="far fa-smile"></i>
+            </button>
+            {% if not is_webhook and (current_user.is_admin or message.is_author) %}
+            <button class="btn btn-sm btn-link action-btn"
+                    hx-post="{{ url_for('sync_bp.toggle_pin', message_id=message.id) }}"
+                    hx-swap="none"
+                    title="{{ _('Unpin') if message.pinned else _('Pin') }}">
+                <i class="fas fa-thumbtack {% if message.pinned %}text-warning{% endif %}"></i>
+            </button>
+            {% endif %}
+            {% if current_user.is_admin %}
+            <button class="btn btn-sm btn-link action-btn"
+                    hx-delete="{{ url_for('sync_bp.delete_message', message_id=message.id) }}"
+                    hx-confirm="{{ _('Are you sure you want to delete this message?') }}"
+                    hx-target="#message-{{ message.id }}"
+                    hx-swap="outerHTML"
+                    title="{{ _('Delete') }}">
+                <i class="fas fa-trash"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if oob_swap %}
+</div>
+{% endif %}

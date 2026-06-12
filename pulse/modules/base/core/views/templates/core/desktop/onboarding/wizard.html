@@ -1,0 +1,253 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}Welcome to sparQ{% endblock %}
+
+{% block additional_styles %}
+<style>
+/* Wider card for onboarding */
+.auth-container {
+    max-width: 520px;
+}
+
+/* Wizard Steps */
+.wizard-steps {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.wizard-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--auth-border);
+    transition: all 0.2s;
+}
+
+.wizard-dot.active {
+    background: var(--auth-primary);
+    transform: scale(1.2);
+}
+
+.wizard-dot.completed {
+    background: #22c55e;
+}
+
+/* Panels */
+.wizard-panel {
+    display: none;
+}
+
+.wizard-panel.active {
+    display: block;
+    animation: authFadeIn 0.3s ease-out;
+}
+
+.step-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--auth-text);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.step-title i {
+    color: var(--auth-primary);
+}
+
+/* Color Swatches */
+.color-swatches {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 0.5rem;
+    justify-items: center;
+}
+
+.color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: border-color 0.15s, transform 0.15s;
+}
+.color-swatch:hover {
+    transform: scale(1.1);
+}
+.color-swatch.active {
+    border-color: var(--auth-text);
+    box-shadow: 0 0 0 2px var(--auth-card-bg);
+}
+
+/* Actions */
+.wizard-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--auth-border);
+}
+
+.skip-link {
+    color: var(--auth-text-secondary);
+    text-decoration: none;
+    font-size: 0.8125rem;
+}
+
+.skip-link:hover {
+    color: var(--auth-text);
+    text-decoration: underline;
+}
+</style>
+{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container" x-data="onboardingWizard()">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        <h2>Welcome to sparQ</h2>
+        <p class="text-muted small mb-3 text-center">Let's get your account set up in just a few steps</p>
+
+        <!-- Progress Dots -->
+        <div class="wizard-steps">
+            <div class="wizard-dot" :class="{ 'active': step === 1, 'completed': step > 1 }"></div>
+            <div class="wizard-dot" :class="{ 'active': step === 2, 'completed': step > 2 }"></div>
+            <div class="wizard-dot" :class="{ 'active': step === 3 }"></div>
+        </div>
+
+        <form method="POST" action="{{ url_for('core_bp.onboarding_submit') }}" @submit="validateForm($event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <!-- Step 1: Workspace Name & Color -->
+            <div class="wizard-panel" :class="{ 'active': step === 1 }">
+                <div class="step-title">
+                    <i class="fas fa-users"></i> Name Your Workspace
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Workspace Name</label>
+                    <input type="text" name="company_name" class="form-control"
+                           x-model="data.company_name"
+                           placeholder="My Workspace">
+                    <small class="text-muted">You can always change this later in settings</small>
+                </div>
+
+                <input type="hidden" name="color" :value="data.color">
+                <label class="form-label">Color</label>
+                <div class="color-swatches">
+                    {% for name, hex in workspace_colors.items() %}
+                    <button type="button"
+                            class="color-swatch"
+                            :class="{ 'active': data.color === '{{ name }}' }"
+                            style="background: {{ hex }}"
+                            @click="data.color = '{{ name }}'"
+                            title="{{ name|capitalize }}"></button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Step 2: Timezone -->
+            <div class="wizard-panel" :class="{ 'active': step === 2 }">
+                <div class="step-title">
+                    <i class="fas fa-clock"></i> Select Your Timezone
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Timezone</label>
+                    <select name="timezone" class="form-control" x-model="data.timezone">
+                        <option value="America/New_York">Eastern Time (ET)</option>
+                        <option value="America/Chicago">Central Time (CT)</option>
+                        <option value="America/Denver">Mountain Time (MT)</option>
+                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                        <option value="America/Phoenix">Arizona (no DST)</option>
+                        <option value="Pacific/Honolulu">Hawaii</option>
+                        <option value="America/Anchorage">Alaska</option>
+                        <option value="UTC">UTC</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Step 3: Language -->
+            <div class="wizard-panel" :class="{ 'active': step === 3 }">
+                <div class="step-title">
+                    <i class="fas fa-language"></i> Language Preference
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Language</label>
+                    <select name="default_language" class="form-control" x-model="data.default_language">
+                        {% for lang in available_languages %}
+                        <option value="{{ lang.code }}">{{ lang.name }}{% if lang.is_builtin %} (Built-in){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="alert alert-success mt-3 text-sm">
+                    <i class="fas fa-check-circle me-2"></i>
+                    You're all set! Click "Complete Setup" to get started.
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="wizard-actions">
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="prevStep()" x-show="step > 1">
+                        <i class="fas fa-arrow-left me-1"></i> Back
+                    </button>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <form action="{{ url_for('core_bp.onboarding_skip') }}" method="POST" class="d-inline" x-show="step < 3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="skip-link btn btn-link">Skip for now</button>
+                    </form>
+
+                    <button type="button" class="btn btn-primary" @click="nextStep()" x-show="step < 3">
+                        Continue <i class="fas fa-arrow-right ms-1"></i>
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" x-show="step === 3">
+                        <i class="fas fa-check me-1"></i> Complete Setup
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Alpine.js wizard functionality (Alpine loaded by base-auth.html) -->
+<script nonce="{{ csp_nonce }}">
+function onboardingWizard() {
+    return {
+        step: 1,
+        data: {
+            company_name: {{ (settings.company_name or "")|tojson }},
+            color: 'violet',
+            timezone: {{ (settings.timezone or "America/Chicago")|tojson }},
+            default_language: {{ (settings.default_language or "en")|tojson }}
+        },
+        nextStep() {
+            if (this.step < 3) {
+                this.step++;
+            }
+        },
+        prevStep() {
+            if (this.step > 1) {
+                this.step--;
+            }
+        },
+        validateForm(event) {
+            return true;
+        }
+    }
+}
+</script>
+{% endblock auth_content %}

@@ -1,0 +1,82 @@
+<style>
+.fc-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.4rem;
+    border-radius: var(--radius-md, 0.5rem);
+    border: 1px solid var(--color-gray-200);
+    min-width: 4.5rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--color-gray-50, #f9fafb);
+    text-decoration: none;
+    color: inherit;
+    user-select: none;
+}
+.fc-pill:hover { border-color: var(--color-primary); background: #fff; }
+.fc-pill.fc-past { opacity: 0.45; cursor: default; pointer-events: none; }
+.fc-pill.fc-today { border-color: var(--color-primary); }
+
+.fc-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--color-gray-300);
+    display: inline-block;
+}
+.fc-dot[data-status="in"]     { background: var(--color-success, #16a34a); }
+.fc-dot[data-status="out"]    { background: var(--color-gray-400, #9ca3af); }
+.fc-dot[data-status="remote"] { background: #2563eb; }
+.fc-dot[data-status="pto"]    { background: #d97706; }
+</style>
+
+{% set today = today if today is defined else none %}
+<div class="d-flex flex-wrap gap-2">
+{% for d in forecast_dates %}
+    {% set fc = my_forecasts.get(d) %}
+    {% set is_past = today and d < today %}
+    {% set is_today = today and d == today %}
+    {% if is_past %}
+    <div class="fc-pill fc-past {% if is_today %}fc-today{% endif %}">
+    {% else %}
+    <div class="fc-pill {% if is_today %}fc-today{% endif %}"
+         hx-get="{{ url_for('clock_bp.forecast_day', date_str=d.isoformat()) }}"
+         hx-target="#modals"
+         hx-swap="innerHTML">
+    {% endif %}
+        <span class="fw-semibold text-uppercase text-2xs" style="color:var(--color-gray-500); letter-spacing:0.03em">{{ d.strftime("%a") }}</span>
+        <span class="text-2xs" style="color:var(--color-gray-400)">{{ d.strftime("%-m/%-d") }}</span>
+        {% if fc %}
+        {% if fc.available_from and fc.available_until %}
+        <span class="text-3xs" style="color:var(--color-gray-400)">{{ fc.available_from.strftime("%-I%p").lower().replace("m","") }}–{{ fc.available_until.strftime("%-I%p").lower().replace("m","") }}</span>
+        {% endif %}
+        <span class="fc-dot" data-status="{{ fc.status }}"></span>
+        <span class="fw-semibold text-3xs" style="color:var(--color-gray-700)">
+            {% if fc.status == "in" %}{{ _("In") }}
+            {% elif fc.status == "out" %}{{ _("Out") }}
+            {% elif fc.status == "remote" %}{{ _("Remote") }}
+            {% elif fc.status == "pto" %}{{ _("PTO") }}
+            {% endif %}
+        </span>
+        {% elif weekly_schedule is defined and weekly_schedule.get(d.weekday()) %}
+        {% set sched = weekly_schedule[d.weekday()] %}
+        <span class="text-3xs" style="color:var(--color-gray-400)">{{ sched.start_time.strftime("%-I%p").lower().replace("m","") }}–{{ sched.end_time.strftime("%-I%p").lower().replace("m","") }}</span>
+        {% if sched.default_status %}
+        <span class="fc-dot" data-status="{{ sched.default_status }}"></span>
+        <span class="fw-semibold text-3xs" style="color:var(--color-gray-500)">
+            {% if sched.default_status == "in" %}{{ _("In") }}
+            {% elif sched.default_status == "remote" %}{{ _("Remote") }}
+            {% endif %}
+        </span>
+        {% else %}
+        <span class="fc-dot"></span>
+        <span class="text-3xs" style="color:var(--color-gray-300)">–</span>
+        {% endif %}
+        {% else %}
+        <span class="fc-dot"></span>
+        <span class="text-3xs" style="color:var(--color-gray-300)">–</span>
+        {% endif %}
+    </div>
+{% endfor %}
+</div>

@@ -1,0 +1,318 @@
+/* ============================================
+   Calendar — Mobile styles
+   Loaded by: updates/mobile/calendar/index.html
+   ============================================ */
+
+.calendar-app .tt-mobile-wrapper { padding: 0; height: 100%; }
+
+.mobile-calendar-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── Header ── */
+.mobile-cal-header {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 1rem 0.375rem;
+    background: var(--color-white);
+    border-bottom: 1px solid var(--color-gray-200);
+    flex-shrink: 0;
+    gap: 0.375rem;
+}
+.mobile-cal-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.mobile-cal-header-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.mobile-cal-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.mobile-cal-nav button {
+    width: 32px; height: 32px;
+    border: none;
+    background: var(--color-gray-100);
+    border-radius: 0.375rem;
+    color: var(--color-gray-600);
+    display: flex; align-items: center; justify-content: center;
+}
+.mobile-cal-nav button:active { background: var(--color-gray-200); }
+.mobile-cal-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+.mobile-cal-today {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--color-gray-300);
+    background: var(--color-white);
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-gray-700);
+}
+.mobile-cal-today:active { background: var(--color-gray-100); }
+.mobile-view-toggle {
+    display: flex;
+    background: var(--color-gray-100);
+    border-radius: 0.5rem;
+    padding: 0.125rem;
+}
+.mobile-view-toggle button {
+    padding: 0.25rem 0.625rem;
+    border: none; background: none;
+    border-radius: 0.375rem;
+    font-size: 0.75rem; font-weight: 500;
+    color: var(--color-gray-500);
+}
+.mobile-view-toggle button.active {
+    background: var(--color-white);
+    color: var(--color-gray-900);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* ── Shared ── */
+.mobile-cal-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+/* ── Month View ── */
+.mobile-month-grid { width: 100%; }
+.mobile-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.6875rem; font-weight: 600;
+    color: var(--color-gray-500);
+    padding-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+.mobile-cal-weeks { display: flex; flex-direction: column; }
+.mobile-cal-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    min-height: 52px;
+    border-bottom: 1px solid var(--color-gray-100);
+}
+.mobile-cal-week:last-child { border-bottom: none; }
+.mobile-cal-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.375rem 0;
+    cursor: pointer;
+}
+.mobile-cal-day:active { background: var(--color-gray-50); border-radius: 0.25rem; }
+.mobile-cal-day.other-month .day-num { color: var(--color-gray-300); }
+.mobile-cal-day .day-num {
+    font-size: 0.8125rem; font-weight: 500;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+}
+.mobile-cal-day.today .day-num {
+    background: var(--workspace-color, var(--color-primary));
+    color: white;
+}
+.mobile-cal-day-dots {
+    display: flex;
+    gap: 3px;
+    margin-top: 3px;
+}
+.mobile-cal-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+}
+.mobile-cal-dot--event { background: var(--workspace-color, var(--color-primary)); }
+.mobile-cal-dot--ai { background: var(--color-warning); }
+
+/* ── Week View (agenda-style) ── */
+.mobile-week-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.mobile-week-agenda-day {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+.mobile-week-agenda-day.today {
+    border-color: var(--workspace-color, var(--color-primary));
+    border-width: 2px;
+}
+.mobile-week-agenda-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-gray-50);
+    border-bottom: 1px solid var(--color-gray-100);
+}
+.mobile-week-agenda-dayname {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    min-width: 28px;
+}
+.mobile-week-agenda-daynum {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+}
+.mobile-week-agenda-day.today .mobile-week-agenda-daynum {
+    color: var(--workspace-color, var(--color-primary));
+}
+.mobile-week-agenda-count {
+    font-size: 0.6875rem;
+    color: var(--color-gray-400);
+    margin-left: auto;
+}
+.mobile-week-agenda-items {
+    padding: 0.25rem 0;
+}
+.mobile-week-agenda-event {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+.mobile-week-agenda-event:active { background: var(--color-gray-50); }
+.mobile-week-event-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.mobile-week-event-dot--event { background: var(--workspace-color, var(--color-primary)); }
+.mobile-week-event-dot--ai { background: var(--color-warning); }
+.mobile-week-event-info { flex: 1; min-width: 0; }
+.mobile-week-event-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-gray-800);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mobile-week-event-meta {
+    font-size: 0.6875rem;
+    color: var(--color-gray-500);
+}
+.mobile-week-empty {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    color: var(--color-gray-400);
+    font-style: italic;
+}
+
+/* Spanning bars (PTO) */
+.mobile-cal-spanning {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+.mobile-cal-spanning-bar {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    background: var(--color-info-light); color: var(--color-info-dark);
+    text-decoration: none;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.mobile-cal-spanning-bar.cal-pto { background: var(--color-info-light); color: var(--color-info-dark); }
+.mobile-cal-spanning-bar.cal-leave { background: var(--color-warning-light); color: var(--color-warning-dark); }
+
+/* ── Day View ── */
+.mobile-day-view { height: 100%; overflow-y: auto; }
+.mobile-day-header {
+    text-align: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+.mobile-day-header .day-name { font-size: 0.875rem; color: var(--color-gray-500); }
+.mobile-day-header .day-num { font-size: 2rem; font-weight: 700; color: var(--color-gray-900); }
+.mobile-day-banners {
+    padding: 0.5rem 1rem 0;
+    display: flex; flex-direction: column; gap: 0.375rem;
+}
+.mobile-day-banner {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    font-size: 0.8125rem; font-weight: 500;
+}
+.mobile-day-banner.cal-pto { background: var(--color-info-light); color: var(--color-info-dark); }
+.mobile-day-banner.cal-leave { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.mobile-day-banner-dates { font-size: 0.7rem; font-weight: 400; opacity: 0.7; }
+.mobile-day-events { padding: 1rem; }
+.mobile-day-event {
+    background: var(--color-primary-lightest);
+    border-left: 3px solid var(--workspace-color, var(--color-primary));
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+}
+.mobile-day-event-time {
+    font-size: 0.75rem; font-weight: 600;
+    color: var(--workspace-color, var(--color-primary));
+}
+.mobile-day-event-title {
+    font-size: 0.9375rem; font-weight: 500;
+    color: var(--color-gray-900);
+}
+.mobile-day-event-location {
+    font-size: 0.75rem; color: var(--color-gray-500); margin-top: 2px;
+}
+.mobile-day-ai-card {
+    background: var(--color-warning-light);
+    border-left: 3px solid var(--color-warning);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    display: block; color: inherit;
+}
+.mobile-day-ai-card:active { opacity: 0.7; }
+.mobile-day-ai-label { font-size: 0.7rem; font-weight: 600; color: var(--color-warning-dark, #92400e); }
+.mobile-day-ai-title { font-size: 0.9375rem; font-weight: 500; color: var(--color-gray-900); }
+.mobile-day-ai-assignee { font-size: 0.75rem; color: var(--color-gray-500); margin-top: 2px; }
+.mobile-day-no-events { text-align: center; padding: 2rem; color: var(--color-gray-400); }
+
+/* ── Dark mode ── */
+body.dark .mobile-cal-header { background: #1c1c1e; border-bottom-color: #2a2a2c; }
+body.dark .mobile-cal-title { color: #f3f4f6; }
+body.dark .mobile-cal-today { background: #2a2a2c; border-color: #3a3a3c; color: #d1d5db; }
+body.dark .mobile-cal-nav button { background: #2a2a2c; color: #9ca3af; }
+body.dark .mobile-view-toggle { background: #2a2a2c; }
+body.dark .mobile-view-toggle button { color: #9ca3af; }
+body.dark .mobile-view-toggle button.active { background: #3a3a3c; color: #f3f4f6; }
+body.dark .mobile-cal-week { border-bottom-color: #2a2a2c; }
+body.dark .mobile-cal-day:active { background: #232323; }
+body.dark .mobile-week-agenda-day { background: #1c1c1e; border-color: #2a2a2c; }
+body.dark .mobile-week-agenda-header { background: #232323; border-bottom-color: #2a2a2c; }
+body.dark .mobile-week-agenda-daynum { color: #e5e7eb; }
+body.dark .mobile-week-event-title { color: #e5e7eb; }
+body.dark .mobile-week-agenda-event:active { background: #232323; }
+body.dark .mobile-day-header { border-bottom-color: #2a2a2c; }
+body.dark .mobile-day-header .day-num { color: #f3f4f6; }
+body.dark .mobile-day-event-title { color: #e5e7eb; }
+body.dark .mobile-day-ai-title { color: #e5e7eb; }
+body.dark .mobile-cal-spanning-bar.cal-pto { background: #1e3a5f; color: #93c5fd; }
+body.dark .mobile-day-banner.cal-pto { background: #1e3a5f; color: #93c5fd; }

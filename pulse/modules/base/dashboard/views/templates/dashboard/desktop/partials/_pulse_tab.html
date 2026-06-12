@@ -1,0 +1,128 @@
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex gap-1">
+            {% set periods = [("daily", _("Today")), ("weekly", _("Last Week")), ("monthly", _("Last Month")), ("quarterly", _("Last 90 Days"))] %}
+            {% if pulse_period_url is defined %}
+            {% for val, label in periods %}
+            <button hx-get="{{ pulse_period_url }}?period={{ val }}"
+                    hx-target="#pulse-content" hx-swap="innerHTML"
+                    class="btn btn-sm rounded-pill {% if period == val %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ label }}
+            </button>
+            {% endfor %}
+            {% else %}
+            {% for val, label in periods %}
+            <a href="?period={{ val }}"
+               class="btn btn-sm rounded-pill {% if period == val %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ label }}
+            </a>
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Summary Panel ── #}
+    <div class="pulse-summary mb-4">
+        <div class="pulse-summary-totals pulse-grid-{{ 1 + template_groups|length }}">
+            <div class="pulse-summary-stat">
+                <div class="pulse-summary-stat-label">{{ _("Overall") }}</div>
+                <div class="pulse-summary-stat-value">
+                    {% if team_overall_pct is not none %}{{ team_overall_pct }}%{% else %}&mdash;{% endif %}
+                </div>
+            </div>
+            {% for grp in template_groups %}
+            <div class="pulse-summary-stat">
+                <div class="pulse-summary-stat-label">{{ _(grp.label) }}</div>
+                <div class="pulse-summary-stat-value">
+                    {% if team_templates[grp.id] is defined and team_templates[grp.id].pct is not none %}
+                        {{ team_templates[grp.id].pct }}%
+                    {% else %}&mdash;{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% if team_on_time_pct is defined and team_on_time_pct is not none %}
+            <div class="pulse-summary-stat">
+                <div class="pulse-summary-stat-label">{{ _("On Time") }}</div>
+                <div class="pulse-summary-stat-value">{{ team_on_time_pct }}%</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Per-Person List ── #}
+    {% if people %}
+    <div class="d-flex align-items-center gap-3 pb-2 mb-1 pulse-header-border">
+        <div class="pulse-col-avatar"></div>
+        <div class="pulse-col-name">
+            <span class="pulse-col-header">{{ _("Team Member") }}</span>
+        </div>
+        {% for grp in template_groups %}
+        <div class="pulse-col-stat">
+            <span class="pulse-col-header">{{ _(grp.label) }}</span>
+        </div>
+        {% endfor %}
+        <div class="pulse-col-chevron"></div>
+    </div>
+
+    {% for row in people %}
+    <a href="{{ url_for('updates_bp.pulse_detail', member_id=row.member.id, period=period) }}"
+       class="pulse-member-row">
+        <div class="pulse-col-avatar">
+            {% if row.member.user %}
+            {% set av_color = row.member.user.avatar_color|default('#6b7280') %}
+            <span class="avatar-circle pulse-avatar-sm pulse-avatar" data-color="{{ av_color }}">
+                {{ row.member.user.first_name[0]|upper }}{{ row.member.user.last_name[0]|upper }}
+            </span>
+            {% else %}
+            <span class="avatar-circle pulse-avatar-sm pulse-avatar">
+                <i class="fas fa-user pulse-avatar-fallback-icon"></i>
+            </span>
+            {% endif %}
+        </div>
+        <div class="pulse-col-name">
+            <span class="pulse-text-primary">
+                {{ row.member.user.full_name if row.member.user else _("Unknown") }}
+            </span>
+            {% if row.get("pulse_exempt") %}<span class="badge text-bg-secondary ms-2 fw-normal">{{ _("Exempt") }}</span>{% endif %}
+        </div>
+        {% for grp in template_groups %}
+        <div class="pulse-col-stat">
+            {% set t_stats = row.templates[grp.id] if row.templates is defined and grp.id in row.templates else none %}
+            {% if t_stats is not none and t_stats.pct is not none %}
+            {% set pct_tier = 'success' if t_stats.pct >= 80 else ('warning' if t_stats.pct >= 50 else 'danger') %}
+            <div class="d-flex align-items-center gap-2 justify-content-end">
+                <div class="progress pulse-progress">
+                    <div class="progress-bar pulse-bar-{{ pct_tier }}" data-width="{{ t_stats.pct }}"></div>
+                </div>
+                <span class="pulse-pct pulse-pct-{{ pct_tier }}">{{ t_stats.pct }}%</span>
+            </div>
+            {% else %}
+            <span class="pulse-text-muted">&mdash;</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <div class="pulse-col-chevron">
+            <i class="fas fa-chevron-right pulse-chevron-icon"></i>
+        </div>
+    </a>
+    {% endfor %}
+
+    {% else %}
+    <div class="text-center py-5 pulse-empty">
+        <i class="fas fa-chart-line fa-2x mb-3 d-block pulse-empty-icon"></i>
+        <p class="mb-0 pulse-empty-text">{{ _("No pulse data yet. Nudge completion tracking begins once nudges are sent.") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    document.querySelectorAll('.pulse-avatar[data-color]').forEach(function(el) {
+        el.style.setProperty('--avatar-bg', el.dataset.color);
+    });
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function(el) {
+        el.style.width = el.dataset.width + '%';
+    });
+})();
+</script>

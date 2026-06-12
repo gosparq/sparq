@@ -1,0 +1,403 @@
+{% extends "core/desktop/base-public.html" %}
+
+{% block title %}{{ _("Onboarding") }} - {{ settings.company_name or 'sparQ' }}{% endblock %}
+
+{% block additional_styles %}
+<style>
+    :root {
+        --primary-color: #6366f1;
+        --primary-dark: #4f46e5;
+        --success-color: #10b981;
+        --bg-color: #f3f4f6;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        min-height: 100vh;
+    }
+
+    .onboarding-header {
+        background: linear-gradient(135deg, #1a365d 0%, #2d3748 100%);
+        color: white;
+        padding: 1.5rem 0;
+        margin-bottom: 2rem;
+    }
+
+    .onboarding-header h1 {
+        font-size: 1.5rem;
+        margin: 0;
+    }
+
+    .onboarding-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 1rem 2rem;
+    }
+
+    .wizard-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .wizard-card-header {
+        background: #f8fafc;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .wizard-card-body {
+        padding: 0;
+    }
+
+    .progress-section {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .wizard-layout {
+        display: flex;
+        min-height: 500px;
+    }
+
+    .task-sidebar {
+        width: 320px;
+        border-right: 1px solid #e5e7eb;
+        background: #fafafa;
+        flex-shrink: 0;
+    }
+
+    .task-content {
+        flex-grow: 1;
+        padding: 2rem;
+        background: white;
+    }
+
+    .task-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .task-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .task-item:hover {
+        background: #f0f0f0;
+    }
+
+    .task-item.current {
+        background: #eef2ff;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .task-item.completed .task-icon {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .task-item.skipped .task-icon {
+        background: #9ca3af;
+        color: white;
+    }
+
+    .task-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        background: #e5e7eb;
+        color: #6b7280;
+        font-size: var(--font-size-base);
+        font-weight: 600;
+    }
+
+    .task-item.current .task-icon {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .task-info {
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    .task-label {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .task-description {
+        font-size: 0.8rem;
+        color: #6b7280;
+        line-height: 1.4;
+    }
+
+    .task-badge {
+        flex-shrink: 0;
+        margin-left: 0.5rem;
+    }
+
+    .submit-section {
+        padding: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        background: #fafafa;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        border-color: var(--primary-dark);
+    }
+
+    .step-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .step-header h4 {
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .step-header p {
+        color: #6b7280;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Header -->
+    <div class="onboarding-header">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between">
+                <h1><i class="fas fa-user-plus me-2"></i>{{ settings.company_name or 'Company' }} - {{ _("Onboarding") }}</h1>
+                <div class="text-white-50">
+                    <i class="fas fa-user me-1"></i>{{ record.full_name }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="onboarding-container">
+        {% if record.status.value == 'Pending Review' %}
+        <!-- Pending Review State -->
+        <div class="wizard-card">
+            <div class="wizard-card-body" style="padding: 3rem;">
+                <div class="text-center">
+                    <div class="d-flex align-items-center" style="width: 100px; height: 100px; background: #fef3c7; border-radius: 50%; justify-content: center; margin: 0 auto 1.5rem">
+                        <i class="fas fa-clock text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <h2 class="h3 mb-3">{{ _("Pending Review") }}</h2>
+                    <p class="text-muted mb-4" style="max-width: 500px; margin: 0 auto;">
+                        {{ _("Your onboarding has been submitted and is waiting for administrator approval. You'll receive an email once it's approved with a link to log in.") }}
+                    </p>
+
+                    <div style="background: #f3f4f6; border-radius: 8px; padding: 1.5rem; max-width: 400px; margin: 2rem auto;">
+                        <h6 class="mb-3"><i class="fas fa-list-check me-2"></i>{{ _("What happens next?") }}</h6>
+                        <ul class="text-start text-muted small mb-0" style="padding-left: 1.25rem;">
+                            <li class="mb-2">{{ _("Your administrator will review your submitted information") }}</li>
+                            <li class="mb-2">{{ _("Once approved, you'll receive a welcome email") }}</li>
+                            <li>{{ _("You'll receive a login link to access the system") }}</li>
+                        </ul>
+                    </div>
+
+                    <p class="text-muted small mt-4">
+                        <i class="fas fa-envelope me-1"></i>{{ _("Check your email at") }} <strong>{{ record.personal_email }}</strong> {{ _("for updates.") }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Active Onboarding State -->
+        <div class="wizard-card">
+            <!-- Welcome Header -->
+            <div class="wizard-card-header">
+                <h2 class="h4 mb-1">{{ _("Welcome to the team!") }}</h2>
+                <p class="text-muted mb-0">{{ _("Complete the tasks below to finish your onboarding. All required items must be completed before you can access the system.") }}</p>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-section">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold">{{ _("Progress") }}</span>
+                    <span id="progress-text" class="fw-bold">{{ record.progress_percent }}%</span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div id="progress-bar" class="progress-bar {% if record.progress_percent == 100 %}bg-success{% endif %}"
+                         role="progressbar" style="width: {{ record.progress_percent }}%"></div>
+                </div>
+            </div>
+
+            <div class="wizard-card-body">
+                <div class="wizard-layout">
+                    <!-- Task List Sidebar -->
+                    <div class="task-sidebar">
+                        <ul class="task-list" id="task-list">
+                            {% for task in tasks %}
+                            <li class="task-item {% if task.status.value == 'Completed' %}completed{% elif task.status.value == 'Skipped' %}skipped{% elif current_task and task.id == current_task.id %}current{% endif %}"
+                                data-task-key="{{ task.task_key }}"
+                                data-action="show-task" data-task-key="{{ task.task_key }}">
+                                <div class="task-icon">
+                                    {% if task.status.value == 'Completed' %}
+                                    <i class="fas fa-check"></i>
+                                    {% elif task.status.value == 'Skipped' %}
+                                    <i class="fas fa-minus"></i>
+                                    {% elif current_task and task.id == current_task.id %}
+                                    <i class="fas fa-arrow-right"></i>
+                                    {% else %}
+                                    {{ loop.index }}
+                                    {% endif %}
+                                </div>
+                                <div class="task-info">
+                                    <div class="task-label">
+                                        {{ task.label }}
+                                        {% if task.required %}
+                                        <span class="badge bg-danger text-3xs" style="vertical-align: middle">{{ _("Required") }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="task-description">{{ task.description }}</div>
+                                </div>
+                                {% if task.status.value == 'Completed' %}
+                                <span class="task-badge badge bg-success">{{ _("Done") }}</span>
+                                {% elif task.status.value == 'Skipped' %}
+                                <span class="task-badge badge bg-secondary">{{ _("Skipped") }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Submit Button -->
+                        <div class="submit-section">
+                            <form action="{{ url_for('people_bp.onboarding_submit') }}" method="POST" id="submit-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-success w-100"
+                                        {% if not record.required_tasks_complete %}disabled{% endif %}
+                                        id="submit-btn">
+                                    <i class="fas fa-paper-plane me-2"></i>{{ _("Submit for Review") }}
+                                </button>
+                            </form>
+                            {% if not record.required_tasks_complete %}
+                            <p class="text-muted small mt-2 mb-0 text-center">
+                                {{ _("Complete all required tasks to submit.") }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Task Content -->
+                    <div class="task-content" id="step-content">
+                        {% if current_task %}
+                            {% if current_task.task_key == 'personal_info' %}
+                                {% include 'people/desktop/onboarding/_step_personal_info.html' %}
+                            {% elif current_task.task_key == 'emergency_contact' %}
+                                {% include 'people/desktop/onboarding/_step_emergency_contact.html' %}
+                            {% elif current_task.task_key in ['w4', 'w9'] %}
+                                {% include 'people/desktop/onboarding/_step_tax_form.html' %}
+                            {% elif current_task.task_key in ['offer_letter', 'contract'] %}
+                                {% include 'people/desktop/onboarding/_step_document.html' %}
+                            {% elif current_task.task_key == 'direct_deposit' %}
+                                {% include 'people/desktop/onboarding/_step_direct_deposit.html' %}
+                            {% else %}
+                                {% include 'people/desktop/onboarding/_step_generic.html' %}
+                            {% endif %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                                <h4>{{ _("All tasks completed!") }}</h4>
+                                <p class="text-muted">{{ _("Click 'Submit for Review' to complete your onboarding.") }}</p>
+                                <p class="text-muted small">{{ _("Once approved by your administrator, you'll receive an email with a link to log in.") }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script nonce="{{ csp_nonce }}">
+    function showTask(taskKey) {
+        window.location.href = '{{ url_for("people_bp.onboarding_wizard") }}?task=' + taskKey;
+    }
+
+    function updateProgress(percent) {
+        document.getElementById('progress-text').textContent = percent + '%';
+        const bar = document.getElementById('progress-bar');
+        bar.style.width = percent + '%';
+        if (percent === 100) {
+            bar.classList.add('bg-success');
+        }
+    }
+
+    function handleFormSubmit(form, taskKey) {
+        const formData = new FormData(form);
+        formData.append('task_key', taskKey);
+
+        fetch('{{ url_for("people_bp.onboarding_save_step") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateProgress(data.progress);
+                window.location.reload();
+            } else {
+                alert(data.error || 'Error saving. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving. Please try again.');
+        });
+
+        return false;
+    }
+
+    function skipTask(taskKey) {
+        if (!confirm('{{ _("Are you sure you want to skip this task? You can come back to it later.") }}')) {
+            return;
+        }
+
+        fetch('{{ url_for("people_bp.onboarding_skip_step", task_key="TASK_KEY") }}'.replace('TASK_KEY', taskKey), {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateProgress(data.progress);
+                window.location.reload();
+            } else {
+                alert(data.error || 'Error skipping task.');
+            }
+        });
+    }
+
+    // Event delegation for task list items
+    document.addEventListener('click', function(e) {
+        var el = e.target.closest('[data-action="show-task"]');
+        if (el) {
+            showTask(el.dataset.taskKey);
+        }
+    });
+    </script>
+{% endblock %}

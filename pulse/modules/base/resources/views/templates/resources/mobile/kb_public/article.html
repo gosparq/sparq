@@ -1,0 +1,53 @@
+{% extends "resources/mobile/layout.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block module_content %}
+<!-- Breadcrumb -->
+<div class="mobile-breadcrumb">
+    <a href="{{ url_for('kb_bp.index') }}">{{ _("KB") }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('kb_bp.category', category_slug=article.category.slug) }}">{{ article.category.name }}</a>
+    {% if article.subcategory %}
+    <span class="separator">/</span>
+    <a href="{{ url_for('kb_bp.category_or_article', category_slug=article.category.slug, path_part=article.subcategory.slug) }}">{{ article.subcategory.name }}</a>
+    {% endif %}
+</div>
+
+<!-- Article Info -->
+<div class="article-info">
+    <span><i class="fas fa-folder"></i> {{ article.category.name }}</span>
+    <span><i class="fas fa-calendar"></i> {{ article.updated_at|format_datetime('%b %d, %Y') if article.updated_at else article.created_at|format_datetime('%b %d, %Y') }}</span>
+</div>
+
+<!-- Article Content -->
+<div class="mobile-card mobile-card-body">
+    <h4 class="mb-3">{{ article.title }}</h4>
+    <div class="kb-article-content">
+        {{ article.render_content()|safe }}
+    </div>
+</div>
+
+<!-- Feedback Widget -->
+<div class="feedback-widget" id="feedback-widget">
+    {% if has_feedback %}
+    <div class="feedback-thanks">
+        <i class="fas fa-check-circle"></i>
+        {{ _("Thanks for your feedback!") }}
+    </div>
+    {% else %}
+    <h6>{{ _("Was this article helpful?") }}</h6>
+    <form hx-post="{{ url_for('kb_bp.submit_feedback', article_id=article.id) }}"
+          hx-target="#feedback-widget"
+          hx-swap="innerHTML">
+        <div class="feedback-buttons">
+            <button type="submit" name="helpful" value="yes" class="feedback-btn yes">
+                <i class="fas fa-thumbs-up"></i> {{ _("Yes") }}
+            </button>
+            <button type="submit" name="helpful" value="no" class="feedback-btn no">
+                <i class="fas fa-thumbs-down"></i> {{ _("No") }}
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

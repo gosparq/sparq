@@ -1,0 +1,33 @@
+{# Member list for DM sidebar / user picker #}
+{% for member in members %}
+<div class="user-item"
+     hx-get="{{ url_for('sync_bp.get_or_create_dm', target_member_id=member.id) }}"
+     hx-target="#chat-messages"
+     hx-swap="innerHTML"
+     data-member-id="{{ member.id }}"
+     data-action="select-dm-user">
+    <div class="user-avatar" data-bg="{{ member.user.avatar_color if member.user else '#6b7280' }}">
+        <i class="fas fa-user"></i>
+    </div>
+    <script nonce="{{ csp_nonce }}">document.currentScript.previousElementSibling.style.backgroundColor = document.currentScript.previousElementSibling.dataset.bg;</script>
+    <span class="user-name">{{ member.user.full_name if member.user else 'Unknown' }}</span>
+</div>
+{% else %}
+<div class="text-center text-muted py-3 small">
+    {{ _('No other members yet') }}
+</div>
+{% endfor %}
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="select-dm-user"]');
+    if (t) {
+        var c = document.querySelector('.chat-container');
+        if (c && c._x_dataStack) {
+            c._x_dataStack[0].activeView = 'dm';
+            c._x_dataStack[0].activeChannel = null;
+            c._x_dataStack[0].activeDmUser = parseInt(t.dataset.memberId);
+        }
+    }
+});
+</script>

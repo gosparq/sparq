@@ -1,0 +1,153 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("Articles") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ _("Articles") }}</h2>
+        <a href="{{ url_for('knowledge_blueprint.article_new') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i> {{ _("New Article") }}
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="{{ _('Search articles...') }}"
+                       value="{{ filters.q or '' }}">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <select name="category" class="form-select" data-auto-submit>
+                <option value="">{{ _("All Categories") }}</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if filters.category == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select" data-auto-submit>
+                <option value="all" {% if filters.status == 'all' %}selected{% endif %}>{{ _("All Status") }}</option>
+                <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{{ _("Active") }}</option>
+                <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>{{ _("Inactive") }}</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="visibility" class="form-select" data-auto-submit>
+                <option value="all" {% if filters.visibility == 'all' %}selected{% endif %}>{{ _("All Visibility") }}</option>
+                <option value="public" {% if filters.visibility == 'public' %}selected{% endif %}>{{ _("Public") }}</option>
+                <option value="private" {% if filters.visibility == 'private' %}selected{% endif %}>{{ _("Private") }}</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            {% if filters.category or filters.status != 'all' or filters.visibility != 'all' or filters.q %}
+            <a href="{{ url_for('knowledge_blueprint.articles_list') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i> {{ _("Clear Filters") }}
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Articles Table -->
+    {% if articles %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ _("Title") }}</th>
+                    <th>{{ _("Category") }}</th>
+                    <th>{{ _("Status") }}</th>
+                    <th>{{ _("Visibility") }}</th>
+                    <th>{{ _("Views") }}</th>
+                    <th>{{ _("Feedback") }}</th>
+                    <th>{{ _("Updated") }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for article in articles %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('knowledge_blueprint.article_detail', article_id=article.id) }}" class="text-decoration-none">
+                            {{ article.title }}
+                        </a>
+                    </td>
+                    <td>
+                        <small>
+                            {{ article.category.name }}
+                            {% if article.subcategory %}<br>&raquo; {{ article.subcategory.name }}{% endif %}
+                        </small>
+                    </td>
+                    <td>
+                        {% if article.is_active %}
+                        <span class="badge bg-success">{{ _("Active") }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ _("Inactive") }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if article.is_public %}
+                        <span class="badge bg-primary">{{ _("Public") }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ _("Private") }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ article.view_count or 0 }}</td>
+                    <td>
+                        <span class="text-success" title="{{ _('Helpful') }}">
+                            <i class="fas fa-thumbs-up"></i> {{ article.helpful_count }}
+                        </span>
+                        <span class="text-danger ms-2" title="{{ _('Not Helpful') }}">
+                            <i class="fas fa-thumbs-down"></i> {{ article.not_helpful_count }}
+                        </span>
+                    </td>
+                    <td>
+                        <small class="text-muted">
+                            {{ article.updated_at|format_datetime('%b %d, %Y') if article.updated_at else article.created_at|format_datetime('%b %d, %Y') }}
+                        </small>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('knowledge_blueprint.article_edit', article_id=article.id) }}" class="btn btn-sm btn-primary" title="{{ _('Edit') }}">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if article.is_public %}
+                            <a href="{{ article.public_url }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="{{ _('View Public') }}">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-file-alt fa-3x mb-3"></i>
+        <p>{{ _("No articles found.") }}</p>
+        <a href="{{ url_for('knowledge_blueprint.article_new') }}" class="btn btn-sm btn-primary">
+            {{ _("Create Your First Article") }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-auto-submit]').forEach(function(el) {
+        el.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+</script>
+{% endblock %}

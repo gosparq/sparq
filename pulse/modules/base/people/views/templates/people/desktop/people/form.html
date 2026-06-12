@@ -1,0 +1,409 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _(title) }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('people_bp.people') }}">{{ _("People") }}</a>
+                    </li>
+                    {% if employee %}
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('people_bp.person_detail', employee_id=employee.id) }}">
+                            {{ employee.user.first_name }} {{ employee.user.last_name }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">{{ _("Edit") }}</li>
+                    {% else %}
+                    <li class="breadcrumb-item active">{{ _("New Person") }}</li>
+                    {% endif %}
+                </ol>
+            </nav>
+
+            <form method="POST" action="{{ url_for('people_bp.update_person', employee_id=employee.id) if employee else url_for('people_bp.create_person') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="row">
+                    <!-- Sidebar -->
+                    <div class="col-md-3">
+                        <div class="person-sidebar card">
+                            <div class="card-body">
+                                {% if employee %}
+                                <div class="text-center mb-3">
+                                    <div class="person-avatar mx-auto" style="background-color: {{ employee.user.avatar_color or 'var(--color-focus)' }}">
+                                        {{ employee.user.avatar_initials }}
+                                    </div>
+                                </div>
+                                <h5 class="mb-0 text-center">
+                                    {{ employee.user.first_name }} {{ employee.user.last_name }}
+                                </h5>
+                                <p class="text-muted small text-center mb-3">
+                                    {{ employee.position or _("Team Member") }}
+                                </p>
+                                {% else %}
+                                <div class="text-center mb-3">
+                                    <div class="person-avatar mx-auto" style="background-color: #9ca3af">
+                                        <i class="fas fa-user-plus" style="font-size: 1.25rem;"></i>
+                                    </div>
+                                </div>
+                                <h5 class="mb-0 text-center">{{ _("New Person") }}</h5>
+                                <p class="text-muted small text-center mb-3">{{ _("Fill in the details") }}</p>
+                                {% endif %}
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <div class="col-md-9">
+                        <!-- Tabs -->
+                        <ul class="nav nav-tabs mb-4" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-content"
+                                        type="button" role="tab">{{ _("Personal") }}</button>
+                            </li>
+                            {% if current_user.is_admin %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="employment-tab" data-bs-toggle="tab" data-bs-target="#employment-content"
+                                        type="button" role="tab">{{ _("Employment") }}</button>
+                            </li>
+                            {% endif %}
+                        </ul>
+
+                        <div class="tab-content">
+                            <!-- Personal Tab -->
+                            <div class="tab-pane fade show active" id="personal-content" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <!-- User Information -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("User Information") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="email" class="form-label">{{ _("Email") }} <span class="text-danger">*</span></label>
+                                                    <input type="email" class="form-control" id="email" name="email"
+                                                           value="{{ employee.user.email if employee else '' }}" required>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="first_name" class="form-label">{{ _("First Name") }} <span class="text-danger">*</span></label>
+                                                        <input type="text" class="form-control" id="first_name" name="first_name"
+                                                               value="{{ employee.user.first_name if employee else '' }}" required>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="last_name" class="form-label">{{ _("Last Name") }} <span class="text-danger">*</span></label>
+                                                        <input type="text" class="form-control" id="last_name" name="last_name"
+                                                               value="{{ employee.user.last_name if employee else '' }}" required>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="password" class="form-label">{{ _("Password") }}{% if not employee %} <span class="text-danger">*</span>{% endif %}</label>
+                                                    <input type="password" class="form-control" id="password" name="password"
+                                                           {{ '' if employee else 'required' }}>
+                                                    {% if employee %}
+                                                    <div class="form-text">{{ _("Leave blank to keep current password") }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mb-0">
+                                                    <label for="phone" class="form-label">{{ _("Phone") }}</label>
+                                                    <input type="tel" class="form-control" id="phone" name="phone"
+                                                           value="{{ employee.phone if employee else '' }}">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Personal Details -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("Personal Details") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="birthday" class="form-label">{{ _("Birthday") }}</label>
+                                                        <input type="date" class="form-control" id="birthday" name="birthday"
+                                                               value="{{ employee.user.birthday.strftime('%Y-%m-%d') if employee and employee.user.birthday else '' }}">
+                                                    </div>
+                                                    <div class="col-md-6 mb-0">
+                                                        <label for="gender" class="form-label">{{ _("Gender") }}</label>
+                                                        <select class="form-select" id="gender" name="gender">
+                                                            <option value="">{{ _("Select Gender") }}</option>
+                                                            <option value="MALE" {% if employee and employee.user.gender and employee.user.gender.name == 'MALE' %}selected{% endif %}>{{ _("Male") }}</option>
+                                                            <option value="FEMALE" {% if employee and employee.user.gender and employee.user.gender.name == 'FEMALE' %}selected{% endif %}>{{ _("Female") }}</option>
+                                                            <option value="OTHER" {% if employee and employee.user.gender and employee.user.gender.name == 'OTHER' %}selected{% endif %}>{{ _("Other") }}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <!-- Address -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("Address") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="address" class="form-label">{{ _("Street Address") }}</label>
+                                                    <input type="text" class="form-control" id="address" name="address"
+                                                           value="{{ employee.user.address if employee else '' }}">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="address_2" class="form-label">{{ _("Address Line 2") }}</label>
+                                                    <input type="text" class="form-control" id="address_2" name="address_2"
+                                                           value="{{ (employee.user.address_2 or '') if employee else '' }}">
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-5 mb-0">
+                                                        <label for="city" class="form-label">{{ _("City") }}</label>
+                                                        <input type="text" class="form-control" id="city" name="city"
+                                                               value="{{ employee.user.city if employee else '' }}">
+                                                    </div>
+                                                    <div class="col-md-3 mb-0">
+                                                        <label for="state" class="form-label">{{ _("State") }}</label>
+                                                        <input type="text" class="form-control" id="state" name="state"
+                                                               value="{{ employee.user.state if employee else '' }}">
+                                                    </div>
+                                                    <div class="col-md-4 mb-0">
+                                                        <label for="zip_code" class="form-label">{{ _("ZIP Code") }}</label>
+                                                        <input type="text" class="form-control" id="zip_code" name="zip_code"
+                                                               value="{{ employee.user.zip_code if employee else '' }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Emergency Contact -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("Emergency Contact") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="emergency_contact_name" class="form-label">{{ _("Name") }}</label>
+                                                    <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name"
+                                                           value="{{ employee.user.emergency_contact_name if employee else '' }}">
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-0">
+                                                        <label for="emergency_contact_phone" class="form-label">{{ _("Phone") }}</label>
+                                                        <input type="tel" class="form-control" id="emergency_contact_phone" name="emergency_contact_phone"
+                                                               value="{{ employee.user.emergency_contact_phone if employee else '' }}">
+                                                    </div>
+                                                    <div class="col-md-6 mb-0">
+                                                        <label for="emergency_contact_relationship" class="form-label">{{ _("Relationship") }}</label>
+                                                        <input type="text" class="form-control" id="emergency_contact_relationship" name="emergency_contact_relationship"
+                                                               value="{{ employee.user.emergency_contact_relationship if employee else '' }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Employment Tab -->
+                            {% if current_user.is_admin %}
+                            <div class="tab-pane fade" id="employment-content" role="tabpanel">
+                                <div class="row align-items-start">
+                                    <div class="col-md-6">
+                                        <!-- Employment Information -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("Employment Information") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="department" class="form-label">{{ _("Department") }}</label>
+                                                        <input type="text" class="form-control" id="department" name="department"
+                                                               value="{{ employee.department if employee else '' }}">
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="position" class="form-label">{{ _("Position") }}</label>
+                                                        <input type="text" class="form-control" id="position" name="position"
+                                                               value="{{ employee.position if employee else '' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="manager_id" class="form-label">{{ _("Manager") }}</label>
+                                                        <select class="form-select" id="manager_id" name="manager_id">
+                                                            <option value="">{{ _("Select Manager") }}</option>
+                                                            {% for potential_manager in potential_managers %}
+                                                            <option value="{{ potential_manager.id }}"
+                                                                    {% if employee and employee.manager_id == potential_manager.id %}selected{% endif %}>
+                                                                {{ potential_manager.user.first_name }} {{ potential_manager.user.last_name }}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="type" class="form-label">{{ _("Employment Type") }}</label>
+                                                        <select class="form-select" id="type" name="type">
+                                                            {% for type in employee_types %}
+                                                            <option value="{{ type.name }}"
+                                                                    {% if employee and employee.type == type %}selected{% endif %}>
+                                                                {{ type.value }}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="start_date" class="form-label">{{ _("Hire Date") }}</label>
+                                                        <input type="date" class="form-control" id="start_date" name="start_date"
+                                                               value="{{ employee.start_date.strftime('%Y-%m-%d') if employee and employee.start_date else '' }}">
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label for="salary" class="form-label">{{ _("Salary") }}</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="number" class="form-control" id="salary" name="salary"
+                                                                   value="{{ employee.salary if employee else '' }}" step="0.01">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-0">
+                                                        <label for="salary_type" class="form-label">{{ _("Compensation Type") }}</label>
+                                                        <select class="form-select" id="salary_type" name="salary_type">
+                                                            <option value="YEARLY" {% if not employee or not employee.salary_type or employee.salary_type.name == 'YEARLY' %}selected{% endif %}>{{ _("Yearly") }}</option>
+                                                            <option value="HOURLY" {% if employee and employee.salary_type and employee.salary_type.name == 'HOURLY' %}selected{% endif %}>{{ _("Hourly") }}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <!-- Time Clock -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("Time Clock") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <label for="clock_pin" class="form-label">{{ _("Kiosk PIN") }}</label>
+                                                <input type="text" class="form-control" id="clock_pin" name="clock_pin"
+                                                       value="{{ employee.clock_pin or '' }}"
+                                                       pattern="[0-9]{4}|" maxlength="4"
+                                                       placeholder="{{ _('4-digit PIN') }}">
+                                                <div class="form-text">{{ _("4-digit PIN for clock in/out at kiosk terminals.") }}</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Pulse -->
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ _("Pulse") }}</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="pulse_exempt" name="pulse_exempt"
+                                                           {{ "checked" if employee and employee.pulse_exempt else "" }}>
+                                                    <label class="form-check-label" for="pulse_exempt">
+                                                        {{ _("Exempt from Pulse metrics") }}
+                                                    </label>
+                                                </div>
+                                                <div class="form-text">{{ _("Exempt members appear in the Pulse report but are not counted in team completion percentages.") }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-save me-1"></i>{{ _("Save") }}
+                            </button>
+                            <a href="{{ url_for('people_bp.person_detail', employee_id=employee.id) if employee else url_for('people_bp.people') }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>{{ _("Cancel") }}
+                            </a>
+                            {% if current_user.is_admin and employee and current_user.workspace_membership.id != employee.id %}
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="fas fa-trash me-1"></i>{{ _("Delete") }}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+{% if current_user.is_admin and employee and current_user.workspace_membership.id != employee.id %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _("Confirm Delete") }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ _("Are you sure you want to delete") }} <strong>{{ employee.user.first_name }} {{ employee.user.last_name }}</strong>?</p>
+                <p class="text-danger small mb-0">{{ _("This action cannot be undone. All employee data will be permanently removed.") }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                <form action="{{ url_for('people_bp.delete_person', employee_id=employee.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-danger">{{ _("Delete") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if current_user.is_admin %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    const adminCheckbox = document.getElementById('is_admin');
+    const permCheckboxes = document.querySelectorAll('.perm-checkbox');
+
+    if (adminCheckbox) {
+        adminCheckbox.addEventListener('change', function() {
+            permCheckboxes.forEach(cb => {
+                if (this.checked) {
+                    cb.checked = true;
+                    cb.disabled = true;
+                } else {
+                    cb.disabled = false;
+                }
+            });
+        });
+    }
+});
+</script>
+{% endif %}
+
+{# Render plugin form extensions (e.g., nickname field from nickname plugin) #}
+{% if form_extensions %}
+{% for extension in form_extensions %}
+{{ extension|safe }}
+{% endfor %}
+{% endif %}
+{% endblock %}

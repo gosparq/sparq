@@ -1,0 +1,21 @@
+{# =============================================================================
+   audit_access_banner.html — Phase 6 §12.2
+
+   Shown when the current user is viewing a workspace they are not a member of,
+   via organization audit access.
+
+   g.workspace_access is set by system/scope.py; the banner only renders when
+   it equals "audit". Mutations are already blocked at the request-hook layer;
+   this banner communicates *why* actions appear disabled.
+
+   Uses Bootstrap `.alert .alert-warning` — no custom CSS.
+   =========================================================================== #}
+{% if g.workspace_access == "audit" %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-0 rounded-0" role="alert">
+    <i class="fas fa-eye"></i>
+    <div>
+        <strong>{{ _("Audit access") }}</strong>
+        · {{ _("You're viewing this workspace as an organization admin. Actions are read-only and access is logged.") }}
+    </div>
+</div>
+{% endif %}

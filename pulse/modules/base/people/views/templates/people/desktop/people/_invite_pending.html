@@ -1,0 +1,41 @@
+{% if pending_invites %}
+<table class="table table-sm mb-0">
+    <thead class="table-light">
+        <tr>
+            <th>{{ _("Email") }}</th>
+            <th>{{ _("Sent") }}</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for invite in pending_invites %}
+        <tr>
+            <td class="small">{{ invite.email }}</td>
+            <td class="text-muted small">{{ invite.time_ago() }}</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-primary me-1"
+                        hx-post="{{ url_for('people_bp.resend_invite', invite_id=invite.id) }}"
+                        hx-target="#invite-pending-list"
+                        hx-swap="innerHTML"
+                        title="{{ _('Resend') }}">
+                    <i class="fas fa-redo-alt"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary"
+                        hx-post="{{ url_for('people_bp.cancel_invite', invite_id=invite.id) }}"
+                        hx-target="#invite-pending-list"
+                        hx-swap="innerHTML"
+                        hx-confirm="{{ _('Cancel this invite?') }}"
+                        title="{{ _('Cancel') }}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="text-center py-4 text-muted">
+    <i class="fas fa-envelope-open mb-2" style="font-size: 1.5rem;"></i>
+    <p class="mb-0 small">{{ _("No pending invites") }}</p>
+</div>
+{% endif %}

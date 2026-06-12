@@ -1,0 +1,137 @@
+{#
+E-Sign Document Upload Partial
+
+Include this partial in any form where you want to allow uploading a PDF
+that requires an electronic signature.
+
+Required variables:
+  - field_prefix: Prefix for form field names (default: "esign")
+
+Optional variables:
+  - show_title: Show document title field (default: true)
+  - default_title: Default title value
+  - recipient_name: Pre-fill recipient name
+  - recipient_email: Pre-fill recipient email
+
+Usage in your template:
+  {% include "resources/desktop/partials/_esign_upload.html" with context %}
+
+Form fields created:
+  - {prefix}_document: PDF file upload
+  - {prefix}_title: Document title
+  - {prefix}_recipient_name: Signer's name
+  - {prefix}_recipient_email: Signer's email
+  - {prefix}_message: Message to signer (optional)
+  - {prefix}_require_signature: Checkbox to enable e-sign
+
+Example form handling in controller:
+  from modules.base.resources.services.esign import ESignService
+
+  if request.form.get("esign_require_signature") == "on":
+      document = request.files.get("esign_document")
+      # Save to temp file
+      sig_request = ESignService.create_request(
+          document_path=temp_path,
+          title=request.form.get("esign_title"),
+          signers=[{
+              "email": request.form.get("esign_recipient_email"),
+              "name": request.form.get("esign_recipient_name"),
+          }],
+          send_email=False,  # You'll include the link in your own email
+      )
+      # Get signing URL to include in your email
+      signing_url = ESignService.get_signing_urls(sig_request).get(recipient_email)
+#}
+
+{% set prefix = field_prefix|default("esign") %}
+{% set show_title_field = show_title|default(true) %}
+
+<div class="esign-upload-section" id="{{ prefix }}_section">
+    <!-- E-Sign Toggle -->
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox"
+               id="{{ prefix }}_require_signature" name="{{ prefix }}_require_signature"
+               data-action="toggle-esign" data-prefix="{{ prefix }}">
+        <label class="form-check-label" for="{{ prefix }}_require_signature">
+            <i class="fas fa-file-signature text-primary me-1"></i>
+            <strong>{{ _("Require E-Signature") }}</strong>
+        </label>
+        <small class="d-block text-muted ms-4">{{ _("Recipient must electronically sign this document") }}</small>
+    </div>
+
+    <!-- E-Sign Fields (hidden by default) -->
+    <div id="{{ prefix }}_fields" style="display: none;" class="border rounded p-3 bg-light">
+        <!-- Document Upload -->
+        <div class="mb-3">
+            <label for="{{ prefix }}_document" class="form-label">
+                {{ _("PDF Document") }} <span class="text-danger">*</span>
+            </label>
+            <input type="file" class="form-control" id="{{ prefix }}_document" name="{{ prefix }}_document"
+                   accept=".pdf,application/pdf">
+            <small class="text-muted">{{ _("Only PDF files are accepted for e-signature") }}</small>
+        </div>
+
+        {% if show_title_field %}
+        <!-- Document Title -->
+        <div class="mb-3">
+            <label for="{{ prefix }}_title" class="form-label">
+                {{ _("Document Title") }} <span class="text-danger">*</span>
+            </label>
+            <input type="text" class="form-control" id="{{ prefix }}_title" name="{{ prefix }}_title"
+                   value="{{ default_title|default('') }}" placeholder="{{ _('e.g., Employment Contract') }}">
+        </div>
+        {% endif %}
+
+        <!-- Recipient Info -->
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="{{ prefix }}_recipient_name" class="form-label">
+                    {{ _("Signer Name") }} <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control" id="{{ prefix }}_recipient_name"
+                       name="{{ prefix }}_recipient_name" value="{{ recipient_name|default('') }}"
+                       placeholder="{{ _('Full legal name') }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ prefix }}_recipient_email" class="form-label">
+                    {{ _("Signer Email") }} <span class="text-danger">*</span>
+                </label>
+                <input type="email" class="form-control" id="{{ prefix }}_recipient_email"
+                       name="{{ prefix }}_recipient_email" value="{{ recipient_email|default('') }}"
+                       placeholder="{{ _('email@example.com') }}">
+            </div>
+        </div>
+
+        <!-- Message (Optional) -->
+        <div class="mb-3">
+            <label for="{{ prefix }}_message" class="form-label">{{ _("Message to Signer") }}</label>
+            <textarea class="form-control" id="{{ prefix }}_message" name="{{ prefix }}_message" rows="2"
+                      placeholder="{{ _('Optional message that will be shown to the signer') }}"></textarea>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function toggleEsignFields_{{ prefix }}(show) {
+    var fields = document.getElementById('{{ prefix }}_fields');
+    var docInput = document.getElementById('{{ prefix }}_document');
+    var titleInput = document.getElementById('{{ prefix }}_title');
+    var nameInput = document.getElementById('{{ prefix }}_recipient_name');
+    var emailInput = document.getElementById('{{ prefix }}_recipient_email');
+
+    fields.style.display = show ? 'block' : 'none';
+
+    if (docInput) docInput.required = show;
+    if (titleInput) titleInput.required = show;
+    if (nameInput) nameInput.required = show;
+    if (emailInput) emailInput.required = show;
+}
+
+(function() {
+    document.querySelectorAll('[data-action="toggle-esign"][data-prefix="{{ prefix }}"]').forEach(function(el) {
+        el.addEventListener('change', function() {
+            toggleEsignFields_{{ prefix }}(this.checked);
+        });
+    });
+})();
+</script>

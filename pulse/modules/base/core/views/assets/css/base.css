@@ -1,0 +1,1206 @@
+/* sparQ Design System - Indigo + Gray Color Palette (Theme C: Minimal) */
+:root {
+    /* Typography */
+    --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-size-base: 0.875rem;   /* 14px */
+    --font-size-sm: 0.8125rem;    /* 13px */
+    --font-size-xs: 0.75rem;      /* 12px */
+    --font-size-2xs: 0.6875rem;   /* 11px */
+    --font-size-3xs: 0.625rem;    /* 10px */
+    --font-size-icon: 0.55rem;    /* 8.8px — icon badges only */
+    --font-size-lg: 1rem;         /* 16px */
+    --breakpoint-mobile: 768px;
+    --sidebar-width: 200px;
+
+    /* Workspace color — default fallback; overridden per-workspace on <body> */
+    --workspace-color: #E8431A;
+
+    /* Avatar fill — dedicated neutral token, intentionally does NOT invert in dark mode
+       (so user avatars don't flip between dark-slate and light-gray when toggling). */
+    --avatar-bg: #4b5563;
+
+    /* Primary Colors — derive from workspace color so brand accents follow workspace */
+    --color-primary: var(--workspace-color);
+    --color-primary-dark: color-mix(in srgb, var(--workspace-color) 85%, black);
+    --color-primary-light: color-mix(in srgb, var(--workspace-color) 70%, white);
+    --color-primary-lighter: color-mix(in srgb, var(--workspace-color) 25%, white);
+    --color-primary-lightest: color-mix(in srgb, var(--workspace-color) 10%, white);
+
+    /* Neutrals - Gray Scale */
+    --color-gray-900: #111111;          /* Almost black - Primary text */
+    --color-gray-800: #232323;          /* Very dark gray - Headings, emphasis */
+    --color-gray-700: #374151;          /* Dark gray - Secondary text */
+    --color-gray-600: #4b5563;          /* Gray - Descriptions, secondary */
+    --color-gray-500: #6b7280;          /* Medium gray - Placeholder text */
+    --color-gray-400: #9ca3af;          /* Gray - Labels, captions */
+    --color-gray-300: #e2e8f0;          /* Light gray - Borders */
+    --color-gray-200: #f1f5f9;          /* Lighter gray - Very light borders */
+    --color-gray-100: #f3f4f6;          /* Very light - Backgrounds */
+    --color-gray-50: #f9fafb;           /* Off-white - Page backgrounds */
+    --color-white: #ffffff;
+
+    /* Semantic Colors - Minimal Use */
+    --color-ai: #6366f1;                /* sparQy AI bot accent (indigo-500) */
+    --color-chat-activity: #f472b6;     /* Chat unread dot */
+    --color-success: #10b981;           /* Success states */
+    --color-success-light: #d1fae5;     /* Success backgrounds */
+    --color-success-dark: #065f46;      /* Success text on light bg */
+    --color-danger: #ef4444;            /* Errors, delete */
+    --color-danger-light: #fee2e2;      /* Error backgrounds */
+    --color-danger-dark: #991b1b;       /* Danger text on light bg */
+    --color-warning: #f59e0b;           /* Warnings */
+    --color-warning-light: #fef3c7;     /* Warning backgrounds */
+    --color-warning-dark: #92400e;      /* Warning text on light bg */
+    --color-info: #3b82f6;              /* Info messages */
+    --color-info-light: #dbeafe;        /* Info backgrounds */
+    --color-info-dark: #1e40af;         /* Info text on light bg */
+    --color-focus: #7c3aed;             /* Focus/flow state */
+    --color-focus-light: #f3e8ff;       /* Focus state backgrounds */
+
+    /* Bootstrap overrides for compatibility */
+    --bs-primary: var(--workspace-color);
+    --bs-primary-rgb: 232, 67, 26;  /* Fallback rgb; elements depending on rgb tint won't dynamically track workspace hex */
+    --bs-secondary: #6b7280;
+    --bs-secondary-rgb: 107, 114, 128;
+    --bs-success: #10b981;
+    --bs-success-rgb: 16, 185, 129;
+    --bs-danger: #ef4444;
+    --bs-danger-rgb: 239, 68, 68;
+    --bs-warning: #f59e0b;
+    --bs-warning-rgb: 245, 158, 11;
+    --bs-info: #3b82f6;
+    --bs-info-rgb: 59, 130, 246;
+    --bs-light: #f3f4f6;
+    --bs-light-rgb: 243, 244, 246;
+    --bs-dark: #111111;
+    --bs-dark-rgb: 17, 24, 39;
+
+}
+
+/* Responsive Visibility Utilities */
+/* Desktop-only mode: mobile templates handle mobile layout */
+.mobile-only { display: none !important; }
+.desktop-only { display: block !important; }
+
+/* Footer - anchored to bottom, not overlay */
+.version-footer {
+    margin-top: auto;
+    background: var(--color-gray-50);
+    opacity: 0.6;
+    padding: 0.5rem 0;
+    font-size: var(--font-size-2xs);
+    text-align: center;
+}
+
+body {
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-base);
+    line-height: 1.45;
+    color: var(--color-gray-900);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-gray-50);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 1.5rem;  /* Add horizontal padding */
+
+    /* Re-derive primary tokens at body level so they pick up the per-workspace
+       --workspace-color set via inline style, not :root's default orange. */
+    --color-primary: var(--workspace-color);
+    --color-primary-dark: color-mix(in srgb, var(--workspace-color) 85%, black);
+    --color-primary-light: color-mix(in srgb, var(--workspace-color) 70%, white);
+    --color-primary-lighter: color-mix(in srgb, var(--workspace-color) 25%, white);
+    --color-primary-lightest: color-mix(in srgb, var(--workspace-color) 10%, white);
+    --bs-primary: var(--workspace-color);
+}
+
+/* Global Link Styles */
+a {
+    color: var(--color-gray-700);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+a:hover {
+    color: var(--color-info);
+    text-decoration: none;
+}
+
+.container {
+    max-width: 100%;
+    padding: 0;
+}
+
+
+/* Chat activity dot - pink dot/badge indicator for unread chat activity */
+.chat-activity-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 10px;
+    height: 10px;
+    background: var(--color-chat-activity);
+    border-radius: 50%;
+    flex-shrink: 0;
+    font-size: 0;
+    color: white;
+    line-height: 1;
+}
+
+/* Push chat dot to far right inside nav links */
+.nav-link .chat-activity-dot {
+    margin-left: auto;
+}
+
+/* When badge has count text (DMs or mentions) */
+.chat-activity-dot:not(:empty) {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+}
+
+.error-container {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.error-content {
+    text-align: center;
+    max-width: 600px;
+}
+
+.error-logo {
+    height: 60px;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+}
+
+.error-content h1 {
+    color: var(--bs-primary);
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.error-content p {
+    color: var(--color-gray-500);
+    margin-bottom: 2rem;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+
+/* Public demo banner */
+.public-demo-banner {
+    background: #eef2ff;
+    color: #4f46e5;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* MSA transparent-mode banner */
+.msa-transparent-banner {
+    background: var(--color-primary);
+    color: var(--color-white);
+    text-align: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.msa-transparent-banner a {
+    font-size: 0.8rem;
+}
+
+.flash-messages-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1040;
+    max-width: 300px;
+    pointer-events: none;
+}
+
+.alert {
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    opacity: 0.98;
+    pointer-events: auto;
+    background: var(--color-white);
+    border-left: 4px solid;
+    padding: 0.75rem 1rem;
+}
+
+.alert-success {
+    border-left-color: var(--bs-success);
+}
+
+.alert-error {
+    border-left-color: var(--bs-danger);
+}
+
+.alert-warning {
+    border-left-color: var(--bs-warning);
+}
+
+.alert-info {
+    border-left-color: var(--bs-info);
+}
+
+/* Animation for alerts */
+.alert.fade.show {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 0.98;
+    }
+}
+
+/* Typography */
+h1 {
+    font-size: 1.25rem;  /* Changed from 1rem (16px) to 1.25rem (20px) */
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--color-gray-900);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+}
+
+.modal-form {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--color-white);
+    padding: 1rem;
+    border-radius: 0.3rem;
+    z-index: 1050;
+    width: 500px;
+    max-width: 90%;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* Coming Soon Placeholder */
+.coming-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    text-align: center;
+    padding: 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.coming-soon i {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: var(--workspace-color);
+}
+
+.coming-soon h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--color-gray-900);
+}
+
+.coming-soon p {
+    color: var(--color-gray-500);
+    font-size: 1.1rem;
+    line-height: 1.5;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   Badge Overrides - Subtle, Toned Down
+   ============================================ */
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+.badge.bg-success {
+    background-color: var(--color-success-light) !important;
+    color: var(--color-gray-600) !important;
+}
+
+.badge.bg-info {
+    background-color: var(--color-info-light) !important;
+    color: var(--color-gray-600) !important;
+}
+
+.badge.bg-primary {
+    background-color: var(--color-primary-lighter) !important;
+    color: var(--color-gray-600) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--color-warning-light) !important;
+    color: var(--color-gray-600) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--color-danger-light) !important;
+    color: var(--color-gray-600) !important;
+}
+
+/* Chat notification badges - solid red, not soft */
+.badge[data-chat-badge] {
+    background-color: var(--color-danger) !important;
+    color: var(--color-white) !important;
+    font-size: 0.65rem !important;
+    min-width: 18px !important;
+    padding: 3px 6px !important;
+}
+
+.badge.bg-secondary {
+    background-color: var(--color-gray-100) !important;
+    color: var(--color-gray-600) !important;
+}
+
+/* Status Badges - Workflow states used by timetracking, service, etc. */
+.badge-draft {
+    background-color: var(--color-gray-500);
+}
+
+.badge-submitted {
+    background-color: var(--color-warning);
+}
+
+.badge-approved {
+    background-color: var(--color-success);
+}
+
+.badge-rejected {
+    background-color: var(--color-danger);
+}
+
+.badge-invoiced {
+    background-color: var(--color-info);
+}
+
+/* Nav Pills Badge Sizing */
+.nav-pills .nav-link .badge {
+    font-size: 0.7rem;
+}
+
+.nav-pills .nav-link.active .badge {
+    color: var(--bs-gray-700) !important;
+}
+
+/* ============================================
+   Button Overrides
+   ============================================ */
+.btn-primary {
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-dark) !important;
+    border-color: var(--color-primary-dark) !important;
+}
+
+/* Outline buttons - gray by default, color on hover */
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-success,
+.btn-outline-danger,
+.btn-outline-warning,
+.btn-outline-info {
+    color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-300) !important;
+    background-color: transparent !important;
+}
+
+.btn-outline-primary:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+.btn-outline-secondary:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-500) !important;
+}
+
+.btn-outline-success:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-success) !important;
+    border-color: var(--color-success) !important;
+}
+
+.btn-outline-danger:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-danger) !important;
+    border-color: var(--color-danger) !important;
+}
+
+.btn-outline-warning:hover {
+    color: var(--color-gray-900) !important;
+    background-color: var(--color-warning) !important;
+    border-color: var(--color-warning) !important;
+}
+
+.btn-outline-info:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-info) !important;
+    border-color: var(--color-info) !important;
+}
+
+/* Table action buttons - all gray, purple on hover */
+.btn-group-sm .btn-outline-primary,
+.btn-group-sm .btn-outline-secondary,
+.btn-group-sm .btn-outline-info {
+    color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-300) !important;
+    background-color: transparent !important;
+}
+
+.btn-group-sm .btn-outline-primary:hover,
+.btn-group-sm .btn-outline-secondary:hover,
+.btn-group-sm .btn-outline-info:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+/* Keep danger buttons red on hover for delete actions */
+.btn-group-sm .btn-outline-danger {
+    color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-300) !important;
+    background-color: transparent !important;
+}
+
+.btn-group-sm .btn-outline-danger:hover {
+    color: var(--color-white) !important;
+    background-color: var(--color-danger) !important;
+    border-color: var(--color-danger) !important;
+}
+
+/* Radio/Checkbox toggle buttons - checked state styling */
+.btn-check:checked + .btn-outline-primary {
+    color: var(--color-white) !important;
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+}
+
+.btn-check:checked + .btn-outline-secondary {
+    color: var(--color-white) !important;
+    background-color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-500) !important;
+}
+
+/* Button group filter active state */
+.btn-outline-secondary.active,
+.btn-outline-secondary.active:hover,
+.btn-outline-secondary.active:focus {
+    color: var(--color-white) !important;
+    background-color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-500) !important;
+}
+
+/* Badge counts inside filter buttons - darker text for readability */
+.btn-outline-secondary .badge {
+    color: var(--color-gray-700) !important;
+    background-color: var(--color-gray-200) !important;
+}
+
+/* Badge inside active filter button - lighter background for contrast */
+.btn-outline-secondary.active .badge {
+    color: var(--color-gray-700) !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ============================================
+   Shared Dashboard Components
+   ============================================ */
+
+/* Section Titles */
+.section-title {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-gray-700);
+}
+
+.section-title i {
+    margin-right: 0.5rem;
+    opacity: 0.7;
+}
+
+/* ============================================
+   Stat Cards
+   ============================================ */
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.stat-card {
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--color-white);
+    position: relative;
+}
+
+.stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--color-gray-500);
+}
+
+/* ============================================
+   Schedule Items (cross-module: dashboard, service)
+   ============================================ */
+
+.schedule-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: var(--color-gray-50);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.schedule-item:hover {
+    background: var(--color-gray-100);
+    transform: translateX(2px);
+}
+
+.schedule-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 36px;
+    padding: 0.25rem;
+    background: var(--color-white);
+    border-radius: 0.375rem;
+    border: 1px solid var(--color-gray-300);
+}
+
+
+/* ============================================
+   Quick Actions (cross-module: dashboard, sales, team)
+   ============================================ */
+
+.quick-action {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--color-gray-50);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--color-gray-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.quick-action:hover {
+    background: var(--color-white);
+    border-color: var(--action-color);
+    color: var(--action-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quick-action i {
+    font-size: 1rem;
+    color: var(--action-color);
+}
+
+/* Chart Bar (cross-module: controlpanel, team, hiring) */
+.chart-bar {
+    flex: 1;
+    height: var(--bar-height);
+    background: linear-gradient(180deg, var(--color-info) 0%, var(--color-info-light) 100%);
+    border-radius: 0.25rem 0.25rem 0 0;
+    position: relative;
+    min-width: 40px;
+    max-width: 60px;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+}
+
+.chart-bar.active {
+    opacity: 1;
+}
+
+.chart-bar:hover {
+    opacity: 1;
+    transform: scaleY(1.02);
+}
+
+.chart-bar::before {
+    content: attr(data-value);
+    position: absolute;
+    top: -1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-gray-700);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.chart-bar:hover::before,
+.chart-bar.active::before {
+    opacity: 1;
+}
+
+.chart-bar::after {
+    content: attr(data-month);
+    position: absolute;
+    bottom: -1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+}
+
+/* ============================================
+   Search Box
+   ============================================ */
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-gray-500);
+}
+
+.search-box input {
+    padding-left: 35px;
+}
+
+/* ============================================
+   HTMX Loading States
+   ============================================ */
+
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline-block;
+}
+
+.htmx-request.htmx-indicator {
+    display: inline-block;
+}
+
+/* ============================================
+   Soft Delete Indicators
+   ============================================ */
+
+/* Deleted item pill badge - light pink */
+.deleted-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2em 0.6em;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #9f1239;              /* rose-800 */
+    background-color: #ffe4e6;   /* rose-100 */
+    border-radius: 9999px;
+}
+
+.deleted-indicator i {
+    font-size: 0.7rem;
+}
+
+/* Deleted table row - light pink background */
+tr.deleted-row {
+    background-color: #fff1f2 !important;  /* rose-50 */
+    opacity: 0.75;
+}
+
+tr.deleted-row:hover {
+    background-color: #ffe4e6 !important;  /* rose-100 */
+}
+
+/* Strikethrough for deleted item names */
+.deleted-name {
+    text-decoration: line-through;
+    color: var(--color-gray-500);
+}
+
+/* Restore button styling */
+.btn-restore {
+    color: var(--color-gray-500);
+    border-color: var(--color-gray-300);
+}
+
+.btn-restore:hover {
+    color: #059669;               /* emerald-600 */
+    background-color: #d1fae5;    /* emerald-100 */
+    border-color: #059669;
+}
+
+/* Parent deleted indicator - shown on child entities when parent is deleted */
+.parent-deleted-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #9f1239;              /* rose-800 - matches deleted-indicator */
+    background-color: #ffe4e6;   /* rose-100 - matches deleted-indicator */
+    border-radius: 12px;
+    margin-left: 0.5rem;
+}
+
+/* ============================================
+   Alpine.js Utility
+   ============================================ */
+[x-cloak] {
+    display: none !important;
+}
+
+.dropdown-menu .dropdown-item {
+    padding: 0.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dropdown-menu {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* ============================================
+   Inline Style Replacements
+   ============================================ */
+
+/* "Soon" badge on coming-soon nav items */
+.badge-soon {
+    font-size: var(--font-size-icon);
+    vertical-align: middle;
+}
+
+/* Text colored with module color */
+.module-color-text {
+    color: var(--workspace-color);
+}
+
+/* Sysadmin logout icon sizing */
+.sysadmin-logout-icon {
+    font-size: 1.1rem;
+}
+
+/* Font-size utility classes — single-purpose, use in templates instead of inline font-size */
+.text-base  { font-size: var(--font-size-base); }
+.text-sm    { font-size: var(--font-size-sm); }
+.text-xs    { font-size: var(--font-size-xs); }
+.text-2xs   { font-size: var(--font-size-2xs); }
+.text-3xs   { font-size: var(--font-size-3xs); }
+.text-icon  { font-size: var(--font-size-icon); }
+
+/* Layout utilities — no Bootstrap equivalent */
+.cursor-pointer { cursor: pointer; }
+.min-w-0        { min-width: 0; }
+
+/* Badge variants — use instead of inline style="background:...; color:..." */
+.badge-template {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-600);
+    border: 1px solid var(--color-gray-200);
+}
+.badge-primary-solid {
+    background-color: var(--color-primary) !important;
+    color: var(--color-white) !important;
+}
+.badge-success-soft {
+    background-color: var(--color-success-light);
+    color: var(--color-success);
+}
+
+/* ============================================
+   Dark Mode (class-based toggle)
+   ============================================ */
+body.dark {
+    /* Primary — track workspace color, flip lighter/lightest to dark tints for dark-mode backgrounds */
+    --color-primary: var(--workspace-color);
+    --color-primary-dark: color-mix(in srgb, var(--workspace-color) 80%, white);
+    --color-primary-light: color-mix(in srgb, var(--workspace-color) 70%, white);
+    --color-primary-lighter: color-mix(in srgb, var(--workspace-color) 25%, black);
+    --color-primary-lightest: color-mix(in srgb, var(--workspace-color) 12%, black);
+
+    --color-gray-900: #f9fafb;
+    --color-gray-800: #f3f4f6;
+    --color-gray-700: #edf0f2;
+    --color-gray-600: #dde3ea;
+    --color-gray-500: #d8e0e8;
+    --color-gray-400: #c8d0da;
+    --color-gray-300: #3a3a3a;
+    --color-gray-200: #232323;
+    --color-gray-100: #1c1c1e;
+    --color-gray-50: #111111;
+    --color-white: #141414;
+
+    --color-success: #34d399;
+    --color-success-light: #064e3b;
+    --color-danger: #f87171;
+    --color-danger-light: #7f1d1d;
+    --color-warning: #fbbf24;
+    --color-warning-light: #78350f;
+    --color-info: #60a5fa;
+    --color-info-light: #1e3a5f;
+
+    /* Dark variants used for badge text — lightened so they read on remapped `*-light` backgrounds */
+    --color-success-dark: #6ee7b7;
+    --color-danger-dark: #fca5a5;
+    --color-warning-dark: #fcd34d;
+    --color-info-dark: #93c5fd;
+
+    --bs-primary: var(--workspace-color);
+    --bs-light: #1c1c1e;
+    --bs-light-rgb: 28, 28, 30;
+    --bs-dark: #f9fafb;
+    --bs-dark-rgb: 249, 250, 251;
+
+    /* Bootstrap card/body surfaces — default to white; remap to dark shell */
+    --bs-body-bg: #111111;
+    --bs-body-color: #f9fafb;
+    --bs-card-bg: #141414;
+    --bs-card-border-color: #232323;
+    --bs-border-color: #232323;
+    --bs-secondary-color: #d8e0e8;
+    --bs-secondary-bg: #1c1c1e;
+    --bs-tertiary-bg: #111111;
+
+    color-scheme: dark;
+}
+
+/* Bootstrap .card: override local CSS vars AND background directly — Bootstrap defines
+   --bs-card-bg locally on .card which shadows the body.dark token override. */
+body.dark .card {
+    --bs-card-bg: #141414;
+    --bs-card-border-color: #232323;
+    --bs-card-cap-bg: #1c1c1e;
+    --bs-card-color: var(--color-gray-900);
+    background-color: #141414;
+    border-color: #232323;
+    color: var(--color-gray-900);
+}
+
+/* Filter button readability in dark mode */
+body.dark .btn-outline-secondary {
+    color: var(--color-gray-700);
+    border-color: var(--color-gray-300);
+}
+body.dark .btn-outline-secondary:hover {
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-200);
+    border-color: var(--color-gray-500);
+}
+body.dark .btn-dark {
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-200);
+    border-color: var(--color-gray-300);
+}
+body.dark .btn-outline-primary {
+    color: var(--color-primary-light);
+    border-color: var(--color-primary);
+}
+body.dark .btn-outline-primary:hover {
+    color: var(--color-white);
+    background-color: var(--color-primary);
+}
+
+/* Active state for outline-secondary (used as filter tabs in btn-group) */
+body.dark .btn-outline-secondary.active {
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-200);
+    border-color: var(--color-gray-300);
+}
+
+/* Form inputs: prevent white bg on dark shell */
+body.dark .form-control,
+body.dark .form-select {
+    background-color: #111111;
+    border-color: #232323;
+    color: var(--color-gray-900);
+}
+body.dark .form-control:focus,
+body.dark .form-select:focus {
+    background-color: #111111;
+    border-color: var(--color-primary);
+    color: var(--color-gray-900);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+body.dark .form-control::placeholder {
+    color: var(--color-gray-500);
+}
+body.dark .input-group-text {
+    background-color: #1c1c1e;
+    border-color: #232323;
+    color: var(--color-gray-700);
+}
+
+/* Tables: dark shell, readable cell text and borders */
+body.dark .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--color-gray-900);
+    --bs-table-border-color: #232323;
+    --bs-table-striped-bg: #111111;
+    --bs-table-striped-color: var(--color-gray-900);
+    --bs-table-hover-bg: #1c1c1e;
+    --bs-table-hover-color: var(--color-gray-900);
+    color: var(--color-gray-900);
+}
+body.dark .table > :not(caption) > * > * {
+    border-bottom-color: #232323;
+}
+body.dark .table thead th {
+    color: var(--color-gray-700);
+    border-bottom-color: #232323;
+}
+
+/* Bootstrap component overrides — list-group defines its own local CSS vars that
+   shadow the body.dark tokens, so override them at the component level too. */
+body.dark .list-group {
+    --bs-list-group-bg: #141414;
+    --bs-list-group-color: var(--color-gray-900);
+    --bs-list-group-border-color: #232323;
+    --bs-list-group-action-hover-bg: #1c1c1e;
+    --bs-list-group-action-hover-color: var(--color-gray-900);
+    --bs-list-group-disabled-bg: #141414;
+    --bs-list-group-disabled-color: var(--color-gray-500);
+}
+body.dark .list-group-item {
+    background-color: #141414;
+    color: var(--color-gray-900);
+    border-color: #232323;
+}
+
+/* Bootstrap utility overrides that otherwise stay hardcoded to light surfaces */
+body.dark .bg-light {
+    background-color: #1c1c1e !important;
+}
+body.dark .bg-white {
+    background-color: #141414 !important;
+}
+body.dark .text-dark {
+    color: var(--color-gray-900) !important;  /* gray-900 remaps to light in dark mode */
+}
+body.dark .badge.bg-light {
+    background-color: #232323 !important;
+    color: var(--color-gray-700) !important;  /* overrides .text-dark when paired */
+}
+body.dark .badge.bg-secondary {
+    background-color: #232323 !important;
+    color: var(--color-gray-700) !important;
+}
+body.dark .badge.bg-info {
+    background-color: var(--color-info-light) !important;   /* #1e3a5f — dark blue bg */
+    color: var(--color-info-dark) !important;               /* #93c5fd — light blue text */
+}
+body.dark .badge.bg-warning {
+    background-color: var(--color-warning-light) !important;
+    color: var(--color-warning-dark) !important;            /* #fcd34d — light amber text */
+}
+body.dark .badge.bg-warning.text-dark {
+    color: var(--color-warning-dark) !important;            /* override .text-dark */
+}
+body.dark .badge.bg-success {
+    background-color: var(--color-success-light) !important;
+    color: var(--color-success-dark) !important;            /* #6ee7b7 — light green text */
+}
+body.dark .badge.bg-danger {
+    background-color: var(--color-danger-light) !important;
+    color: var(--color-danger-dark) !important;             /* #fca5a5 — light red text */
+}
+
+/* Bootstrap .modal — uses --bs-modal-bg locally; defaults to white. */
+body.dark .modal-content {
+    background-color: #141414;
+    border-color: #232323;
+    color: var(--color-gray-900);
+}
+body.dark .modal-header,
+body.dark .modal-footer {
+    border-color: #232323;
+}
+body.dark .modal-header .btn-close {
+    filter: invert(1) grayscale(100%);  /* Bootstrap close-X is a dark SVG; invert for dark bg */
+}
+body.dark .modal-title {
+    color: var(--color-gray-900);
+}
+
+/* Bootstrap .dropdown-menu — defaults to white via --bs-dropdown-bg. */
+body.dark .dropdown-menu {
+    background-color: #141414;
+    border-color: #232323;
+    color: var(--color-gray-900);
+}
+body.dark .dropdown-item {
+    color: var(--color-gray-900);
+}
+body.dark .dropdown-item:hover,
+body.dark .dropdown-item:focus {
+    background-color: #1c1c1e;
+    color: var(--color-gray-900);
+}
+body.dark .dropdown-item.active,
+body.dark .dropdown-item:active {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+}
+body.dark .dropdown-divider {
+    border-top-color: #232323;
+}
+body.dark .dropdown-header {
+    color: var(--color-gray-500);
+}
+
+/* Bootstrap .nav-tabs active tab defaults to white bg — force dark surface. */
+body.dark .nav-tabs {
+    border-bottom-color: #232323;
+}
+body.dark .nav-tabs .nav-link {
+    color: var(--color-gray-700);
+    border-color: transparent;
+}
+body.dark .nav-tabs .nav-link:hover:not(.active) {
+    color: var(--color-gray-900);
+    border-color: transparent;
+}
+body.dark .nav-tabs .nav-link.active {
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-200);  /* lifted dark surface */
+    border-color: #232323 #232323 var(--color-gray-200);
+}
+/* Bootstrap .table-light variant forces its own white bg + black text via local --bs-table-* vars.
+   Override those when loaded on a dark shell. */
+body.dark .table-light,
+body.dark .table > :not(caption) > * > .table-light {
+    --bs-table-color: var(--color-gray-700);
+    --bs-table-bg: transparent;
+    --bs-table-border-color: #232323;
+    color: var(--bs-table-color);
+    background-color: var(--bs-table-bg);
+    border-color: var(--bs-table-border-color);
+}
+
+/* ── Projects: cross-module styles ─────────────────────────────────────── */
+.project-status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.project-badge-pill {
+    display: inline-block;
+    font-size: var(--font-size-3xs);
+    font-weight: 500;
+    padding: 0.1em 0.5em;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--color-primary, #6366f1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.project-badge-pill:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--color-primary, #6366f1);
+    text-decoration: none;
+}
+
+.mention {
+    background: var(--color-primary-lightest, rgba(99, 102, 241, 0.1));
+    color: var(--color-primary, #6366f1);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+/* ── Urlized text content (comments, descriptions) ─── */
+.text-content a {
+    color: var(--color-info);
+    text-decoration: underline;
+}
+

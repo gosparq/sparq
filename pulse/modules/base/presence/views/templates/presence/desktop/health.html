@@ -1,0 +1,137 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Team Health") }}{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="content-heading">{{ _("Team Health") }}</h2>
+            <p class="text-muted mb-0 mt-1 small">{{ _("Last 7 days") }}</p>
+        </div>
+        <a href="{{ url_for('presence_flow_bp.pulse_index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Check-ins") }}
+        </a>
+    </div>
+
+    {# --- On Track Summary --- #}
+    <div class="mb-5">
+        <h5 class="fw-semibold mb-3"><i class="fas fa-road me-2"></i>{{ _("On Track Summary") }}</h5>
+        {% if total_track > 0 %}
+        <div class="row g-3">
+            <div class="col-auto">
+                <div class="card border-0 bg-light">
+                    <div class="card-body py-3 px-4 text-center">
+                        <div class="fs-2 fw-bold text-success">{{ on_track_count }}</div>
+                        <div class="text-muted small">{{ _("On Track") }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="card border-0 bg-light">
+                    <div class="card-body py-3 px-4 text-center">
+                        <div class="fs-2 fw-bold text-danger">{{ off_track_count }}</div>
+                        <div class="text-muted small">{{ _("Off Track") }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="card border-0 bg-light">
+                    <div class="card-body py-3 px-4 text-center">
+                        <div class="fs-2 fw-bold">{{ on_track_pct }}%</div>
+                        <div class="text-muted small">{{ _("Team Avg") }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted">{{ _("No on-track check-ins this week.") }}</p>
+        {% endif %}
+    </div>
+
+    {# --- Energy Bars --- #}
+    <div class="mb-5">
+        <h5 class="fw-semibold mb-3"><i class="fas fa-bolt me-2"></i>{{ _("Energy Levels") }}</h5>
+        {% if energy_data %}
+        {% for item in energy_data %}
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <div style="width:140px;" class="text-truncate small fw-semibold">
+                {% if item.member.user %}
+                    {{ item.member.user.first_name }} {{ item.member.user.last_name }}
+                {% else %}
+                    {{ _("Unknown") }}
+                {% endif %}
+            </div>
+            <div class="flex-grow-1">
+                {% set pct = (item.avg / 5 * 100)|int %}
+                {% if item.avg > 3.5 %}
+                    {% set bar_color = 'bg-success' %}
+                {% elif item.avg >= 2.5 %}
+                    {% set bar_color = 'bg-warning' %}
+                {% else %}
+                    {% set bar_color = 'bg-danger' %}
+                {% endif %}
+                <div class="progress" style="height:20px;">
+                    <div class="progress-bar {{ bar_color }}" role="progressbar" style="width:{{ pct }}%;" aria-valuenow="{{ item.avg }}" aria-valuemin="0" aria-valuemax="5">
+                        {{ item.avg }}
+                    </div>
+                </div>
+            </div>
+            <div class="text-muted small" style="width:60px;">
+                {{ item.count }} {{ _("post") if item.count == 1 else _("posts") }}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted">{{ _("No energy check-ins this week.") }}</p>
+        {% endif %}
+    </div>
+
+    {# --- Check-in Heatmap --- #}
+    <div class="mb-4">
+        <h5 class="fw-semibold mb-3"><i class="fas fa-th me-2"></i>{{ _("Check-in Activity") }}</h5>
+        {% if heatmap %}
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0" style="font-size:0.85rem;">
+                <thead>
+                    <tr>
+                        <th style="min-width:140px;"></th>
+                        {% for dl in day_labels %}
+                        <th class="text-center text-muted text-xs">{{ dl.label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in heatmap %}
+                    <tr>
+                        <td class="fw-semibold text-truncate" style="max-width:140px;">
+                            {% if row.member.user %}
+                                {{ row.member.user.first_name }} {{ row.member.user.last_name }}
+                            {% else %}
+                                {{ _("Unknown") }}
+                            {% endif %}
+                        </td>
+                        {% for dl in day_labels %}
+                        {% set count = row.days.get(dl.date, 0) %}
+                        <td class="text-center" style="{% if count > 0 %}background-color:rgba(25,135,84,{{ [0.2 + count * 0.2, 1.0]|min }});{% endif %}">
+                            {% if count > 0 %}
+                            <span class="{% if count > 2 %}text-white{% else %}text-success{% endif %} fw-semibold">{{ count }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">{{ _("No pulse check-ins this week.") }}</p>
+        {% endif %}
+    </div>
+
+</div>
+</div>
+{% endblock %}

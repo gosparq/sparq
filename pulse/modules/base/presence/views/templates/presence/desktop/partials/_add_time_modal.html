@@ -1,0 +1,370 @@
+<!-- Add Time Entry Modal — Tab-based per-day (week) or single-day (day) -->
+<div class="modal fade show modal-active-backdrop" id="addTimeModal" tabindex="-1"
+     x-data="{
+         activeDay: '{{ default_date.isoformat() }}',
+         timeMode: 'duration',
+         days: {
+             {% if mode == 'day' %}
+             '{{ default_date.isoformat() }}': {
+                 hours: '',
+                 category: '',
+                 job_id: '',
+                 job_text: '',
+                 description: '',
+                 is_billable: false,
+                 start_time: '',
+                 end_time: '',
+             }
+             {% else %}
+             {% for i in range(7) %}
+             '{{ (week_start + timedelta(days=i)).isoformat() }}': {
+                 hours: '',
+                 category: '',
+                 job_id: '',
+                 job_text: '',
+                 description: '',
+                 is_billable: false,
+                 start_time: '',
+                 end_time: '',
+             }{{ ',' if not loop.last }}
+             {% endfor %}
+             {% endif %}
+         },
+         get filledDays() {
+             return Object.entries(this.days).filter(([d, data]) => parseFloat(data.hours) > 0);
+         },
+         get entriesCount() {
+             return this.filledDays.length;
+         },
+         hourLabel: '{{ _("h") }}',
+         get totalHours() {
+             return Object.values(this.days)
+                 .reduce((sum, d) => sum + (parseFloat(d.hours) || 0), 0).toFixed(2);
+         }
+     }"
+     x-init="
+         $watch('timeMode', (mode) => {
+             if (mode === 'range') {
+                 $nextTick(() => { _initFlatpickr(); _syncFlatpickr(activeDay); });
+             }
+         });
+         $watch('activeDay', (day) => {
+             if (timeMode === 'range') {
+                 $nextTick(() => { _syncFlatpickr(day); });
+             }
+         });
+     ">
+    <div class="modal-dialog {{ 'modal-lg' if mode == 'week' else '' }}">
+        <div class="modal-content">
+            <form hx-post="{{ url_for('presence_bp.create_entry') }}"
+                  hx-target="#modals"
+                  hx-swap="innerHTML">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus me-2"></i>{{ _("Add Time Entry") }}
+                    </h5>
+                    <button type="button" class="btn-close"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <!-- Hidden fields -->
+                    <input type="hidden" name="weekly_entries" required
+                           :value="JSON.stringify(filledDays.map(([date, data]) => ({
+                               date: date,
+                               hours: parseFloat(data.hours),
+                               category: data.category,
+                               job_id: data.job_id,
+                               description: data.description,
+                               is_billable: data.is_billable,
+                               time_mode: timeMode,
+                               start_time: data.start_time,
+                               end_time: data.end_time,
+                           })))">
+                    <input type="hidden" name="return_to" value="{{ return_to|default('week') }}">
+                    <input type="hidden" name="week_start" value="{{ week_start.isoformat() }}">
+                    {% if return_to|default('week') == 'day' and day_date %}
+                    <input type="hidden" name="day_date" value="{{ day_date }}">
+                    {% endif %}
+                    {% if member_id %}<input type="hidden" name="member_id" value="{{ member_id }}">{% endif %}
+
+                    <!-- Day selector -->
+                    {% if mode == 'day' %}
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-0">{{ _("Date") }}</label>
+                        <div class="form-control-plaintext form-control-sm fw-medium pt-0">
+                            {{ default_date.strftime('%A, %B %d, %Y') }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">{{ _("Date") }}</label>
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            {% for i in range(7) %}
+                            {% set day = week_start + timedelta(days=i) %}
+                            <button type="button"
+                                    class="btn"
+                                    :class="activeDay === '{{ day.isoformat() }}'
+                                        ? 'btn-outline-secondary active'
+                                        : (parseFloat(days['{{ day.isoformat() }}'].hours) > 0
+                                            ? 'week-day-filled'
+                                            : 'btn-outline-secondary')"
+                                    @click="activeDay = '{{ day.isoformat() }}'">
+                                <div class="small">{{ day.strftime('%a') }}</div>
+                                <div class="{{ 'fw-bold' if day == today else '' }}">{{ day.strftime('%d') }}</div>
+                                <div class="week-day-hours"
+                                     :style="{ visibility: parseFloat(days['{{ day.isoformat() }}'].hours) > 0 ? 'visible' : 'hidden' }"
+                                     x-text="parseFloat(days['{{ day.isoformat() }}'].hours) > 0
+                                         ? parseFloat(days['{{ day.isoformat() }}'].hours).toFixed(1) + hourLabel
+                                         : '0' + hourLabel">
+                                </div>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Per-day form section -->
+                    <div class="mb-3">
+                        <!-- Day heading -->
+                        {% if mode == 'week' %}
+                        <div class="small text-muted mb-2">
+                            {% for i in range(7) %}
+                            {% set day = week_start + timedelta(days=i) %}
+                            <span x-show="activeDay === '{{ day.isoformat() }}'">{{ day.strftime('%A, %b %d') }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Category + Time Mode + Billable -->
+                        <div class="row g-2 align-items-center mb-2">
+                            <div class="col-md-4">
+                                <select x-model="days[activeDay].category" class="form-select form-select-sm">
+                                    <option value="">{{ _("General") }}</option>
+                                    <option value="Admin">{{ _("Admin") }}</option>
+                                    <option value="Training">{{ _("Training") }}</option>
+                                    <option value="Meeting">{{ _("Meeting") }}</option>
+                                    <option value="Break">{{ _("Break") }}</option>
+                                    <option value="Travel">{{ _("Travel") }}</option>
+                                </select>
+                            </div>
+
+                            <div class="col-auto">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            :class="{ 'active': timeMode === 'duration' }"
+                                            @click="timeMode = 'duration'">{{ _("Duration") }}</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            :class="{ 'active': timeMode === 'range' }"
+                                            @click="timeMode = 'range'">{{ _("Start/End Time") }}</button>
+                                </div>
+                            </div>
+
+                            <div class="col-auto">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox"
+                                           x-model="days[activeDay].is_billable"
+                                           :id="'modal_billable_' + activeDay">
+                                    <label class="form-check-label" :for="'modal_billable_' + activeDay">
+                                        {{ _("Billable") }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Time inputs -->
+                        <div class="row g-2 mb-2">
+                            <!-- Duration input -->
+                            <div class="col-md-4" x-show="timeMode === 'duration'">
+                                <label class="form-label small">{{ _("Hours") }}</label>
+                                <input type="number" class="form-control form-control-sm modal-hours-input"
+                                       x-model="days[activeDay].hours"
+                                       step="0.25" min="0" max="24" placeholder="0.00">
+                            </div>
+                            <!-- Range inputs -->
+                            <div class="col-12" x-show="timeMode === 'range'" x-cloak>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label small">{{ _("Start") }}</label>
+                                        <input type="text" id="modal_start_time" class="form-control form-control-sm" placeholder="HH:MM">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small">{{ _("End") }}</label>
+                                        <input type="text" id="modal_end_time" class="form-control form-control-sm" placeholder="HH:MM">
+                                        <div id="modal-end-time-error" class="text-danger small mt-1 d-none">{{ _("End Time must occur after Start Time") }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Job Selection (only if Service module enabled) -->
+                        {% if service_enabled %}
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">{{ _("Job") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                            <div x-show="!days[activeDay].job_id">
+                                <input type="text" class="form-control form-control-sm" id="modal_job_search"
+                                       placeholder="{{ _('Search jobs by number, title, or contact...') }}"
+                                       hx-get="{{ url_for('presence_bp.search_jobs') }}"
+                                       hx-trigger="keyup changed delay:300ms"
+                                       hx-target="#modal_job_search_results"
+                                       name="q"
+                                       autocomplete="off">
+                                <div id="modal_job_search_results" class="mt-2"></div>
+                            </div>
+                            <div x-show="days[activeDay].job_id" x-cloak>
+                                <div class="alert alert-success d-flex align-items-center py-2 mb-0">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <span x-text="days[activeDay].job_text"></span>
+                                    <button type="button" class="btn-close ms-auto"
+                                            @click="days[activeDay].job_id = ''; days[activeDay].job_text = ''"></button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Notes -->
+                        <div class="mb-0">
+                            <label class="form-label small mb-1">{{ _("Notes") }}</label>
+                            <textarea class="form-control form-control-sm" rows="2"
+                                      x-model="days[activeDay].description"
+                                      placeholder="{{ _('Description of work performed') }}"></textarea>
+                        </div>
+                    </div>
+
+                    {% if mode == 'week' %}
+                    <!-- Total hours summary (week mode only) -->
+                    <div class="text-end" x-show="entriesCount > 0" x-cloak>
+                        <span class="small text-muted">
+                            {{ _("Total:") }} <strong x-text="totalHours"></strong> {{ _("hrs") }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary" :disabled="entriesCount === 0">
+                        <i class="fas fa-check me-1"></i>
+                        {% if mode == 'day' %}
+                        {{ _("Add Entry") }}
+                        {% else %}
+                        <span x-text="entriesCount > 1
+                            ? '{{ _("Add %(count)s Entries") }}'.replace('%(count)s', entriesCount)
+                            : '{{ _("Add Entry") }}'"></span>
+                        {% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function selectJob(jobId, jobText) {
+    var modal = document.getElementById('addTimeModal');
+    var data = Alpine.$data(modal);
+    data.days[data.activeDay].job_id = jobId;
+    data.days[data.activeDay].job_text = jobText;
+    document.getElementById('modal_job_search_results').innerHTML = '';
+    document.getElementById('modal_job_search').value = '';
+}
+
+var _startPicker, _endPicker;
+
+function _initFlatpickr() {
+    if (_startPicker && _endPicker) return;
+    var startEl = document.getElementById('modal_start_time');
+    var endEl = document.getElementById('modal_end_time');
+    if (!startEl || !endEl) return;
+
+    function _getAlpineData() {
+        return Alpine.$data(document.getElementById('addTimeModal'));
+    }
+
+    _startPicker = flatpickr(startEl, {
+        enableTime: true, noCalendar: true, dateFormat: "H:i",
+        altInput: true, altFormat: "h:i K",
+        time_24hr: false, minuteIncrement: 5,
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                var data = _getAlpineData();
+                var h = selectedDates[0].getHours();
+                var m = selectedDates[0].getMinutes();
+                data.days[data.activeDay].start_time = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+            }
+            _validateEndTime();
+            _calculateHours();
+        }
+    });
+    _endPicker = flatpickr(endEl, {
+        enableTime: true, noCalendar: true, dateFormat: "H:i",
+        altInput: true, altFormat: "h:i K",
+        time_24hr: false, minuteIncrement: 5,
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                var data = _getAlpineData();
+                var h = selectedDates[0].getHours();
+                var m = selectedDates[0].getMinutes();
+                data.days[data.activeDay].end_time = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+            }
+            _validateEndTime();
+            _calculateHours();
+        }
+    });
+}
+
+function _syncFlatpickr(day) {
+    if (!_startPicker || !_endPicker) return;
+    var data = Alpine.$data(document.getElementById('addTimeModal'));
+    var dayData = data.days[day];
+
+    if (dayData.start_time) {
+        _startPicker.setDate(dayData.start_time, false);
+    } else {
+        _startPicker.clear(false);
+    }
+    if (dayData.end_time) {
+        _endPicker.setDate(dayData.end_time, false);
+    } else {
+        _endPicker.clear(false);
+    }
+    // Clear validation state on tab switch
+    var errorEl = document.getElementById('modal-end-time-error');
+    if (errorEl) errorEl.classList.add('d-none');
+    if (_endPicker.altInput) _endPicker.altInput.classList.remove('is-invalid');
+}
+
+function _validateEndTime() {
+    var errorEl = document.getElementById('modal-end-time-error');
+    if (!errorEl || !_startPicker || !_endPicker) return;
+    if (_startPicker.selectedDates.length > 0 && _endPicker.selectedDates.length > 0) {
+        if (_endPicker.selectedDates[0] <= _startPicker.selectedDates[0]) {
+            errorEl.classList.remove('d-none');
+            if (_endPicker.altInput) _endPicker.altInput.classList.add('is-invalid');
+        } else {
+            errorEl.classList.add('d-none');
+            if (_endPicker.altInput) _endPicker.altInput.classList.remove('is-invalid');
+        }
+    }
+}
+
+function _calculateHours() {
+    if (!_startPicker || !_endPicker) return;
+    if (_startPicker.selectedDates.length > 0 && _endPicker.selectedDates.length > 0) {
+        var start = _startPicker.selectedDates[0];
+        var end = _endPicker.selectedDates[0];
+        var diff = (end - start) / 1000 / 3600;
+        if (diff < 0) diff += 24;
+        if (diff > 0) {
+            var data = Alpine.$data(document.getElementById('addTimeModal'));
+            data.days[data.activeDay].hours = diff.toFixed(2);
+        }
+    }
+}
+</script>

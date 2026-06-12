@@ -1,0 +1,40 @@
+/* extends: base.css, desktop.css */
+/* Team Module Styles */
+/* Team-specific navigation icon colors */
+.nav-link i.fa-clock { color: var(--color-danger) !important; }
+
+/* Employee Sidebar */
+.employee-sidebar {
+    position: sticky;
+    top: 1rem;
+}
+
+/* Equal-height columns inside tab panes */
+.tab-content .row > [class*="col-"] {
+    display: flex;
+    flex-direction: column;
+}
+
+.tab-content .row > [class*="col-"] > .card:last-child {
+    flex-grow: 1;
+}
+
+/* Employee Avatar */
+.employee-avatar,
+.person-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-white);
+    letter-spacing: 1px;
+}
+
+/* ── Extracted column-width utilities ───────────────────── */
+.person-col-40  { width: 40%; }
+.person-col-100 { width: 100px; }
+.person-col-80  { width: 80px; }

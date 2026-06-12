@@ -1,0 +1,217 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("Calendar") }}{% endblock %}
+
+{% block app_class %}calendar-app presence-app{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/calendar-mobile.css') }}">
+{% endblock %}
+
+{% block module_content %}
+<div class="mobile-calendar-page">
+    <div class="mobile-cal-header">
+        <div class="mobile-cal-header-top">
+            <span class="mobile-cal-title">
+                {% if view == 'day' %}
+                    {{ current_date.strftime('%b %d, %Y') }}
+                {% elif view == 'week' %}
+                    {{ _("Week of") }} {{ start_date.strftime('%b %d') }}
+                {% else %}
+                    {{ current_date.strftime('%B %Y') }}
+                {% endif %}
+            </span>
+            <button class="mobile-cal-today"
+                    hx-get="{{ url_for('sync_bp.calendar_index', view=view) }}"
+                    hx-target=".mobile-calendar-page"
+                    hx-swap="outerHTML"
+                    hx-select=".mobile-calendar-page">{{ _("Today") }}</button>
+        </div>
+        <div class="mobile-cal-header-bottom">
+            <div class="mobile-cal-nav">
+                <button hx-get="{{ url_for('sync_bp.calendar_index', view=view, date=prev_date.strftime('%Y-%m-%d')) }}"
+                        hx-target=".mobile-calendar-page"
+                        hx-swap="outerHTML"
+                        hx-select=".mobile-calendar-page">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button hx-get="{{ url_for('sync_bp.calendar_index', view=view, date=next_date.strftime('%Y-%m-%d')) }}"
+                        hx-target=".mobile-calendar-page"
+                        hx-swap="outerHTML"
+                        hx-select=".mobile-calendar-page">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="mobile-view-toggle">
+                <button class="{% if view == 'day' %}active{% endif %}"
+                        hx-get="{{ url_for('sync_bp.calendar_index', view='day', date=current_date.strftime('%Y-%m-%d')) }}"
+                        hx-target=".mobile-calendar-page"
+                        hx-swap="outerHTML"
+                        hx-select=".mobile-calendar-page">{{ _("D") }}</button>
+                <button class="{% if view == 'week' %}active{% endif %}"
+                        hx-get="{{ url_for('sync_bp.calendar_index', view='week', date=current_date.strftime('%Y-%m-%d')) }}"
+                        hx-target=".mobile-calendar-page"
+                        hx-swap="outerHTML"
+                        hx-select=".mobile-calendar-page">{{ _("W") }}</button>
+                <button class="{% if view == 'month' %}active{% endif %}"
+                        hx-get="{{ url_for('sync_bp.calendar_index', view='month', date=current_date.strftime('%Y-%m-%d')) }}"
+                        hx-target=".mobile-calendar-page"
+                        hx-swap="outerHTML"
+                        hx-select=".mobile-calendar-page">{{ _("M") }}</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mobile-cal-content">
+        {% if view == 'month' %}
+        {# ═══ Month View ═══ #}
+        <div class="mobile-month-grid">
+            <div class="mobile-cal-weekdays">
+                {% for header in weekday_headers_min %}<span>{{ header }}</span>{% endfor %}
+            </div>
+            <div class="mobile-cal-weeks">
+                {% for week in calendar_data.weeks %}
+                <div class="mobile-cal-week">
+                    {% for day in week.days %}
+                    <div class="mobile-cal-day {% if not day.is_current_month %}other-month{% endif %} {% if day.is_today %}today{% endif %}"
+                         hx-get="{{ url_for('sync_bp.calendar_index', view='day', date=day.date.strftime('%Y-%m-%d')) }}"
+                         hx-target=".mobile-calendar-page"
+                         hx-swap="outerHTML"
+                         hx-select=".mobile-calendar-page">
+                        <span class="day-num">{{ day.day }}</span>
+                        {% if day.events or day.tasks %}
+                        <div class="mobile-cal-day-dots">
+                            {% for _ in day.events[:3] %}<span class="mobile-cal-dot mobile-cal-dot--event"></span>{% endfor %}
+                            {% for _ in day.tasks[:2] %}<span class="mobile-cal-dot mobile-cal-dot--ai"></span>{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% elif view == 'week' %}
+        {# ═══ Week View (Agenda) ═══ #}
+        {% if calendar_data.spanning_entries %}
+        <div class="mobile-cal-spanning">
+            {% for entry in calendar_data.spanning_entries %}
+            <a href="{{ entry.url }}" class="mobile-cal-spanning-bar cal-{{ entry.type }}">
+                <span>{{ entry.label }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="mobile-week-agenda">
+            {% for day in calendar_data.days %}
+            {% set item_count = day.events|length + day.tasks|length %}
+            <div class="mobile-week-agenda-day {% if day.is_today %}today{% endif %}">
+                <div class="mobile-week-agenda-header"
+                     {% if current_user.is_admin and item_count == 0 %}
+                     hx-get="{{ url_for('sync_bp.event_new', date=day.date.strftime('%Y-%m-%d'), view=view) }}"
+                     hx-target="#modal-container"
+                     style="cursor:pointer;"
+                     {% endif %}>
+                    <span class="mobile-week-agenda-dayname">{{ day.day_name[:3] }}</span>
+                    <span class="mobile-week-agenda-daynum">{{ day.day }}</span>
+                    {% if item_count %}
+                    <span class="mobile-week-agenda-count">{{ item_count }} {{ _("items") if item_count != 1 else _("item") }}</span>
+                    {% endif %}
+                </div>
+                {% if day.events or day.tasks %}
+                <div class="mobile-week-agenda-items">
+                    {% for event in day.events %}
+                    <div class="mobile-week-agenda-event"
+                         hx-get="{{ url_for('sync_bp.event_detail', event_id=event.id, view=view) }}"
+                         hx-target="#modal-container"
+                         @click.stop="">
+                        <span class="mobile-week-event-dot mobile-week-event-dot--event"></span>
+                        <div class="mobile-week-event-info">
+                            <div class="mobile-week-event-title">{{ event.title }}</div>
+                            <div class="mobile-week-event-meta">{{ event.time }}{% if event.location %} · {{ event.location }}{% endif %}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% for item in day.tasks %}
+                    <a href="{{ item.url }}" class="mobile-week-agenda-event" @click.stop="">
+                        <span class="mobile-week-event-dot mobile-week-event-dot--ai"></span>
+                        <div class="mobile-week-event-info">
+                            <div class="mobile-week-event-title">{{ item.title }}</div>
+                            <div class="mobile-week-event-meta">{{ _("Due") }}{% if item.assignee %} · {{ item.assignee }}{% endif %}</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="mobile-week-empty">{{ _("No events") }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {% else %}
+        {# ═══ Day View ═══ #}
+        <div class="mobile-day-view">
+            <div class="mobile-day-header">
+                <div class="day-name">{{ current_date.strftime('%A') }}</div>
+                <div class="day-num">{{ current_date.day }}</div>
+            </div>
+
+            {% if calendar_data.spanning_entries %}
+            <div class="mobile-day-banners">
+                {% for entry in calendar_data.spanning_entries %}
+                <a href="{{ entry.url }}" class="mobile-day-banner cal-{{ entry.type }}">
+                    <span>{{ entry.label }}</span>
+                    <span class="mobile-day-banner-dates">{{ entry.start_date.strftime('%b %d') }} — {{ entry.end_date.strftime('%b %d') }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="mobile-day-events">
+                {% if calendar_data.events or calendar_data.tasks %}
+                    {% for event in calendar_data.events %}
+                    <div class="mobile-day-event"
+                         hx-get="{{ url_for('sync_bp.event_detail', event_id=event.id, view=view) }}"
+                         hx-target="#modal-container">
+                        <div class="mobile-day-event-time">{{ event.time }}</div>
+                        <div class="mobile-day-event-title">{{ event.title }}</div>
+                        {% if event.location %}
+                        <div class="mobile-day-event-location">
+                            <i class="fas fa-map-marker-alt" style="font-size:0.6rem;"></i> {{ event.location }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% for item in calendar_data.tasks %}
+                    <a href="{{ item.url }}" class="mobile-day-ai-card">
+                        <div class="mobile-day-ai-label"><i class="fas fa-clipboard-check me-1"></i>{{ _("Due Today") }}</div>
+                        <div class="mobile-day-ai-title">{{ item.title }}</div>
+                        {% if item.assignee %}
+                        <div class="mobile-day-ai-assignee"><i class="fas fa-user" style="font-size:0.6rem;"></i> {{ item.assignee }}</div>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="mobile-day-no-events">
+                        <i class="fas fa-calendar-day fa-2x mb-2 d-block opacity-50"></i>
+                        {{ _("No events") }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if current_user.is_admin %}
+<a href="{{ url_for('sync_bp.event_new', date=current_date.strftime('%Y-%m-%d'), view=view) }}"
+   class="fab"
+   hx-get="{{ url_for('sync_bp.event_new', date=current_date.strftime('%Y-%m-%d'), view=view) }}"
+   hx-target="#modal-container">
+    <i class="fas fa-plus"></i>
+</a>
+{% endif %}
+{% endblock %}

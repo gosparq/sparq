@@ -1,0 +1,75 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ _("Team Tasks") }}{% endblock %}
+
+{% block module_content %}
+<div class="mb-3">
+    <h2 class="mb-0" style="font-size:1.25rem;font-weight:600;">{{ _("Team") }}</h2>
+    <span class="text-muted" style="font-size:0.8125rem;">{{ _("Open items across the team") }}</span>
+</div>
+
+{% if assignee_groups %}
+    {% for aid, group in assignee_groups.items() %}
+    <div class="mb-3">
+        {# Assignee header #}
+        <div class="d-flex align-items-center gap-2 mb-2">
+            {% if group["member"] and group["member"].user %}
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;min-width:28px;border-radius:50%;background:{{ group['member'].user.avatar_color|default('#6b7280') }};color:#fff;font-size:0.65rem;font-weight:600;text-transform:uppercase;flex-shrink:0;line-height:1;">
+                {{ group["member"].user.first_name[0]|upper }}{{ group["member"].user.last_name[0]|upper }}
+            </span>
+            <span class="text-base" style="font-weight:600;color:var(--color-gray-700)">
+                {{ group["member"].user.first_name }} {{ group["member"].user.last_name }}
+            </span>
+            {% else %}
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;min-width:28px;border-radius:50%;background:var(--color-gray-400);color:#fff;font-size:0.65rem;flex-shrink:0;line-height:1;">
+                <i class="fas fa-user-slash" style="font-size:0.65rem;"></i>
+            </span>
+            <span class="text-base" style="font-weight:600;color:var(--color-gray-700)">
+                {{ _("Unassigned") }}
+            </span>
+            {% endif %}
+            <span class="text-muted" style="font-size:0.75rem;">({{ group["items"]|length }})</span>
+        </div>
+
+        {% for item in group["items"] %}
+        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+           class="d-block text-decoration-none mb-2"
+           style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.75rem;border-left:3px solid {{ tier_defaults[item.urgency_tier].color }};">
+            <div class="text-truncate" style="font-size:0.9375rem;font-weight:600;color:var(--color-gray-900);">
+                {% if item.is_blocker %}<i class="fas fa-hand text-danger me-1" title="{{ _('Blocker') }}"></i>{% endif %}{{ item.title }}
+            </div>
+            <div class="text-muted d-flex align-items-center gap-2 flex-wrap" style="font-size:0.75rem;margin-top:0.25rem;">
+                <span style="padding:0.125rem 0.5rem;border-radius:999px;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;">
+                    {{ tier_defaults[item.urgency_tier].label }}
+                </span>
+                <span>{{ item.time_ago() }}</span>
+                {% if item.due_date %}
+                <span {% if item.due_date < today %}class="text-danger fw-semibold"{% endif %}>
+                    <i class="fas fa-calendar-day me-1" style="font-size:0.6rem;"></i>{{ item.due_date.strftime('%b %d') }}
+                </span>
+                {% endif %}
+                {% if item.project_id and item.project %}
+                <span style="padding:0.125rem 0.5rem;border-radius:999px;background:var(--color-gray-100);color:var(--color-gray-700);">
+                    {{ item.project.name[:20] }}
+                </span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endfor %}
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="fas fa-users fa-2x mb-3 d-block opacity-50"></i>
+    <p class="mb-1 text-base" style="font-weight:500">{{ _("No team action items") }}</p>
+    <p class="mb-0 text-base">{{ _("Everyone is clear") }}</p>
+</div>
+{% endif %}
+
+<button type="button" class="fab" aria-label="{{ _('Create Task') }}"
+        hx-get="{{ url_for('tasks_bp.create_modal') }}"
+        hx-target="#modals"
+        hx-swap="innerHTML">
+    <i class="fas fa-plus"></i>
+</button>
+{% endblock %}

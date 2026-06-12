@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %} - sparQ</title>
+    <link rel="icon" type="image/png" href="{{ url_for('core_bp.static', filename='images/favicon-96x96.png') }}" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('core_bp.static', filename='images/favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('core_bp.static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('core_bp.static', filename='images/apple-touch-icon.png') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="{{ g.workspace_color|default('#E8431A') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="sparQ">
+    <link rel="manifest" href="{{ url_for('core_bp.manifest') }}">
+    <script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script nonce="{{ csp_nonce }}">htmx.config.inlineScriptNonce = "{{ csp_nonce }}";</script>
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script nonce="{{ csp_nonce }}">
+    if (localStorage.getItem('sparq-dark-mode') === 'true') {
+        document.documentElement.style.colorScheme = 'dark';
+    }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/mobile.css') }}">
+    {% block additional_styles %}{% endblock %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script nonce="{{ csp_nonce }}">window.SPARQ_DEBUG = {{ 'true' if config.DEBUG else 'false' }};window.SPARQ_TIMEZONE = '{{ company_timezone }}';</script>
+    <script nonce="{{ csp_nonce }}">
+    (function(){
+        var _fetch = window.fetch;
+        window.fetch = function(url, opts) {
+            opts = opts || {};
+            var method = (opts.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                var token = document.querySelector('meta[name="csrf-token"]');
+                if (token) {
+                    opts.headers = opts.headers || {};
+                    if (opts.headers instanceof Headers) {
+                        if (!opts.headers.has('X-CSRF-Token')) opts.headers.set('X-CSRF-Token', token.content);
+                    } else {
+                        if (!opts.headers['X-CSRF-Token']) opts.headers['X-CSRF-Token'] = token.content;
+                    }
+                }
+            }
+            return _fetch.call(this, url, opts);
+        };
+    })();
+    </script>
+</head>
+<body class="{% block app_class %}{% endblock %}" style="--workspace-color: {{ g.workspace_color|default('#E8431A') }}" x-data="{ alertsOpen: false, tsOpen: false, drawerOpen: false, orgOpen: false, dmListOpen: false }" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+    <script nonce="{{ csp_nonce }}">if(localStorage.getItem('sparq-dark-mode')==='true')document.body.classList.add('dark');</script>
+    {% if request.endpoint != 'core_bp.login' %}
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+        <div class="mobile-header-left">
+            {% block mobile_header_left %}
+            <!-- Hamburger — opens primary nav drawer -->
+            <button class="mobile-hamburger" @click="drawerOpen = true" aria-label="{{ _('Menu') }}">
+                <i class="fas fa-bars"></i>
+            </button>
+            {% endblock mobile_header_left %}
+        </div>
+        <div class="mobile-header-center">
+            {% block mobile_header_center %}
+            <!-- Workspace name + switcher (tap to switch) -->
+            {% set active_ts = user_workspaces|selectattr('id', 'equalto', active_workspace_id)|first if user_workspaces and active_workspace_id else none %}
+            <div class="mobile-header-org" @click="tsOpen = !tsOpen" style="cursor:pointer;">
+                <div class="mobile-org-avatar">{{ active_ts.name[:1]|upper if active_ts else 'S' }}</div>
+                <span class="mobile-org-name">{{ active_ts.name if active_ts else 'sparQ' }}{% if user_workspaces|length > 1 %} <i class="fas fa-chevron-down"></i>{% endif %}</span>
+            </div>
+            {% endblock mobile_header_center %}
+        </div>
+        <div class="mobile-header-actions">
+            <!-- Notifications bell -->
+            <button class="mobile-header-btn" @click="alertsOpen = !alertsOpen" aria-label="{{ _('Notifications') }}">
+                <i class="far fa-bell"></i>
+                {% if notification_count and notification_count > 0 %}
+                <span class="notification-dot"></span>
+                {% endif %}
+            </button>
+            <!-- User avatar (links to settings) -->
+            <a href="{{ url_for('core_bp.settings') }}" class="mobile-header-avatar" aria-label="{{ _('Settings') }}">
+                {{ current_user.first_name[:1]|upper if current_user.first_name else 'U' }}{{ current_user.last_name[:1]|upper if current_user.last_name else '' }}
+            </a>
+        </div>
+    </header>
+    {% endif %}
+
+    <!-- Flash Messages Container -->
+    <div class="flash-messages-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} fade show" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <div class="mobile-main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Modal Container (must be outside .mobile-main-content to avoid stacking context issues) -->
+    <div id="modal-container"></div>
+    {# Modals defined inline in page templates must render here, outside .mobile-main-content,
+       so their z-index competes in the root stacking context rather than being trapped
+       inside .mobile-main-content's fixed stacking context. #}
+    {% block modals %}{% endblock %}
+
+    {# ── SAMPLE DATA MODAL (one-time, first login after Rule 2 signup) ── #}
+    {% if show_sample_data_modal %}
+    <div class="modal fade" id="sampleDataModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:360px;">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="text-center px-4 pt-4 pb-2">
+                    <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" style="height:40px;" class="mb-3">
+                    <h5 class="fw-semibold mb-1">{{ _("Welcome to your workspace") }}</h5>
+                    <p class="text-muted mb-0" style="font-size:.85rem;">{{ _("We've added sample data so you can explore how everything works before inviting your team.") }}</p>
+                </div>
+                <div class="px-4 pt-3 pb-2">
+                    <div class="d-flex align-items-start gap-2 rounded-3 px-3 py-2" style="background:var(--bg-secondary);font-size:.8rem;color:var(--text-muted);">
+                        <i class="fas fa-circle-info mt-1" style="font-size:.7rem;opacity:.6;"></i>
+                        <span>{{ _("Remove Sam Sparq from the Directory to clear all sample data.") }}</span>
+                    </div>
+                </div>
+                <div class="px-4 pt-3 pb-4">
+                    <button type="button" class="btn w-100 fw-medium" style="background:var(--workspace-color);color:#fff;border:none;"
+                        data-bs-dismiss="modal"
+                        hx-post="{{ url_for('core_bp.dismiss_sample_modal') }}"
+                        hx-swap="none">{{ _("Start exploring") }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mobile Bottom Navigation —
+         Global bottom tab bar has been replaced by the hamburger drawer (see header).
+         Module layouts still override this block to provide within-module sub-nav. -->
+    {% if request.endpoint != 'core_bp.login' and current_user.is_authenticated %}
+    {% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}
+    {% include "core/mobile/_chat_fab.html" %}
+    {% endif %}
+
+    {# Mobile overlay surfaces — MUST live at body root, not inside .mobile-header.
+       .mobile-header has position:fixed + z-index:1020 which creates a stacking
+       context; any overlay nested inside it gets trapped below .mobile-bottom-nav
+       (z-index:1030) regardless of its own z-index. See blueprint/patterns/mobile-navigation.md. #}
+    {% if request.endpoint != 'core_bp.login' %}
+    <!-- Primary nav drawer (global navigation) -->
+    {% if current_user.is_authenticated %}
+    {% include "core/mobile/_drawer.html" %}
+    {% endif %}
+
+    <!-- Alerts Bottom Sheet (triggered by bell icon) -->
+    <div class="alerts-sheet-overlay"
+         :class="{ 'open': alertsOpen }"
+         @click.self="alertsOpen = false"
+         x-cloak>
+        <div class="alerts-sheet" @click.stop>
+            <div class="alerts-sheet-handle"></div>
+            <div class="alerts-sheet-header">
+                <h3>{{ _("Notifications") }}</h3>
+                <button type="button" class="alerts-mark-read"
+                        hx-post="{{ url_for('core_bp.notifications_mark_all_read') }}"
+                        hx-target="#mobile-notification-content"
+                        hx-swap="innerHTML">
+                    {{ _("Mark all read") }}
+                </button>
+            </div>
+            <div class="alerts-sheet-content" id="mobile-notification-content"
+                 hx-get="{{ url_for('core_bp.notifications_dropdown') }}"
+                 hx-trigger="intersect once"
+                 hx-swap="innerHTML">
+                <div style="text-align:center;padding:2rem;color:var(--color-gray-400);">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DM Member List Bottom Sheet (triggered by chat FAB) -->
+    <div class="alerts-sheet-overlay"
+         :class="{ 'open': dmListOpen }"
+         @click.self="dmListOpen = false"
+         x-cloak>
+        <div class="alerts-sheet" @click.stop>
+            <div class="alerts-sheet-handle"></div>
+            <div class="alerts-sheet-header">
+                <h3>{{ _("Messages") }}</h3>
+                <button type="button" class="alerts-mark-read" @click="dmListOpen = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="alerts-sheet-content"
+                 hx-get="{{ url_for('sync_bp.get_dm_threads', mobile=1, sheet=1) }}"
+                 hx-trigger="intersect once"
+                 hx-swap="innerHTML">
+                <div style="text-align:center;padding:2rem;color:var(--color-gray-400);">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace Picker Bottom Sheet -->
+    {% if user_workspaces and user_workspaces|length > 1 %}
+    <div class="alerts-sheet-overlay"
+         :class="{ 'open': tsOpen }"
+         @click.self="tsOpen = false"
+         x-cloak>
+        <div class="alerts-sheet" @click.stop>
+            <div class="alerts-sheet-handle"></div>
+            <div class="alerts-sheet-header">
+                <h3>{{ _("Switch Workspace") }}</h3>
+                <button type="button" class="alerts-mark-read" @click="tsOpen = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="alerts-sheet-content" style="padding-bottom:calc(60px + var(--safe-area-bottom));">
+                {% for ts in user_workspaces %}
+                <form method="POST" action="{{ url_for('core_bp.switch_workspace', workspace_id=ts.id) }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="picker-item {% if ts.id == active_workspace_id %}active{% endif %}" @click="tsOpen = false">
+                        <div class="picker-item-avatar">{{ ts.name[:1]|upper }}</div>
+                        <div class="picker-item-content">
+                            <div class="picker-item-name">{{ ts.name }}</div>
+                            <div class="picker-item-role">{{ ts.role|capitalize if ts.role else '' }}</div>
+                        </div>
+                        {% if ts.id == active_workspace_id %}
+                        <i class="fas fa-check picker-item-check"></i>
+                        {% endif %}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Organization Picker Bottom Sheet -->
+    {% if user_organizations|length > 1 %}
+    <div class="alerts-sheet-overlay"
+         :class="{ 'open': orgOpen }"
+         @click.self="orgOpen = false"
+         x-cloak>
+        <div class="alerts-sheet" @click.stop>
+            <div class="alerts-sheet-handle"></div>
+            <div class="alerts-sheet-header">
+                <h3>{{ _("Switch Organization") }}</h3>
+                <button type="button" class="alerts-mark-read" @click="orgOpen = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="alerts-sheet-content" style="padding-bottom:calc(60px + var(--safe-area-bottom));">
+                {% for org in user_organizations %}
+                <form method="POST" action="{{ url_for('core_bp.switch_organization', organization_id=org.id) }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="picker-item {% if org.is_current %}active{% endif %}" @click="orgOpen = false">
+                        <div class="picker-item-avatar--sm">{{ org.name[:1]|upper }}</div>
+                        <div class="picker-item-content--sm">
+                            <div class="picker-item-name--sm">{{ org.name }}</div>
+                            <div class="picker-item-role">{{ org.role|capitalize if org.role else '' }}</div>
+                        </div>
+                        {% if org.is_current %}
+                        <i class="fas fa-check picker-item-check--ts"></i>
+                        {% endif %}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    {% block scripts %}{% endblock %}
+    <script nonce="{{ csp_nonce }}">
+    // Auto-dismiss flash messages after 2 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.flash-messages-container .alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 2000);
+        });
+
+        // Auto-show sample data modal on first login
+        var sampleModal = document.getElementById('sampleDataModal');
+        if (sampleModal) {
+            new bootstrap.Modal(sampleModal).show();
+        }
+    });
+
+    // Navigate to data-href on tap (notifications, etc.) — skip if tapping a button
+    document.addEventListener('click', function(e) {
+        var item = e.target.closest('[data-href]');
+        if (item && !e.target.closest('button')) {
+            window.location.href = item.dataset.href;
+        }
+    });
+
+    // Allow HTMX to swap 422 responses (inline form validation errors)
+    document.body.addEventListener('htmx:beforeSwap', function(event) {
+        if (event.detail.xhr.status === 422) {
+            event.detail.shouldSwap = true;
+            event.detail.isError = false;
+        }
+    });
+
+    // Clean up Bootstrap modals before HTMX swaps new content into modal-container
+    document.body.addEventListener('htmx:beforeSwap', function(event) {
+        if (event.detail.target && event.detail.target.id === 'modal-container') {
+            const existingModals = document.querySelectorAll('.modal');
+            existingModals.forEach(function(modalEl) {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.dispose();
+                }
+            });
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }
+    });
+
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script nonce="{{ csp_nonce }}">
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(function(registration) {
+                    window.SPARQ_DEBUG && console.log('SW registered:', registration.scope);
+                })
+                .catch(function(err) {
+                    window.SPARQ_DEBUG && console.log('SW registration failed:', err);
+                });
+        });
+        navigator.serviceWorker.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'NOTIFICATION_NAVIGATE') {
+                window.location.replace(event.data.url);
+            }
+        });
+    }
+    </script>
+
+    <!-- Push Notification Registration (authenticated users only) -->
+    {% if current_user.is_authenticated %}
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/push-registration.js') }}"></script>
+    {% endif %}
+</body>
+</html>

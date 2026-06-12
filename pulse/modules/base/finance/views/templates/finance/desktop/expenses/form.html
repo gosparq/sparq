@@ -1,0 +1,157 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Submit Expense") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="mb-4">
+        <h2>{{ _("Submit Expense") }}</h2>
+        <p class="text-muted">{{ _("Submit an expense for approval.") }}</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('finance_bp.expense_create') }}" x-data="expenseForm()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="description" class="form-label">{{ _("Description") }} <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="description" name="description" required
+                       placeholder="{{ _('e.g., Client lunch meeting, Office supplies') }}">
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label for="category" class="form-label">{{ _("Category") }} <span class="text-danger">*</span></label>
+                <select class="form-select" id="category" name="category" required>
+                    <option value="">{{ _("Select category...") }}</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.value }}">{{ cat.value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="amount" class="form-label">{{ _("Amount") }} <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="amount" name="amount"
+                           step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label for="expense_date" class="form-label">{{ _("Date") }} <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="expense_date" name="expense_date"
+                       required value="{{ today().strftime('%Y-%m-%d') if today else '' }}">
+            </div>
+
+            {% if jobs %}
+            <div class="col-md-4 mb-3">
+                <label for="job_id" class="form-label">{{ _("Related Job") }}</label>
+                <select class="form-select" id="job_id" name="job_id" x-model="jobId" @change="updateBillable()">
+                    <option value="">{{ _("None") }}</option>
+                    {% for job in jobs %}
+                    <option value="{{ job.id }}" {% if selected_job_id == job.id %}selected{% endif %}>{{ job.job_number }} - {{ job.title }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">{{ _("Link this expense to a job for invoicing.") }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Payment & Billing Section -->
+        <div class="card bg-light mb-3">
+            <div class="card-body">
+                <h6 class="card-title mb-3">{{ _("Payment & Billing") }}</h6>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ _("Paid By") }} <span class="text-danger">*</span></label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="paid_by" id="paid_by_personal"
+                                       value="Personal (Needs Reimbursement)" checked x-model="paidBy">
+                                <label class="form-check-label" for="paid_by_personal">
+                                    <i class="fas fa-user me-1"></i> {{ _("Personal Card") }}
+                                    <small class="text-muted d-block">{{ _("Needs reimbursement") }}</small>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="paid_by" id="paid_by_company"
+                                       value="Company Card/Account" x-model="paidBy">
+                                <label class="form-check-label" for="paid_by_company">
+                                    <i class="fas fa-building me-1"></i> {{ _("Company Card") }}
+                                    <small class="text-muted d-block">{{ _("No reimbursement needed") }}</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ _("Billing") }}</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="billable_to_client"
+                                   id="billable_to_client" value="on" x-model="billableToClient">
+                            <label class="form-check-label" for="billable_to_client">
+                                {{ _("Billable to Client") }}
+                            </label>
+                            <div class="form-text">
+                                {{ _("Check if this expense should be invoiced to a client.") }}
+                            </div>
+                        </div>
+                        <div x-show="!billableToClient" class="mt-2">
+                            <span class="badge bg-info">
+                                <i class="fas fa-calculator me-1"></i> {{ _("Business Expense") }}
+                            </span>
+                            <small class="text-muted d-block mt-1">{{ _("Will be tracked for tax purposes") }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="notes" class="form-label">{{ _("Notes") }}</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3"
+                      placeholder="{{ _('Additional details about this expense...') }}"></textarea>
+        </div>
+
+        <hr>
+
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('finance_bp.expenses') }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-save me-1"></i> {{ _("Submit Expense") }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+// Set default date to today
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('expense_date');
+    if (!dateInput.value) {
+        dateInput.value = new Date().toLocaleDateString('en-CA', { timeZone: window.SPARQ_TIMEZONE || 'America/Chicago' });
+    }
+});
+
+// Alpine.js component for form logic
+function expenseForm() {
+    return {
+        jobId: '{{ selected_job_id or "" }}',
+        paidBy: 'Personal (Needs Reimbursement)',
+        billableToClient: {{ 'true' if selected_job_id else 'false' }},
+
+        updateBillable() {
+            // Auto-check billable when a job is selected
+            if (this.jobId) {
+                this.billableToClient = true;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

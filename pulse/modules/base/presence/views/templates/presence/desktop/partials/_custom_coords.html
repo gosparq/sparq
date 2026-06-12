@@ -1,0 +1,22 @@
+{# Displays custom address coordinates status + hidden fields - swapped by HTMX after geocoding #}
+{# Can receive either latitude/longitude (from geocode) or settings (from initial render) #}
+{% set lat = latitude if latitude is defined else (settings.geofence_latitude if settings is defined else none) %}
+{% set lng = longitude if longitude is defined else (settings.geofence_longitude if settings is defined else none) %}
+
+{% if lat and lng %}
+<p class="text-success mb-2">
+    <i class="fas fa-check-circle me-1"></i>
+    {{ _("Coordinates") }}: {{ "%.6f"|format(lat) }}, {{ "%.6f"|format(lng) }}
+</p>
+{% elif error %}
+<p class="text-danger mb-2">
+    <i class="fas fa-exclamation-circle me-1"></i>
+    {{ error }}
+</p>
+{% else %}
+<p class="text-muted mb-3">
+    {{ _("Enter an address and click Geocode to get coordinates.") }}
+</p>
+{% endif %}
+<input type="hidden" name="geofence_latitude" id="geofence_latitude" value="{{ lat or '' }}">
+<input type="hidden" name="geofence_longitude" id="geofence_longitude" value="{{ lng or '' }}">

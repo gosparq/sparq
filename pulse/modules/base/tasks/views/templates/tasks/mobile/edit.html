@@ -1,0 +1,113 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ _("Edit Task") }}{% endblock %}
+
+{% block mobile_bottom_nav %}{# hide module sub-nav on edit form #}{% endblock %}
+
+{% block module_content %}
+<div class="mb-3">
+    <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="text-muted text-decoration-none d-inline-flex align-items-center gap-1 text-base">
+        <i class="fas fa-arrow-left"></i>{{ _("Back") }}
+    </a>
+</div>
+
+<h2 class="mb-3" style="font-size:1.25rem;font-weight:600;">{{ _("Edit Task") }}</h2>
+
+<form method="POST" action="{{ url_for('tasks_bp.update', item_id=item.id) }}"
+      x-data="{ tier: {{ item.urgency_tier }} }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("What needs to be done?") }} <span class="text-danger">*</span></label>
+        <input type="text" name="title" class="form-control" required maxlength="200" value="{{ item.title }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Urgency") }}</label>
+        <div class="d-flex gap-2">
+            {% for t in [1, 2, 3] %}
+            <label class="flex-fill text-center" style="cursor:pointer;padding:0.5rem;border:2px solid var(--color-gray-200);border-radius:0.5rem;"
+                   :style="tier === {{ t }} ? 'border-color:{{ tier_defaults[t].color }};background:{{ tier_defaults[t].color }}15;' : ''">
+                <input type="radio" name="urgency_tier" value="{{ t }}" class="d-none"
+                       x-model.number="tier" {% if t == item.urgency_tier %}checked{% endif %}>
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ tier_defaults[t].color }};margin-right:0.25rem;"></span>
+                <span style="font-size:0.8125rem;font-weight:500;">{{ tier_defaults[t].label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Assigned to") }}</label>
+        <select name="assignee_id" class="form-select">
+            {% for m in members %}
+            <option value="{{ m.id }}" {% if m.id == item.assignee_id %}selected{% endif %}>
+                {{ m.user.first_name }} {{ m.user.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Context") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <textarea name="context_note" class="form-control" rows="3">{{ item.context_note or '' }}</textarea>
+    </div>
+
+    {% if workflow_statuses is defined and workflow_statuses %}
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Status") }}</label>
+        <select name="workflow_status" class="form-select">
+            {% for ws in workflow_statuses %}
+            <option value="{{ ws.key }}" {% if item.workflow_status == ws.key %}selected{% endif %}>{{ ws.label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Due on") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <input type="date" name="due_date" class="form-control"
+               value="{{ item.due_date.isoformat() if item.due_date else '' }}">
+    </div>
+
+    {% if projects is defined and projects %}
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Project") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <select name="project_id" class="form-select">
+            <option value="">{{ _("No project") }}</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}" {% if item.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    {% if areas is defined and areas %}
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Area") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <select name="area_id" class="form-select">
+            <option value="">{{ _("No area") }}</option>
+            {% for a in areas %}
+            <option value="{{ a.id }}" {% if item.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% elif current_user.is_admin %}
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Area") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <div class="text-muted" style="font-size:0.8rem;">
+            {{ _("No areas yet") }} — <a href="{{ url_for('sync_bp.settings') }}" class="text-decoration-none">{{ _("create areas") }}</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="fas fa-check me-1"></i>{{ _("Save Changes") }}
+        </button>
+        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="btn btn-outline-secondary">
+            {{ _("Cancel") }}
+        </a>
+    </div>
+</form>
+{% endblock %}

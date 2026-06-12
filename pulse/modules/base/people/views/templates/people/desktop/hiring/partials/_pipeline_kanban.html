@@ -1,0 +1,59 @@
+{# Pipeline Kanban Board - columns per APPLICATION_STATUS_ORDER #}
+{# Expects: pipeline (dict), APPLICATION_STATUS_ORDER, ApplicationStatus, show_job (bool) #}
+{% set pipeline_colors = {
+    'NEW': 'info',
+    'SCREENING': 'warning',
+    'INTERVIEWING': 'primary',
+    'OFFER': 'success',
+    'HIRED': 'success',
+    'REJECTED': 'secondary',
+    'WITHDRAWN': 'secondary',
+} %}
+
+<div class="hiring-kanban" id="pipeline-kanban">
+    {% for status in APPLICATION_STATUS_ORDER %}
+    {% set is_terminal = status.name in ['REJECTED', 'WITHDRAWN'] %}
+    <div class="hiring-kanban-column" data-status="{{ status.name }}" style="--column-color: var(--bs-{{ pipeline_colors[status.name] }})"
+         {% if is_terminal %}x-data="{ collapsed: true }"{% endif %}>
+        <div class="hiring-kanban-column-header cursor-pointer"
+             {% if is_terminal %}@click="collapsed = !collapsed"{% endif %}>
+            <span>
+                {{ _(status.value) }}
+                {% if is_terminal %}
+                <i class="fas fa-chevron-down ms-1 text-3xs"
+                   :class="{ 'fa-chevron-right': collapsed, 'fa-chevron-down': !collapsed }"></i>
+                {% endif %}
+            </span>
+            <span class="hiring-kanban-count" data-count>{{ pipeline[status]|length }}</span>
+        </div>
+        <div class="hiring-kanban-column-body" data-board="pipeline" data-status="{{ status.name }}"
+             {% if is_terminal %}x-show="!collapsed" x-transition{% endif %}>
+            {% for app in pipeline[status] %}
+            <div class="hiring-kanban-card" data-application-id="{{ app.id }}">
+                <a href="{{ url_for('people_bp.hiring_application_detail', application_id=app.id) }}">
+                    {{ app.candidate.full_name }}
+                </a>
+                {% if app.candidate.current_title %}
+                <div class="text-muted text-xs">{{ app.candidate.current_title }}</div>
+                {% endif %}
+                <div class="d-flex justify-content-between align-items-center mt-1 text-xs">
+                    <span class="text-muted">{{ app.applied_at|format_datetime('%b %d') }}</span>
+                    <span>
+                        {% if app.rating %}
+                        <span class="text-warning">{{ '★' * app.rating }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if show_job %}
+                <div class="mt-1">
+                    <span class="badge bg-light text-dark text-2xs">{{ app.job_posting.title }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="hiring-kanban-empty">{{ _("None") }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

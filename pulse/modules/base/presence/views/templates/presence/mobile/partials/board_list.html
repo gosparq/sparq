@@ -1,0 +1,44 @@
+{% for item in members %}
+<div class="mobile-card">
+    <div class="mobile-card-body d-flex align-items-center">
+        <!-- Avatar -->
+        <div class="me-3">
+            {% if item.member.user and item.member.user.avatar_url %}
+            <img src="{{ item.member.user.avatar_url }}" alt="" class="rounded-circle" style="width: 48px; height: 48px; object-fit: cover;">
+            {% else %}
+            <div class="rounded-circle d-flex align-items-center justify-content-center text-white"
+                 style="width: 48px; height: 48px; background: {% if item.is_clocked_in %}var(--color-success){% else %}var(--color-gray-400){% endif %};">
+                <span class="fs-5">{{ item.member.user.first_name[0] if item.member.user and item.member.user.first_name else '?' }}{{ item.member.user.last_name[0] if item.member.user and item.member.user.last_name else '' }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Info -->
+        <div class="flex-grow-1">
+            <div class="fw-semibold">{{ item.member.user.full_name if item.member.user else 'Unknown' }}</div>
+            {% if item.is_clocked_in %}
+            <div class="d-flex align-items-center gap-2">
+                <span class="status-badge clocked-in">
+                    <i class="fas fa-circle fa-beat me-1"></i>{{ _("In") }}
+                </span>
+                <small class="text-muted">{{ item.elapsed_str }}</small>
+                {% if item.outside_geofence %}
+                <span class="badge bg-warning text-dark" title="{{ _('Outside geofence') }}">
+                    <i class="fas fa-map-marker-alt"></i>
+                </span>
+                {% endif %}
+            </div>
+            {% else %}
+            <span class="status-badge clocked-out">
+                <i class="fas fa-circle me-1"></i>{{ _("Out") }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-users"></i>
+    <h5>{{ _("No employees found") }}</h5>
+</div>
+{% endfor %}

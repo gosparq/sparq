@@ -1,0 +1,80 @@
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv
+env/
+ENV/
+
+# IDEs
+.idea/
+.vscode/
+.cursor/
+.scratch/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+.last-docker-build
+_docker/
+requirements.txt
+requirements-docker.txt
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Linting
+.ruff_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+pulse/data/*
+!pulse/data/.env.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Production mode marker
+PRODUCTION
+
+# Flask
+instance/
+.webassets-cache
+
+# Playwright
+.playwright/
+.claude/settings.local.json

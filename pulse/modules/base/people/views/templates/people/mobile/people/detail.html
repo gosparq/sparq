@@ -1,0 +1,348 @@
+{% extends "people/mobile/layout.html" %}
+
+{% block title %}{{ employee.user.first_name }} {{ employee.user.last_name }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="detail-header">
+    <div class="person-avatar large">
+        {{ employee.user.first_name[0]|upper if employee.user.first_name else '?' }}{{ employee.user.last_name[0]|upper if employee.user.last_name else '' }}
+    </div>
+    <h1>
+        {{ employee.user.first_name }} {{ employee.user.last_name }}
+        {% if display_name_extra %}
+        <span style="opacity: 0.8; font-size: 1rem;">"{{ display_name_extra }}"</span>
+        {% endif %}
+    </h1>
+    <div class="subtitle">{{ employee.position or _('Team Member') }}</div>
+    {% if employee.status.value == 'Terminated' %}
+    <span class="status-badge terminated mt-2" style="background: rgba(255,255,255,0.2); color: white;">
+        {{ _("Terminated") }}
+    </span>
+    {% elif employee.status.value == 'On Leave' %}
+    <span class="status-badge on-leave mt-2" style="background: rgba(255,255,255,0.2); color: white;">
+        {{ _("On Leave") }}
+    </span>
+    {% endif %}
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+    {% if employee.phone %}
+    <a href="tel:{{ employee.phone }}" class="quick-action-btn">
+        <i class="fas fa-phone"></i>
+        <span>{{ _("Call") }}</span>
+    </a>
+    {% endif %}
+    <a href="mailto:{{ employee.user.email }}" class="quick-action-btn">
+        <i class="fas fa-envelope"></i>
+        <span>{{ _("Email") }}</span>
+    </a>
+    {% if employee.phone %}
+    <a href="sms:{{ employee.phone }}" class="quick-action-btn">
+        <i class="fas fa-comment"></i>
+        <span>{{ _("Text") }}</span>
+    </a>
+    {% endif %}
+</div>
+
+<!-- Employment Info -->
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <div class="info-section">
+            <div class="info-section-title">{{ _("Employment") }}</div>
+            <div class="info-row">
+                <span class="info-label">{{ _("Department") }}</span>
+                <span class="info-value">{{ employee.department or _('Not set') }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">{{ _("Position") }}</span>
+                <span class="info-value">{{ employee.position or _('Not set') }}</span>
+            </div>
+            {% if is_admin or is_own_profile %}
+            <div class="info-row">
+                <span class="info-label">{{ _("Type") }}</span>
+                <span class="info-value">{{ employee.type.value if employee.type else _('Not set') }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">{{ _("Hire Date") }}</span>
+                <span class="info-value">{{ employee.start_date|format_date if employee.start_date else _('Not set') }}</span>
+            </div>
+            {% endif %}
+            <div class="info-row">
+                <span class="info-label">{{ _("Reports To") }}</span>
+                <span class="info-value">
+                    {% if employee.manager %}
+                    <a href="{{ url_for('people_bp.person_detail', employee_id=employee.manager.id) }}" class="text-decoration-none">
+                        {{ employee.manager.user.first_name }} {{ employee.manager.user.last_name }}
+                    </a>
+                    {% else %}
+                    {{ _('Not assigned') }}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">{{ _("Status") }}</span>
+                <span class="info-value">
+                    {% if employee.status.value == 'Active' %}
+                    <span class="status-badge active">{{ _("Active") }}</span>
+                    {% elif employee.status.value == 'On Leave' %}
+                    <span class="status-badge on-leave">{{ _("On Leave") }}</span>
+                    {% elif employee.status.value == 'Terminated' %}
+                    <span class="status-badge terminated">{{ _("Terminated") }}</span>
+                    {% elif employee.status.value == 'Contractor' %}
+                    <span class="status-badge contractor">{{ _("Contractor") }}</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Info -->
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <div class="info-section">
+            <div class="info-section-title">{{ _("Contact") }}</div>
+            <div class="info-row">
+                <span class="info-label">{{ _("Email") }}</span>
+                <span class="info-value">
+                    <a href="mailto:{{ employee.user.email }}" class="text-decoration-none">{{ employee.user.email }}</a>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">{{ _("Phone") }}</span>
+                <span class="info-value">
+                    {% if employee.phone %}
+                    <a href="tel:{{ employee.phone }}" class="text-decoration-none">{{ employee.phone }}</a>
+                    {% else %}
+                    {{ _('Not set') }}
+                    {% endif %}
+                </span>
+            </div>
+            {% if is_admin or is_own_profile %}
+            {% if employee.user.address %}
+            <div class="info-row">
+                <span class="info-label">{{ _("Address") }}</span>
+                <span class="info-value">{{ employee.user.full_address }}</span>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if is_own_profile %}
+<!-- Self-Editable Section -->
+<div class="mobile-card" x-data="{ editing: false, saving: false }">
+    <div class="mobile-card-body">
+        <div class="info-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="info-section-title mb-0" style="border-bottom: none; padding-bottom: 0;">{{ _("Personal Info") }}</div>
+                <button class="btn btn-sm btn-link p-0" @click="editing = !editing" x-show="!editing">
+                    <i class="fas fa-edit"></i> {{ _("Edit") }}
+                </button>
+            </div>
+
+            <!-- View Mode -->
+            <div x-show="!editing">
+                <div class="info-row">
+                    <span class="info-label">{{ _("Phone") }}</span>
+                    <span class="info-value">{{ employee.phone or _('Not set') }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">{{ _("Emergency Contact") }}</span>
+                    <span class="info-value">
+                        {% if employee.user.emergency_contact_name %}
+                        {{ employee.user.emergency_contact_name }}
+                        {% if employee.user.emergency_contact_relationship %}
+                        ({{ employee.user.emergency_contact_relationship }})
+                        {% endif %}
+                        {% else %}
+                        {{ _('Not set') }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% if employee.user.emergency_contact_phone %}
+                <div class="info-row">
+                    <span class="info-label">{{ _("Emergency Phone") }}</span>
+                    <span class="info-value">
+                        <a href="tel:{{ employee.user.emergency_contact_phone }}" class="text-decoration-none">
+                            {{ employee.user.emergency_contact_phone }}
+                        </a>
+                    </span>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <span class="info-label">{{ _("Clock PIN") }}</span>
+                    <span class="info-value">
+                        {% if employee.clock_pin %}
+                        <code>{{ employee.clock_pin }}</code>
+                        {% else %}
+                        {{ _('Not set') }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Edit Mode -->
+            <form x-show="editing" x-cloak
+                  hx-post="{{ url_for('people_bp.update_self_profile', employee_id=employee.id) }}"
+                  hx-swap="none"
+                  @htmx:after-request="if(event.detail.successful) { editing = false; location.reload(); }">
+
+                <div class="mb-3">
+                    <label class="form-label small">{{ _("Phone") }}</label>
+                    <input type="tel" class="form-control" name="phone" value="{{ employee.phone or '' }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">{{ _("Address") }}</label>
+                    <input type="text" class="form-control" name="address" value="{{ employee.user.address or '' }}"
+                           placeholder="{{ _('Street address') }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">{{ _("Address Line 2") }}</label>
+                    <input type="text" class="form-control" name="address_2" value="{{ employee.user.address_2 or '' }}">
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label small">{{ _("City") }}</label>
+                        <input type="text" class="form-control" name="city" value="{{ employee.user.city or '' }}">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label small">{{ _("State") }}</label>
+                        <input type="text" class="form-control" name="state" value="{{ employee.user.state or '' }}">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label small">{{ _("Zip") }}</label>
+                        <input type="text" class="form-control" name="zip_code" value="{{ employee.user.zip_code or '' }}">
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="mb-3">
+                    <label class="form-label small">{{ _("Emergency Contact Name") }}</label>
+                    <input type="text" class="form-control" name="emergency_contact_name"
+                           value="{{ employee.user.emergency_contact_name or '' }}">
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label small">{{ _("Emergency Phone") }}</label>
+                        <input type="tel" class="form-control" name="emergency_contact_phone"
+                               value="{{ employee.user.emergency_contact_phone or '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">{{ _("Relationship") }}</label>
+                        <input type="text" class="form-control" name="emergency_contact_relationship"
+                               value="{{ employee.user.emergency_contact_relationship or '' }}"
+                               placeholder="{{ _('e.g., Spouse') }}">
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="mb-3">
+                    <label class="form-label small">{{ _("Clock PIN") }}</label>
+                    <input type="text" class="form-control" name="clock_pin"
+                           value="{{ employee.clock_pin or '' }}"
+                           pattern="[0-9]{4}" maxlength="4"
+                           placeholder="{{ _('4-digit PIN') }}"
+                           inputmode="numeric">
+                    <div class="form-text">{{ _("Use this PIN at kiosk terminals") }}</div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light btn-touch flex-grow-1" @click="editing = false">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-touch flex-grow-1">
+                        <i class="fas fa-save me-1"></i>{{ _("Save") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if is_admin or is_own_profile %}
+<!-- Emergency Contact (read-only for non-self) -->
+{% if not is_own_profile and (employee.user.emergency_contact_name or employee.user.emergency_contact_phone) %}
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <div class="info-section">
+            <div class="info-section-title">{{ _("Emergency Contact") }}</div>
+            {% if employee.user.emergency_contact_name %}
+            <div class="info-row">
+                <span class="info-label">{{ _("Name") }}</span>
+                <span class="info-value">
+                    {{ employee.user.emergency_contact_name }}
+                    {% if employee.user.emergency_contact_relationship %}
+                    ({{ employee.user.emergency_contact_relationship }})
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+            {% if employee.user.emergency_contact_phone %}
+            <div class="info-row">
+                <span class="info-label">{{ _("Phone") }}</span>
+                <span class="info-value">
+                    <a href="tel:{{ employee.user.emergency_contact_phone }}" class="text-decoration-none">
+                        {{ employee.user.emergency_contact_phone }}
+                    </a>
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if employee.reports and (is_admin or is_own_profile) %}
+<!-- Direct Reports -->
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <div class="info-section">
+            <div class="info-section-title">{{ _("Direct Reports") }}</div>
+            {% for report in employee.reports %}
+            <a href="{{ url_for('people_bp.person_detail', employee_id=report.id) }}"
+               class="d-flex align-items-center py-2 text-decoration-none text-dark">
+                <div class="person-avatar me-3" style="width: 36px; height: 36px; font-size: var(--font-size-base);">
+                    {{ report.user.first_name[0]|upper }}{{ report.user.last_name[0]|upper }}
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-medium">{{ report.user.first_name }} {{ report.user.last_name }}</div>
+                    <div class="text-muted small">{{ report.position or '-' }}</div>
+                </div>
+                <i class="fas fa-chevron-right text-muted"></i>
+            </a>
+            {% if not loop.last %}
+            <hr class="my-0">
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if is_own_profile and not is_admin %}
+<!-- Edit on Desktop hint -->
+<div class="edit-hint">
+    <i class="fas fa-desktop"></i>
+    {{ _("To edit employment details, please use the desktop version") }}
+</div>
+{% endif %}
+
+<!-- Back to Directory -->
+<div class="text-center mt-4 mb-3">
+    <a href="{{ url_for('people_bp.people') }}" class="btn btn-light btn-touch">
+        <i class="fas fa-arrow-left me-2"></i>{{ _("Back to Directory") }}
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,329 @@
+<div class="modal fade" id="createActionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('tasks_bp.create') }}"
+                  enctype="multipart/form-data"
+                  x-data="{
+                      assignMode: 'single',
+                      tier: 2,
+                      titleVal: '',
+                      pendingGh: null,
+                      saveCanned: false,
+                      showWatchers: false,
+                      selectedFiles: [],
+                      fileObjects: [],
+                      pickCanned(title, defaultTier) {
+                          this.titleVal = title;
+                          if (defaultTier) this.tier = defaultTier;
+                      },
+                      clearGhAction() {
+                          this.pendingGh = null;
+                          const f = this.$el.querySelector('input[name=integration_actions]');
+                          if (f) {
+                              try {
+                                  const p = JSON.parse(f.value || '{}');
+                                  delete p.github;
+                                  f.value = Object.keys(p).length ? JSON.stringify(p) : '';
+                              } catch (e) { f.value = ''; }
+                          }
+                      },
+                      addFiles(event) {
+                          for (const f of event.target.files) {
+                              this.fileObjects.push(f);
+                              this.selectedFiles.push({ name: f.name, size: f.size });
+                          }
+                          const dt = new DataTransfer();
+                          for (const f of this.fileObjects) dt.items.add(f);
+                          this.$refs.fileInput.files = dt.files;
+                      },
+                      removeFile(index) {
+                          this.selectedFiles.splice(index, 1);
+                          this.fileObjects.splice(index, 1);
+                          const dt = new DataTransfer();
+                          for (const f of this.fileObjects) dt.items.add(f);
+                          this.$refs.fileInput.files = dt.files;
+                      },
+                      formatSize(bytes) {
+                          if (bytes < 1024) return bytes + ' B';
+                          if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                          return (bytes / 1048576).toFixed(1) + ' MB';
+                      }
+                  }"
+                  x-on:github-pending.window="pendingGh = $event.detail">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="is_blocker" value="{{ '1' if default_is_blocker else '0' }}">
+                {# Deferred integration actions written by the slash palette — processed after task creation
+                   so issues are created with the task's actual urgency_tier. JSON: {provider: {action, ...}} #}
+                <input type="hidden" name="integration_actions" value="">
+                {% if return_url %}
+                <input type="hidden" name="next" value="{{ return_url }}">
+                {% endif %}
+
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-semibold" style="font-size:1rem">
+                        {% if default_is_blocker %}<i class="fas fa-hand text-danger me-2"></i>{{ _("Create Blocker") }}{% else %}{{ _("Create Task") }}{% endif %}
+                    </h6>
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body pt-0">
+                    {# Quick Actions chips #}
+                    {% if canned_tasks %}
+                    <div class="mb-3">
+                        <label class="form-label text-sm text-secondary">{{ _("Quick Actions") }}</label>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for ca in canned_tasks %}
+                            <button type="button" class="btn btn-sm text-sm" style="padding:0.2rem 0.6rem; border:1px solid var(--color-gray-200); border-radius:1rem; background:var(--color-gray-50); color:var(--color-gray-700)"
+                                    data-title="{{ ca.title }}" data-tier="{{ ca.default_tier or '' }}"
+                                    @click="pickCanned($el.dataset.title, $el.dataset.tier ? Number($el.dataset.tier) : null)">
+                                {% if ca.default_tier %}
+                                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{{ tier_defaults[ca.default_tier].color }};margin-right:0.25rem;"></span>
+                                {% endif %}
+                                {{ ca.title }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Title #}
+                    <div class="mb-3">
+                        <label class="form-label text-base">{{ _("What needs to be done?") }}</label>
+                        <input type="text" name="title" id="create_task_title" class="form-control form-control-sm" required maxlength="200"
+                               placeholder="{{ _('Brief, actionable description') }}"
+                               x-model="titleVal">
+                        {% if github_connected %}
+                        {% from "github/desktop/partials/_issue_trigger.html" import issue_trigger with context %}
+                        {{ issue_trigger('create_task_title', 'task', 0, github_repo) }}
+                        {% endif %}
+                        {# Chip injected here by the slash palette after a GitHub issue is created/linked #}
+                        <div id="task-github-card-body" class="mt-2"></div>
+                        {# Pending GitHub action — shows the deferred create/link before the task is saved,
+                           so the user sees their selection registered instead of a blank result. #}
+                        <template x-if="pendingGh">
+                            <div class="mt-2">
+                                <span class="gh-chip gh-chip--pending">
+                                    <i class="fa-brands fa-github"></i>
+                                    <template x-if="pendingGh.action === 'link'">
+                                        <span>{{ _("Will link") }} <span x-text="pendingGh.ref"></span><span x-show="pendingGh.title"> — <span x-text="pendingGh.title"></span></span></span>
+                                    </template>
+                                    <template x-if="pendingGh.action === 'create'">
+                                        <span>{{ _("Will create issue") }}: <span x-text="pendingGh.title"></span></span>
+                                    </template>
+                                    <button type="button" class="btn-close gh-chip__remove"
+                                            aria-label="{{ _('Remove') }}" @click="clearGhAction()"></button>
+                                </span>
+                            </div>
+                        </template>
+                    </div>
+
+                    {# Urgency Tier #}
+                    <div class="mb-3">
+                        <label class="form-label text-base">{{ _("Urgency") }}</label>
+                        <div class="d-flex gap-2">
+                            {% for t in [1, 2, 3] %}
+                            <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': tier === {{ t }} }">
+                                <input type="radio" name="urgency_tier" value="{{ t }}" class="d-none"
+                                       x-model.number="tier" {% if t == 2 %}checked{% endif %}>
+                                <span class="task-tier-dot" style="background:{{ tier_defaults[t].color }};"></span>
+                                {{ tier_defaults[t].label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {# Assignment Mode #}
+                    <div class="mb-3">
+                        <label class="form-label text-base">{{ _("Assign to") }}</label>
+                        <div class="d-flex gap-2 mb-2 flex-wrap">
+                            <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': assignMode === 'single' }">
+                                <input type="radio" name="assign_mode" value="single" class="d-none"
+                                       x-model="assignMode" checked>
+                                {{ _("One person") }}
+                            </label>
+                            <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': assignMode === 'multi' }">
+                                <input type="radio" name="assign_mode" value="multi" class="d-none"
+                                       x-model="assignMode">
+                                {{ _("Select people") }}
+                            </label>
+                            <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': assignMode === 'all' }">
+                                <input type="radio" name="assign_mode" value="all" class="d-none"
+                                       x-model="assignMode">
+                                {{ _("All members") }}
+                            </label>
+                            <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': assignMode === 'unassigned' }">
+                                <input type="radio" name="assign_mode" value="unassigned" class="d-none"
+                                       x-model="assignMode">
+                                {{ _("Unassigned") }}
+                            </label>
+                        </div>
+
+                        {# Single assignee dropdown #}
+                        <div x-show="assignMode === 'single'">
+                            <select name="assignee_id" class="form-select form-select-sm">
+                                {% for m in members %}
+                                <option value="{{ m.id }}" {% if m.id == current_member.id %}selected{% endif %}>
+                                    {{ m.user.first_name }} {{ m.user.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        {# Multi-assignee checkboxes #}
+                        <div x-show="assignMode === 'multi'" x-cloak>
+                            <div class="d-flex" style="max-height:200px; overflow-y:auto; border:1px solid var(--color-gray-200); border-radius:0.375rem; padding:0.5rem; flex-wrap:wrap; gap:0.25rem 1.5rem">
+                                {% for m in members %}
+                                <div class="form-check" style="min-width:30%;">
+                                    <input class="form-check-input" type="checkbox" name="assignee_ids" value="{{ m.id }}" id="member-{{ m.id }}">
+                                    <label class="form-check-label text-base" for="member-{{ m.id }}">
+                                        {{ m.user.first_name }} {{ m.user.last_name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {# All members info #}
+                        <div x-show="assignMode === 'all'" x-cloak>
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>{{ _("Will create an action item for every active team member (excluding you).") }}
+                            </p>
+                        </div>
+
+                        {# Unassigned info #}
+                        <div x-show="assignMode === 'unassigned'" x-cloak>
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>{{ _("Will create an action item with no assignee — anyone can pick it up.") }}
+                            </p>
+                        </div>
+                    </div>
+
+                    {# Description #}
+                    <div class="mb-3">
+                        <label class="form-label text-base">{{ _("Description") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                        {% with field_name="context_note", field_id="create_context_note", placeholder=_('Add a description...'), rows=5, initial_value="What's the change?\n\nWhy does it matter?\n\nAny Additional Notes?\n" %}
+                            {% include "tasks/desktop/_md_editor.html" %}
+                        {% endwith %}
+                    </div>
+
+                    {# Notify on completion (watchers) — only show if there are eligible members #}
+                    {% if eligible_watchers %}
+                    <div class="mb-3">
+                        <a href="#" class="text-muted text-decoration-none text-sm"
+                           @click.prevent="showWatchers = !showWatchers">
+                            <i class="fas fa-eye me-1 text-2xs"></i>{{ _("Notify someone when done?") }}
+                            <i class="fas text-icon" :class="showWatchers ? 'fa-chevron-up' : 'fa-chevron-down'" style="margin-left:0.25rem"></i>
+                        </a>
+                        <div x-show="showWatchers" x-cloak class="mt-2">
+                            <div style="max-height:150px;overflow-y:auto;border:1px solid var(--color-gray-200);border-radius:0.375rem;padding:0.5rem;">
+                                {% for m in eligible_watchers %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="watcher_ids" value="{{ m.id }}" id="watcher-{{ m.id }}">
+                                    <label class="form-check-label text-base" for="watcher-{{ m.id }}">
+                                        {{ m.user.first_name }} {{ m.user.last_name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Area #}
+                    {% if areas is defined and areas %}
+                    <div class="mb-3">
+                        <label class="form-label text-base">{{ _("Area") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                        <select name="area_id" class="form-select form-select-sm">
+                            <option value="">{{ _("No area") }}</option>
+                            {% for a in areas %}
+                            <option value="{{ a.id }}">
+                                {{ a.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% elif current_user.is_admin %}
+                    <div class="mb-3">
+                        <label class="form-label text-base">{{ _("Area") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                        <div class="text-muted text-sm">
+                            {{ _("No areas yet") }} — <a href="{{ url_for('sync_bp.settings') }}" class="text-decoration-none">{{ _("create areas") }}</a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Project + Due Date (single row) #}
+                    <div class="row">
+                        {% if projects is defined and projects %}
+                        <div class="col-md-6">
+                            {% include "projects/desktop/_project_dropdown.html" %}
+                        </div>
+                        {% endif %}
+                        <div class="{% if projects is defined and projects %}col-md-6{% else %}col-12{% endif %}">
+                            <div class="mb-3">
+                                <label class="form-label text-base">{{ _("Due on") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                                <input type="date" name="due_date" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Save as Quick Action toggle (admin only) #}
+                    {% if current_user.is_admin %}
+                    <div class="form-check text-base">
+                        <input class="form-check-input" type="checkbox" name="save_as_canned" id="saveCannedCheck"
+                               x-model="saveCanned">
+                        <label class="form-check-label text-muted" for="saveCannedCheck">
+                            {{ _("Save as Quick Action for next time") }}
+                        </label>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# Attachments — file preview list above footer #}
+                <template x-if="selectedFiles.length > 0">
+                    <div class="px-3 border-top">
+                        <div class="task-file-preview-list">
+                            <template x-for="(file, index) in selectedFiles" :key="index">
+                                <div class="d-flex align-items-center justify-content-between py-1 task-file-preview-item" :class="{ 'border-bottom': index < selectedFiles.length - 1 }">
+                                    <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                        <i class="fas fa-file text-muted small"></i>
+                                        <span class="text-truncate small" x-text="file.name"></span>
+                                        <span class="text-muted small" x-text="formatSize(file.size)"></span>
+                                    </div>
+                                    <button type="button" class="task-file-remove-btn" @click="removeFile(index)">&times;</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="modal-footer py-2 d-flex justify-content-between">
+                    <div>
+                        <input type="file" name="files" multiple class="d-none" x-ref="fileInput" @change="addFiles($event)">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="$refs.fileInput.click()">
+                            <i class="fas fa-paperclip me-1"></i>{{ _("Add Files") }}
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-bolt me-1"></i>{{ _("Create Task") }}
+                        </button>
+                    </div>
+                </div>
+            </form>
+            {# Palette lives inside the modal so Bootstrap's focus trap doesn't
+               block interaction with palette inputs and buttons. position:fixed
+               means it still renders at viewport coordinates regardless. #}
+            {% with palette_id='slash-palette-create', palette_fn='slashPaletteCreate', palette_event_open='palette-create-open', palette_event_close='palette-create-close', palette_task_id=0 %}
+            {% include "tasks/desktop/partials/_slash_palette.html" %}
+            {% endwith %}
+        </div>
+    </div>
+</div>
+
+{% include "tasks/desktop/partials/_slash_palette_script.html" %}
+
+<script nonce="{{ csp_nonce }}">
+    var modal = new bootstrap.Modal(document.getElementById('createActionModal'));
+    modal.show();
+</script>

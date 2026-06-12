@@ -1,0 +1,152 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Expense Details") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ _("Expense Details") }}</h2>
+            {% if expense.status == ExpenseStatus.PENDING %}
+            <span class="badge bg-warning text-dark">{{ expense.status.value }}</span>
+            {% elif expense.status == ExpenseStatus.APPROVED %}
+            <span class="badge bg-success">{{ expense.status.value }}</span>
+            {% elif expense.status == ExpenseStatus.REJECTED %}
+            <span class="badge bg-danger">{{ expense.status.value }}</span>
+            {% endif %}
+
+            {% if expense.billable_to_client %}
+            <span class="badge bg-info">{{ _("Client Billable") }}</span>
+            {% else %}
+            <span class="badge bg-secondary">{{ _("Business Expense") }}</span>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('finance_bp.expenses') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> {{ _("Back to Expenses") }}
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>{{ _("Description") }}:</strong> {{ expense.description }}</p>
+                    <p><strong>{{ _("Category") }}:</strong> <span class="badge bg-secondary">{{ expense.category.value }}</span></p>
+                    <p><strong>{{ _("Date") }}:</strong> {{ expense.expense_date.strftime('%m/%d/%Y') }}</p>
+                    {% if expense.job %}
+                    <p><strong>{{ _("Related Job") }}:</strong> {{ expense.job.job_number }} - {{ expense.job.title }}</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <p><strong>{{ _("Amount") }}:</strong> <span class="fs-4">${{ "%.2f"|format(expense.amount) }}</span></p>
+                    <p><strong>{{ _("Submitted By") }}:</strong> {{ expense.submitted_by.display_name }}</p>
+                    <p><strong>{{ _("Submitted On") }}:</strong> {{ expense.created_at|format_datetime('%m/%d/%Y at %I:%M %p') }}</p>
+                    <p><strong>{{ _("Paid By") }}:</strong> {{ expense.paid_by.value if expense.paid_by else 'N/A' }}</p>
+                </div>
+            </div>
+
+            {% if expense.notes %}
+            <hr>
+            <p><strong>{{ _("Notes") }}:</strong></p>
+            <p class="text-muted">{{ expense.notes }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if expense.status != ExpenseStatus.PENDING %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ _("Review Information") }}</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>{{ _("Reviewed By") }}:</strong> {{ expense.reviewed_by.display_name if expense.reviewed_by else '-' }}</p>
+            <p><strong>{{ _("Reviewed On") }}:</strong> {{ expense.reviewed_at|format_datetime('%m/%d/%Y at %I:%M %p') if expense.reviewed_at else '-' }}</p>
+            {% if expense.status == ExpenseStatus.REJECTED and expense.rejection_reason %}
+            <p><strong>{{ _("Rejection Reason") }}:</strong> {{ expense.rejection_reason }}</p>
+            {% endif %}
+            {% if expense.invoiced %}
+            <p><strong>{{ _("Invoiced") }}:</strong> <span class="badge bg-info">{{ _("Yes") }}</span></p>
+            {% endif %}
+            {% if expense.synced_to_accounting %}
+            <p><strong>{{ _("Synced to Accounting") }}:</strong> <span class="badge bg-success">{{ _("Yes") }}</span></p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if expense.paid_by and expense.paid_by.value == 'Personal (Needs Reimbursement)' %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ _("Reimbursement Status") }}</h5>
+        </div>
+        <div class="card-body">
+            <p>
+                <strong>{{ _("Status") }}:</strong>
+                {% if expense.reimbursement_status.value == 'Pending' %}
+                <span class="badge bg-warning text-dark">{{ expense.reimbursement_status.value }}</span>
+                {% elif expense.reimbursement_status.value == 'Reimbursed' %}
+                <span class="badge bg-success">{{ expense.reimbursement_status.value }}</span>
+                {% elif expense.reimbursement_status.value == 'Waived' %}
+                <span class="badge bg-secondary">{{ expense.reimbursement_status.value }}</span>
+                {% else %}
+                <span class="badge bg-light text-dark">{{ expense.reimbursement_status.value }}</span>
+                {% endif %}
+            </p>
+            {% if expense.reimbursement_status.value == 'Reimbursed' %}
+            <p><strong>{{ _("Method") }}:</strong> {{ expense.reimbursement_method or '-' }}</p>
+            <p><strong>{{ _("Reference") }}:</strong> {{ expense.reimbursement_reference or '-' }}</p>
+            <p><strong>{{ _("Reimbursed On") }}:</strong> {{ expense.reimbursed_at|format_datetime('%m/%d/%Y at %I:%M %p') if expense.reimbursed_at else '-' }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if current_user.is_admin and expense.status == ExpenseStatus.PENDING %}
+    <div class="card border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ _("Review Actions") }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex gap-2">
+                <form action="{{ url_for('finance_bp.expense_approve', expense_id=expense.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-check me-1"></i> {{ _("Approve") }}
+                    </button>
+                </form>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="fas fa-times me-1"></i> {{ _("Reject") }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="{{ url_for('finance_bp.expense_reject', expense_id=expense.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ _("Reject Expense") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ _("Are you sure you want to reject this expense?") }}</p>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">{{ _("Reason (optional)") }}</label>
+                            <textarea class="form-control" name="reason" id="reason" rows="3"
+                                      placeholder="{{ _('Please provide a reason for rejection...') }}"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger">{{ _("Reject Expense") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

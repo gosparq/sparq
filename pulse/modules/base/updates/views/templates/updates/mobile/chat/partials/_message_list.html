@@ -1,0 +1,50 @@
+{# Mobile message list partial - returned by HTTP routes and initial WebSocket load #}
+{% if has_more %}
+<div class="load-more-container text-center mb-3" id="load-more-sentinel"
+     hx-get="{{ url_for('sync_bp.get_channel_messages', channel_name=channel.name) }}?before_id={{ oldest_id }}"
+     hx-trigger="click"
+     hx-target="this"
+     hx-swap="outerHTML scroll:none">
+    <button class="btn btn-outline-secondary btn-sm load-more-btn">
+        <i class="fas fa-arrow-up me-1"></i>{{ _('Load More Messages') }}
+    </button>
+</div>
+{% endif %}
+
+{% if messages %}
+    {% set ns = namespace(last_date=none, last_author=none) %}
+    {% for message in messages %}
+        {# Check if date changed - add Slack-style divider #}
+        {# Use utc_to_local_date to convert UTC timestamps to local dates #}
+        {% set msg_date = utc_to_local_date(message.created_at) if utc_to_local_date else message.created_at.date() %}
+        {% if ns.last_date != msg_date %}
+            <div class="date-divider">
+                <span class="date-divider-text">
+                    {% if today is defined and msg_date == today %}
+                        Today
+                    {% elif yesterday is defined and msg_date == yesterday %}
+                        Yesterday
+                    {% else %}
+                        {{ msg_date.strftime('%B %d, %Y') }}
+                    {% endif %}
+                </span>
+            </div>
+            {% set ns.last_date = msg_date %}
+            {% set ns.last_author = none %}
+        {% endif %}
+        {% set is_continuation = (ns.last_author is not none and ns.last_author == message.author_id) %}
+        {% include "updates/mobile/chat/partials/_message.html" with context %}
+        {% set ns.last_author = message.author_id %}
+    {% endfor %}
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="fas fa-comments fa-3x mb-3 opacity-50"></i>
+    <p>{{ _('No messages yet. Start the conversation!') }}</p>
+</div>
+{% endif %}
+
+{% if initial_load and channel.description %}
+<script nonce="{{ csp_nonce }}">
+    document.getElementById('channel-description').textContent = {{ channel.description|tojson }};
+</script>
+{% endif %}

@@ -1,0 +1,104 @@
+{# File list for Google Drive browser in Docs UI #}
+<div class="drive-file-list">
+    {% if is_root %}
+    {# Root level - show selected folders #}
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>{{ _("Name") }}</th>
+                <th class="text-end" style="width: 100px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for folder in items %}
+            <tr>
+                <td>
+                    <a href="#" hx-get="{{ url_for('drive_blueprint.browse', folder_id=folder.id) }}"
+                       hx-target="#drive-content" hx-swap="innerHTML">
+                        <i class="fas fa-folder text-warning me-2"></i>
+                        {{ folder.name }}
+                    </a>
+                </td>
+                <td></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="2" class="text-center text-muted py-4">
+                    <i class="fab fa-google-drive fa-2x mb-2 d-block"></i>
+                    {{ _("No folders selected.") }}
+                    {% if can_manage %}
+                    <br><a href="{{ url_for('resources_settings_bp.index') }}">{{ _("Configure in Settings") }}</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+    {# Inside a folder #}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="#" hx-get="{{ url_for('drive_blueprint.browse') }}"
+               hx-target="#drive-content" hx-swap="innerHTML"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Folders") }}
+            </a>
+            {% if current_folder %}
+            <span class="ms-2 text-muted">
+                <i class="fas fa-folder-open text-warning me-1"></i>
+                {{ current_folder.name }}
+            </span>
+            {% endif %}
+        </div>
+        <div>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#driveUploadModal">
+                <i class="fas fa-upload me-1"></i>{{ _("Upload") }}
+            </button>
+        </div>
+    </div>
+
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>{{ _("Name") }}</th>
+                <th style="width: 100px;">{{ _("Size") }}</th>
+                <th class="text-end" style="width: 100px;">{{ _("Actions") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    {% if item.is_folder %}
+                    <a href="#" hx-get="{{ url_for('drive_blueprint.browse', folder_id=item.id) }}"
+                       hx-target="#drive-content" hx-swap="innerHTML">
+                        <i class="fas fa-folder text-warning me-2"></i>
+                        {{ item.name }}
+                    </a>
+                    {% else %}
+                    <i class="fas fa-file me-2"></i>
+                    {{ item.name }}
+                    {% endif %}
+                </td>
+                <td class="text-muted">{{ item.size_display }}</td>
+                <td class="text-end">
+                    {% if not item.is_folder %}
+                    <a href="{{ url_for('drive_blueprint.download', file_id=item.id) }}"
+                       class="btn btn-primary btn-sm" title="{{ _('Download') }}">
+                        <i class="fas fa-download"></i>
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="text-center text-muted py-4">
+                    {{ _("This folder is empty.") }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>

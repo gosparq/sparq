@@ -1,0 +1,34 @@
+<div class="ai-clarification card border-info mb-3" id="clarification-{{ action.id }}">
+    <div class="card-header bg-info bg-opacity-10 d-flex align-items-center">
+        <i class="fas fa-question-circle me-2 text-info"></i>
+        <span class="fw-semibold">{{ _("Clarification Needed") }}</span>
+    </div>
+    <div class="card-body">
+        <p class="mb-3">{{ action.clarification_json.question or _('Which one did you mean?') }}</p>
+
+        {% if action.clarification_json.candidates %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for candidate in action.clarification_json.candidates %}
+            <button class="btn btn-sm btn-primary"
+                    hx-post="{{ url_for('ai_bp.choose_candidate', action_id=action.id) }}"
+                    hx-vals='{"contact_id": {{ candidate.id }}}'
+                    hx-target="#clarification-{{ action.id }}"
+                    hx-swap="outerHTML">
+                {{ candidate.name }}
+                {% if candidate.company %}
+                <span class="text-muted">({{ candidate.company }})</span>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    <div class="card-footer bg-transparent">
+        <button class="btn btn-sm btn-outline-secondary"
+                hx-post="{{ url_for('ai_bp.cancel_action', action_id=action.id) }}"
+                hx-target="#clarification-{{ action.id }}"
+                hx-swap="outerHTML">
+            <i class="fas fa-times me-1"></i> {{ _("Cancel") }}
+        </button>
+    </div>
+</div>

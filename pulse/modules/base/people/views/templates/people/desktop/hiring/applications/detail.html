@@ -1,0 +1,100 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ application.candidate.full_name }} - {{ application.job_posting.title }}{% endblock %}
+
+{% block module_content %}
+<div class="row g-3">
+    <!-- Left Column - Candidate Info & Actions -->
+    <div class="col-lg-4">
+        <!-- Candidate Card -->
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-user me-2"></i>{{ _("Candidate") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <h5 class="mb-1">
+                    <a href="{{ url_for('people_bp.hiring_candidate_detail', candidate_id=application.candidate.id) }}" class="text-decoration-none">
+                        {{ application.candidate.full_name }}
+                    </a>
+                </h5>
+                {% if application.candidate.current_title %}
+                <p class="text-muted mb-2 small">
+                    {{ application.candidate.current_title }}
+                    {% if application.candidate.current_company %}@ {{ application.candidate.current_company }}{% endif %}
+                </p>
+                {% endif %}
+
+                <div class="small">
+                    <div class="mb-1">
+                        <i class="fas fa-envelope text-muted me-2"></i>
+                        <a href="mailto:{{ application.candidate.email }}">{{ application.candidate.email }}</a>
+                    </div>
+                    {% if application.candidate.phone %}
+                    <div class="mb-1">
+                        <i class="fas fa-phone text-muted me-2"></i>
+                        {{ application.candidate.phone }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Card with HTMX -->
+        {% include "people/desktop/hiring/partials/_status_card.html" %}
+
+        <!-- Quick Actions -->
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>{{ _("Quick Actions") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if application.is_active %}
+                    <a href="{{ url_for('people_bp.hiring_application_hire', application_id=application.id) }}" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-user-check me-1"></i>{{ _("Hire") }}
+                    </a>
+                    <a href="{{ url_for('people_bp.hiring_interview_schedule', application_id=application.id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-calendar-plus me-1"></i>{{ _("Schedule Interview") }}
+                    </a>
+                    <button type="button"
+                            class="btn btn-outline-danger btn-sm"
+                            hx-post="{{ url_for('people_bp.hiring_application_reject', application_id=application.id) }}"
+                            hx-confirm="{{ _('Are you sure you want to reject this application?') }}"
+                            hx-target="body">
+                        <i class="fas fa-times me-1"></i>{{ _("Reject") }}
+                    </button>
+                    {% elif application.status.name == 'HIRED' and application.onboarding_record_id %}
+                    <a href="{{ url_for('people_bp.onboarding_detail', record_id=application.onboarding_record_id) }}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-clipboard-list me-1"></i>{{ _("View Onboarding") }}
+                    </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('people_bp.hiring_job_detail', job_id=application.job_posting.id) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-briefcase me-1"></i>{{ _("View Job") }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applied Info -->
+        <div class="card">
+            <div class="card-body py-2 small text-muted">
+                <div><strong>{{ _("Applied") }}:</strong> {{ application.applied_at|format_datetime('%b %d, %Y at %I:%M %p') }}</div>
+                <div><strong>{{ _("Job") }}:</strong> {{ application.job_posting.title }}</div>
+                {% if application.rejection_reason %}
+                <div class="text-danger mt-2"><strong>{{ _("Rejection Reason") }}:</strong> {{ application.rejection_reason }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column - Timeline & Notes with HTMX -->
+    <div class="col-lg-8">
+        {% include "people/desktop/hiring/partials/_activity_timeline.html" %}
+    </div>
+</div>
+{% endblock module_content %}

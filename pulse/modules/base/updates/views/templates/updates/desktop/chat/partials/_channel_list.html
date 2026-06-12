@@ -1,0 +1,45 @@
+{# Channel list partial - for HTMX updates #}
+{% for channel in channels %}
+{% set unread = UpdateChannelReadState.get_unread_count(current_member_id, channel.id) %}
+{% set mention_count = UpdateChannelReadState.get_mention_count(current_member_id, channel.id) %}
+<div class="channel{% if unread > 0 %} has-unread{% endif %}"
+     id="channel-{{ channel.name }}"
+     data-channel-name="{{ channel.name }}"
+     hx-get="{{ url_for('sync_bp.get_channel_messages', channel_name=channel.name) }}"
+     hx-target="#chat-messages"
+     hx-swap="innerHTML"
+     hx-trigger="click"
+     hx-on::after-request="switchChannel(this, '{{ channel.name }}')">
+    <div class="channel-content">
+        <div class="channel-name">
+            <span class="channel-prefix">#</span>{{ _(channel.name) if channel.name in ('general', 'announcements', 'events') else channel.name }}
+        </div>
+    </div>
+    <div class="channel-meta">
+        {% if mention_count > 0 %}
+        <span class="mention-badge" id="mention-{{ channel.name }}">{{ mention_count }}</span>
+        {% endif %}
+        {% if current_user.is_admin and channel.name != 'general' %}
+        <div class="channel-actions" x-data="{ open: false }">
+            <button class="btn btn-link btn-sm channel-options"
+                    type="button"
+                    @click.stop="open = !open">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" :class="{ 'show': open }" @click.outside="open = false">
+                <li>
+                    <a class="dropdown-item text-danger" href="#"
+                       @click.prevent="open = false"
+                       hx-delete="{{ url_for('sync_bp.delete_channel', channel_name=channel.name) }}"
+                       hx-confirm="{{ _('Delete this channel and all messages?') }}"
+                       hx-target="#channel-{{ channel.name }}"
+                       hx-swap="outerHTML">
+                        <i class="fas fa-trash-alt me-2"></i>{{ _('Delete Channel') }}
+                    </a>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

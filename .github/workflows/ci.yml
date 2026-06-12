@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          cd pulse
+          uv pip install --system -r requirements.in
+
+      - name: Lint
+        run: cd pulse && python -m ruff check . --config tests/pyproject.toml
+
+      - name: Run tests
+        run: cd pulse && python -m pytest tests/unit/ tests/integration/ -x -q

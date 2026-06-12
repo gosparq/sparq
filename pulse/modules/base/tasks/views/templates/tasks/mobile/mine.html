@@ -1,0 +1,53 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ _("Inbox") }}{% endblock %}
+
+{% block module_content %}
+<div x-data="{ showClosed: false }">
+    <div class="mb-3">
+        <h2 class="mb-0" style="font-size:1.25rem;font-weight:600;">{{ _("Inbox") }}</h2>
+        <span class="text-muted" style="font-size:0.8125rem;">{{ _("What needs your attention") }}</span>
+    </div>
+
+    {% set next_url = url_for('tasks_bp.index') %}
+    {% include "tasks/mobile/_list.html" %}
+
+    {# ── Resolved / Dismissed ── #}
+    {% if closed_items %}
+    <div class="mt-3">
+        <button class="btn btn-link btn-sm text-muted p-0 mb-2" @click="showClosed = !showClosed" style="text-decoration:none;">
+            <i class="fas" :class="showClosed ? 'fa-chevron-down' : 'fa-chevron-right'" style="font-size:0.6rem;width:12px;"></i>
+            {{ _("Resolved / Dismissed") }} <span class="badge bg-secondary ms-1" style="font-size:0.7rem;">{{ closed_items|length }}</span>
+        </button>
+        <div x-show="showClosed" x-cloak>
+            {% for item in closed_items %}
+            <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+               class="d-flex align-items-center gap-3 mb-2 text-decoration-none"
+               style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.75rem;">
+                <div class="flex-shrink-0">
+                    {% if item.status == 'resolved' %}
+                    <i class="fas fa-check-circle text-success" style="font-size:0.8rem;"></i>
+                    {% elif item.status == 'dismissed' %}
+                    <i class="fas fa-minus-circle text-muted" style="font-size:0.8rem;"></i>
+                    {% else %}
+                    <i class="fas fa-ban text-muted" style="font-size:0.8rem;"></i>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1 text-truncate text-base" style="color:var(--color-gray-500);min-width:0">
+                    {{ item.title }}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<button type="button" class="fab" aria-label="{{ _('Create Task') }}"
+        hx-get="{{ url_for('tasks_bp.create_modal') }}"
+        hx-target="#modals"
+        hx-swap="innerHTML">
+    <i class="fas fa-plus"></i>
+</button>
+{% endblock %}

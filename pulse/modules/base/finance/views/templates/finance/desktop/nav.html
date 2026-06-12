@@ -1,0 +1,39 @@
+<nav class="side-nav">
+    <div class="nav-module-header" style="--section-color: {{ g.workspace_color }}">
+        <a href="{{ url_for('dashboard_bp.index') }}" class="nav-module-back">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <span class="nav-module-name">{{ _("Finance") }}</span>
+    </div>
+    <ul class="nav-menu">
+        <li class="nav-item">
+            <a href="{{ url_for('finance_bp.expenses') }}" class="nav-link {% if active_page == 'expenses' %}active{% endif %}">
+                <i class="fas fa-receipt"></i>{{ _("Expenses") }}
+            </a>
+        </li>
+        {% if current_user.is_admin %}
+        <li class="nav-item">
+            <a href="{{ url_for('finance_bp.reimbursements') }}" class="nav-link {% if active_page == 'reimbursements' %}active{% endif %}">
+                <i class="fas fa-hand-holding-usd"></i>{{ _("Reimbursements") }}
+            </a>
+        </li>
+        <li class="nav-divider"></li>
+        <li class="nav-item">
+            <a href="{{ url_for('finance_bp.accounting') }}" class="nav-link {% if active_page == 'accounting' %}active{% endif %}">
+                <i class="fas fa-calculator"></i>{{ _("Business Expenses") }}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('finance_bp.accounting_report') }}" class="nav-link {% if active_page == 'report' %}active{% endif %}">
+                <i class="fas fa-file-alt"></i>{{ _("Tax Report") }}
+            </a>
+        </li>
+        <li class="nav-divider"></li>
+        <li class="nav-item">
+            <a href="{{ url_for('finance_bp.settings') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>{{ _("Settings") }}
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>

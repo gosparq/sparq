@@ -1,0 +1,28 @@
+{# Note card — used in notes.html grid #}
+<a href="{{ url_for('notes_blueprint.detail', note_id=note.id) }}"
+   class="d-block text-decoration-none"
+   style="background:var(--color-white, #fff);border:1px solid var(--color-gray-200, #e5e7eb);border-radius:0.625rem;padding:1rem 1.25rem;transition:box-shadow 0.15s;">
+    <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="fw-semibold text-nowrap text-base" style="color:var(--color-gray-800, #1f2937); overflow:hidden; text-overflow:ellipsis; max-width:70%">
+            {{ note.title or _("Untitled") }}
+        </span>
+        {% if note.visibility == 'team' %}
+        <span class="fw-medium text-nowrap text-3xs" style="padding:0.1rem 0.5rem; border-radius:999px; background:var(--color-info-light, #dbeafe); color:var(--color-info, #3b82f6)">{{ _("Team") }}</span>
+        {% else %}
+        <span class="fw-medium text-nowrap text-3xs" style="padding:0.1rem 0.5rem; border-radius:999px; background:var(--color-gray-100, #f3f4f6); color:var(--color-gray-500, #6b7280)">{{ _("Personal") }}</span>
+        {% endif %}
+    </div>
+    {% if note.content %}
+    <p class="text-sm" style="color:var(--color-gray-500, #6b7280); margin-bottom:0.5rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">
+        {{ note.content | truncate(120) }}
+    </p>
+    {% else %}
+    <p class="text-sm" style="color:var(--color-gray-400, #9ca3af); margin-bottom:0.5rem; font-style:italic">{{ _("Empty note") }}</p>
+    {% endif %}
+    <div class="text-2xs" style="color:var(--color-gray-400, #9ca3af)">
+        {{ note.updated_at|format_datetime('%b %d, %Y') if note.updated_at else '' }}
+        {% if note.member and note.member.user %}
+        &middot; {{ note.member.user.full_name }}
+        {% endif %}
+    </div>
+</a>

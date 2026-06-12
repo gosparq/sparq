@@ -1,0 +1,75 @@
+{% extends "resources/mobile/layout.html" %}
+{% block title %}{{ _("Documents") }}{% endblock %}
+
+{% block module_content %}
+<!-- Breadcrumb -->
+{% if breadcrumbs %}
+<div class="mobile-breadcrumb">
+    <a href="{{ url_for('docs_blueprint.index') }}">{{ _("Documents") }}</a>
+    {% for crumb in breadcrumbs %}
+    <span class="separator">/</span>
+    {% if loop.last %}
+    <span>{{ crumb.name }}</span>
+    {% else %}
+    <a href="{{ url_for('docs_blueprint.view_folder', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+    {% endif %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="mb-3">
+    <h5 class="mb-0">{{ _("Documents") }}</h5>
+    <span class="text-muted" style="font-size:0.8125rem;">{{ _("Shared files and folders") }}</span>
+</div>
+{% endif %}
+
+<!-- Google Drive connection info chip -->
+{% if google_drive_connected %}
+<div class="mb-3 d-flex align-items-center gap-2 p-2" style="background:var(--color-gray-50);border:1px solid var(--color-gray-200);border-radius:0.5rem;">
+    <i class="fab fa-google-drive text-success" style="font-size:0.9rem;"></i>
+    <span style="font-size:0.8125rem;color:var(--color-gray-700);">{{ _("Google Drive connected") }}</span>
+</div>
+{% endif %}
+
+<!-- File List -->
+<div id="file-list">
+    {% include 'resources/mobile/docs/_file_list.html' %}
+</div>
+
+<!-- Upload FAB -->
+<button class="fab" type="button"
+        data-bs-toggle="modal" data-bs-target="#uploadModal"
+        aria-label="{{ _('Upload') }}">
+    <i class="fas fa-upload"></i>
+</button>
+{% endblock %}
+
+{% block modals %}
+<!-- Upload modal rendered outside .mobile-main-content so Bootstrap's z-index
+     competes in the root stacking context (not trapped in the fixed container). -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <form action="{{ url_for('docs_blueprint.upload') }}" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% if current_folder %}
+                <input type="hidden" name="folder_id" value="{{ current_folder.id }}">
+                {% endif %}
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Upload file") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="file" name="file" class="form-control" required>
+                    <p class="text-muted mt-2" style="font-size:0.75rem;">{{ _("Max 100 MB per file") }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>{{ _("Upload") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

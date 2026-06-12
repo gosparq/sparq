@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _("MSA Login") }}</title>
+    <link rel="stylesheet" href="{{ url_for('msa_bp.static', filename='css/msa.css') }}">
+</head>
+<body class="msa-login-page">
+
+    <div class="msa-login-card">
+        <div class="msa-login-logo">
+            <h1>sparQ <span>MSA</span></h1>
+            <p>{{ _("Multi-workspace System Admin") }}</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="msa-login-flash">
+            {% for category, message in messages %}
+            <div class="msa-flash msa-flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="msa-form-group">
+                <label class="msa-label">{{ _("Username") }}</label>
+                <input type="text" name="username" class="msa-input" placeholder="{{ _('admin') }}" required autofocus>
+            </div>
+            <div class="msa-form-group">
+                <label class="msa-label">{{ _("Password") }}</label>
+                <input type="password" name="password" class="msa-input" placeholder="{{ _('password') }}" required>
+            </div>
+            <button type="submit" class="msa-btn msa-btn-primary msa-btn-block">{{ _("Sign In") }}</button>
+        </form>
+    </div>
+
+</body>
+</html>

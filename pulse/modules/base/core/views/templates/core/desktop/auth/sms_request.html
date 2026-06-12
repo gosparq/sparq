@@ -1,0 +1,53 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Login with SMS") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        {% if company_name %}
+            <h1 class="company-name">{{ company_name }}</h1>
+        {% else %}
+            <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+        {% endif %}
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Login with SMS") }}</h2>
+        <p class="text-muted mb-4">{{ _("Enter your phone number and we'll send you a verification code.") }}</p>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label for="phone" class="form-label">{{ _("Phone Number") }}</label>
+                <input type="tel" class="form-control" id="phone" name="phone"
+                       placeholder="+1 (555) 123-4567" required autofocus>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-sms me-2"></i> {{ _("Send Code") }}
+            </button>
+        </form>
+
+        <div class="mt-3 text-center">
+            <a href="{{ url_for('core_bp.login') }}" class="text-muted">
+                <i class="fas fa-arrow-left"></i> {{ _("Back to login options") }}
+            </a>
+        </div>
+    </div>
+
+    <div class="auth-footer">
+        <small class="text-muted">{{ _("Powered by") }} <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a><br>{{ sparq_display_version }}</small>
+    </div>
+</div>
+{% endblock %}
+
+{% block marketing_content %}
+<div class="marketing-panel self-hosted">
+    <div class="marketing-headline">
+        <h2>{{ _("Quick &") }}<br><strong>{{ _("secure.") }}</strong></h2>
+    </div>
+    <div class="tagline-container">
+        <p class="tagline active">{{ _("Get a verification code on your phone.") }}</p>
+    </div>
+</div>
+{% endblock %}

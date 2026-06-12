@@ -1,0 +1,18 @@
+{# Partial: 10-4 acknowledgment grid for a sync post (HTMX swappable) #}
+<div class="ten4-inline" id="post-ten4-{{ post.id }}" data-post-id="{{ post.id }}" data-post-member-id="{{ post.member_id }}">
+    {% for m in ack_data.acked %}
+    <span class="ten4-check-item acked" title="{{ m.name }}">✓ {{ m.initials }}</span>
+    {% endfor %}
+    {% for m in ack_data.pending %}
+    <span class="ten4-check-item pending" title="{{ m.name }}">· {{ m.initials }}</span>
+    {% endfor %}
+    {% if not ack_data.current_user_acked and current_member_id and post.member_id != current_member_id %}
+    <button class="ten4-inline-btn"{% if is_mobile is defined and is_mobile %} style="opacity:1;"{% endif %}
+            hx-post="{{ url_for('sync_bp.acknowledge_post', post_id=post.id) }}"
+            hx-target="#post-ten4-{{ post.id }}"
+            hx-swap="outerHTML"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        10-4
+    </button>
+    {% endif %}
+</div>

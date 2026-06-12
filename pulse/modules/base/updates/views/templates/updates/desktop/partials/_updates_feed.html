@@ -1,0 +1,343 @@
+{# Partial: paginated batch of update/win posts with infinite scroll sentinel #}
+<div class="feed-batch">
+{% set ns = namespace(current_date=last_date|default('', true)) %}
+{% for post in posts %}
+    {% set post_date = post.created_at|format_datetime('%B %d, %Y') %}
+    {% if post_date != ns.current_date %}
+        {% if ns.current_date %}</div>{% endif %}
+        {% set ns.current_date = post_date %}
+        <div class="mb-1 mt-3">
+            <small class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ post_date }}</small>
+        </div>
+        <div class="post-day-group">
+    {% endif %}
+
+    {# For "I'm blocked" posts, the edit affordance opens the shared blocker
+       modal pre-filled from the linked Task (same modal used to create). #}
+    {% set blocker_ai = feed_task_map.get((post.payload or {}).get('action_item_id')) if post.template_name == "I'm blocked" else none %}
+    <div id="post-{{ post.id }}" class="card mb-2 position-relative" style="border:1px solid var(--color-gray-200, #e5e7eb); border-radius:0.625rem">
+        <div class="post-actions">
+            {% if post.member_user_id == current_user.id %}
+            {% if blocker_ai and blocker_ai.status == 'open' %}
+            <button type="button" class="btn btn-sm btn-link action-btn" title="{{ _('Edit') }}"
+                    data-bs-toggle="modal" data-bs-target="#editBlockerModal-{{ blocker_ai.id }}">
+                <i class="fas fa-pen"></i>
+            </button>
+            {% else %}
+            <a href="{{ url_for('sync_bp.post_edit', post_id=post.id) }}" class="btn btn-sm btn-link action-btn" title="{{ _('Edit') }}">
+                <i class="fas fa-pen"></i>
+            </a>
+            {% endif %}
+            <form method="POST" action="{{ url_for('sync_bp.post_delete', post_id=post.id) }}" style="display:inline;"
+                  onsubmit="return confirm('{{ _("Delete this update? This cannot be undone.") }}')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-link action-btn action-btn-danger" title="{{ _('Delete') }}">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </form>
+            {% if post.template and post.template_schedule_type == 'periodic' and post.template_name != 'Async - Standup' %}
+            <form method="POST" action="{{ url_for('sync_bp.post_bump', post_id=post.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-link action-btn" title="{{ _('Bump') }}">
+                    <i class="fas fa-arrow-rotate-right"></i>
+                </button>
+            </form>
+            {% endif %}
+            {% endif %}
+            <button class="btn btn-sm btn-link action-btn"
+                    data-action="copy-post-link"
+                    data-url="/sync/posts/{{ post.id }}"
+                    title="{{ _('Copy link') }}">
+                <i class="fas fa-link"></i>
+            </button>
+        </div>
+        <div class="card-body py-3 px-4">
+            <div class="d-flex align-items-start gap-3">
+                {# Avatar #}
+                <div class="flex-shrink-0">
+                    {% if not post.is_anonymous and post.member_first_name %}
+                    <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8125rem;background:{{ post.member_avatar_color|default('#6b7280') }};">
+                        {{ post.member_first_name[0]|upper }}{{ post.member_last_name[0]|upper if post.member_last_name else '' }}
+                    </span>
+                    {% else %}
+                    <span class="avatar-circle text-sm" style="width:36px; height:36px; background:#6b7280">
+                        <i class="fas fa-user text-2xs"></i>
+                    </span>
+                    {% endif %}
+                </div>
+
+                {# Content #}
+                <div class="flex-grow-1 min-width-0">
+                    <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                        {% if not post.is_anonymous and post.member_first_name %}
+                        <span class="fw-semibold text-base">{{ post.member_full_name }}</span>
+                        {% else %}
+                        <span class="fw-semibold text-muted text-base">{{ _("Anonymous") }}</span>
+                        {% endif %}
+                        <span class="badge {% if post.template_name == "I'm blocked" %}sync-badge-blocked{% elif post.template_name == 'Heads up' %}sync-badge-headsup{% elif post.post_type == 'win' %}sync-badge-win{% else %}sync-badge-update{% endif %} text-3xs">
+                            {{ post.template_name }}
+                            {% if post.post_type == 'win' %}<i class="fas fa-trophy ms-1"></i>{% endif %}
+                        </span>
+                        {% if post.payload.get('_bumped_from') %}
+                        <span class="badge sync-badge-bumped text-3xs">
+                            <i class="fas fa-arrow-rotate-right me-1 text-icon"></i>{{ _("Bumped") }}
+                        </span>
+                        {% endif %}
+                        {% if post.area_name %}
+                        <span class="badge" style="font-size:0.6rem;background:{{ post.area_color }}20;color:{{ post.area_color }};border:1px solid {{ post.area_color }}40;">
+                            {% if post.area_emoji %}{{ post.area_emoji }} {% endif %}{{ post.area_name }}
+                        </span>
+                        {% endif %}
+                        {% if post.template_name == "I'm blocked" and blocker_names_map is defined %}
+                        {% set blocked_names = blocker_names_map.get(post.id) %}
+                        {% if blocked_names %}
+                        <span class="text-muted text-xs">
+                            <i class="fas fa-arrow-right text-icon"></i>
+                            {{ _("blocked by") }} {{ blocked_names|join(', ') }}
+                        </span>
+                        {% endif %}
+                        {% endif %}
+                        <span class="text-muted ms-auto text-sm">{{ post.created_at|format_datetime('%I:%M %p') }}</span>
+                    </div>
+
+                    {# Render payload fields #}
+                    {% for field in post.template_fields %}
+                        {% set val = post.payload.get(field.key) %}
+                        {% if val %}
+                            {% if field.type == 'structured_list' %}
+                                {# Structured list items #}
+                                {% if val is iterable and val is not string %}
+                                <ul class="mb-1 ps-3 text-base" style="list-style:none">
+                                    {% for item in val %}
+                                        {% if item is mapping %}
+                                        <li class="mb-1">
+                                            <span>{% if github_connected %}{{ item.text | resolve_gh_chips('post', post.id) | safe }}{% else %}{{ item.text|urlize(target="_blank") }}{% endif %}</span>
+                                            {% if item.project_id and feed_project_map is defined %}
+                                                {% set proj = feed_project_map.get(item.project_id) %}
+                                                {% if proj %}
+                                                <a href="{{ url_for('projects_bp.detail', project_id=proj.id) }}" class="sl-feed-project-badge text-decoration-none">{{ proj.name[:15] }}</a>
+                                                {% endif %}
+                                            {% endif %}
+                                            {% if item.action_item_id and feed_task_map is defined %}
+                                                {% set ai = feed_task_map.get(item.action_item_id) %}
+                                                {% if ai %}
+                                                <a href="{{ url_for('tasks_bp.detail', item_id=ai.id) }}" class="task-feed-pill text-decoration-none" title="{{ ai.title }}">
+                                                    <span class="task-feed-pill-dot" style="background:{{ ai.tier_color() }};"></span>
+                                                    <i class="fas fa-bolt text-3xs"></i>
+                                                </a>
+                                                {% endif %}
+                                            {% endif %}
+                                            {% if field.get('blocker') %}
+                                            <span class="badge text-3xs" style="background:#fef2f2; color:var(--color-danger); border:1px solid #fecaca">
+                                                <i class="fas fa-hand me-1 text-icon"></i>{{ _("Blocker") }}
+                                            </span>
+                                            {% endif %}
+                                        </li>
+                                        {% else %}
+                                        {# Backwards compat: plain string in a list #}
+                                        <li>{{ item|urlize(target="_blank") }}</li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                {# Backwards compat: old text/bullet data stored as string #}
+                                <p class="mb-1 text-base sync-pre-wrap">{{ val|urlize(target="_blank") }}</p>
+                                {% endif %}
+                            {% elif field.type == 'bullets' %}
+                            <ul class="mb-1 ps-3 text-base">
+                                {% for item in val %}<li>{{ item|urlize(target="_blank") }}</li>{% endfor %}
+                            </ul>
+                            {% elif field.type == 'scale' %}
+                            <div class="mb-1">
+                                <span class="text-muted small">{{ field.label }}:</span>
+                                <span class="ms-1">
+                                    {% for i in range(val | int) %}<i class="fas fa-star text-warning"></i>{% endfor %}
+                                    {% for i in range(5 - (val | int)) %}<i class="far fa-star text-muted"></i>{% endfor %}
+                                </span>
+                            </div>
+                            {% elif field.type == 'choice' %}
+                            {# Choice fields (focus/progress) are meta signals, not body content — hidden in feed view #}
+                            {% elif field.type == 'text_audio' %}
+                            <p class="mb-1 text-base sync-pre-wrap">{% if github_connected %}{{ val | resolve_gh_chips('post', post.id) | safe }}{% else %}{{ val|urlize(target="_blank") }}{% endif %}</p>
+                            {% set audio_uuid = post.payload.get(field.key ~ '_audio_uuid') %}
+                            {% if audio_uuid %}
+                            {% set audio_dur = post.payload.get(field.key ~ '_audio_duration', 0) %}
+                            <div class="audio-playback-pill d-inline-flex align-items-center mt-1 mb-1" data-duration="{{ audio_dur }}">
+                                <button type="button" class="btn btn-sm audio-play-btn" data-action="audio-toggle">
+                                    <i class="fas fa-play text-2xs"></i>
+                                </button>
+                                <div class="audio-progress-wrap" data-action="audio-seek">
+                                    <div class="audio-progress-bar"></div>
+                                </div>
+                                <span class="audio-time">{% if audio_dur %}{{ '%d:%02d' | format(audio_dur // 60, audio_dur % 60) }}{% else %}0:00{% endif %}</span>
+                                <audio preload="metadata" src="{{ url_for('sync_bp.download_attachment', uuid=audio_uuid) }}"></audio>
+                            </div>
+                            {% endif %}
+                            {% elif field.type == 'title' %}
+                            <p class="fw-semibold mb-1 text-base">{{ val|urlize(target="_blank") }}</p>
+                            {% else %}
+                            {% if post.template_name == "I'm blocked" and loop.first and blocker_ai %}
+                            <div class="d-flex align-items-baseline gap-2 mb-1">
+                                <p class="mb-0 text-base sync-pre-wrap">{% if github_connected %}{{ val | resolve_gh_chips('post', post.id) | safe }}{% else %}{{ val|urlize(target="_blank") }}{% endif %}</p>
+                                <a href="{{ url_for('tasks_bp.detail', item_id=blocker_ai.id) }}" class="task-feed-pill text-decoration-none flex-shrink-0" title="{{ blocker_ai.title }}">
+                                    <span class="task-feed-pill-dot" style="background:var(--color-danger);"></span>
+                                    <i class="fas fa-hand text-3xs"></i>
+                                </a>
+                            </div>
+                            {% else %}
+                            <p class="mb-1 text-base sync-pre-wrap">{% if github_connected %}{{ val | resolve_gh_chips('post', post.id) | safe }}{% else %}{{ val|urlize(target="_blank") }}{% endif %}</p>
+                            {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Legacy fallback: render payload keys not covered by current template fields #}
+                    {% set _tpl_keys = post.template_fields | map(attribute='key') | list %}
+                    {% for key, val in (post.payload or {}).items() if key not in _tpl_keys and not key.startswith('_') and '_audio_uuid' not in key and key not in ('focus', 'progress') and val %}
+                        {% if val is iterable and val is not string and val is not mapping %}
+                        <ul class="mb-1 ps-3 text-base" style="list-style:none">
+                            {% for item in val %}
+                                {% if item is mapping %}
+                                <li class="mb-1">
+                                    <span>{% if github_connected %}{{ item.text | resolve_gh_chips('post', post.id) | safe }}{% else %}{{ item.text|urlize(target="_blank") }}{% endif %}</span>
+                                    {% if item.project_id and feed_project_map is defined %}
+                                        {% set proj = feed_project_map.get(item.project_id) %}
+                                        {% if proj %}
+                                        <a href="{{ url_for('projects_bp.detail', project_id=proj.id) }}" class="sl-feed-project-badge text-decoration-none">{{ proj.name[:15] }}</a>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if item.action_item_id and feed_task_map is defined %}
+                                        {% set ai = feed_task_map.get(item.action_item_id) %}
+                                        {% if ai %}
+                                        <a href="{{ url_for('tasks_bp.detail', item_id=ai.id) }}" class="task-feed-pill text-decoration-none" title="{{ ai.title }}">
+                                            <span class="task-feed-pill-dot" style="background:{{ ai.tier_color() }};"></span>
+                                            <i class="fas fa-bolt text-3xs"></i>
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </li>
+                                {% else %}
+                                <li>{{ item|urlize(target="_blank") }}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                        {% elif val is string and val | length > 2 %}
+                        <p class="mb-1 text-base sync-pre-wrap">{{ val|urlize(target="_blank") }}</p>
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Context note for blocker action items #}
+                    {% if post.template_name == "I'm blocked" and blocker_ai and blocker_ai.is_blocker and blocker_ai.context_note %}
+                    <p class="mb-1 mt-1 text-sm sync-pre-wrap" style="color:var(--color-gray-500)">{{ blocker_ai.context_note|urlize(target="_blank") }}</p>
+                    {% endif %}
+
+                    {# Legacy: Action item ref pills (backwards compat for old posts) #}
+                    {% if feed_task_map is defined and post.payload.get('action_item_refs') %}
+                    <div class="d-flex gap-2 flex-wrap mt-2 mb-1">
+                        {% for ref_id in post.payload.get('action_item_refs', []) %}
+                            {% set ai = feed_task_map.get(ref_id) %}
+                            {% if ai %}
+                            <a href="{{ url_for('tasks_bp.detail', item_id=ai.id) }}" class="task-feed-pill text-decoration-none" title="{{ ai.title }}">
+                                <span class="task-feed-pill-dot" style="background:{{ ai.tier_color() }};"></span>
+                                <i class="fas fa-bolt text-3xs"></i>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {# Also support old task_map variable name for backwards compat #}
+                    {% if task_map is defined and not feed_task_map is defined and post.payload.get('action_item_refs') %}
+                    <div class="d-flex gap-2 flex-wrap mt-2 mb-1">
+                        {% for ref_id in post.payload.get('action_item_refs', []) %}
+                            {% set ai = task_map.get(ref_id) %}
+                            {% if ai %}
+                            <a href="{{ url_for('tasks_bp.detail', item_id=ai.id) }}" class="task-feed-pill text-decoration-none" title="{{ ai.title }}">
+                                <span class="task-feed-pill-dot" style="background:{{ ai.tier_color() }};"></span>
+                                <i class="fas fa-bolt text-3xs"></i>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {# Blocker resolution status (legacy compat) #}
+                    {% if post.template_name == "I'm blocked" and blocker_map is defined and blocker_map.get(post.id) %}
+                        {% set blocker = blocker_map[post.id] %}
+                        {% if blocker.resolved %}
+                        <div class="mt-2 d-flex align-items-center gap-2 sync-resolved-status">
+                            <span class="badge sync-badge-resolved">
+                                <i class="fas fa-check-circle me-1"></i>{{ _("Resolved") }}
+                            </span>
+                            <span class="text-muted">
+                                {% if blocker.resolved_by and blocker.resolved_by.user %}
+                                    {{ _("by") }} {{ blocker.resolved_by.user.full_name }}
+                                {% endif %}
+                                &middot; {{ blocker.resolved_at|format_datetime('%b %d, %I:%M %p') }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {# Reactions — prefer the batched map populated by the controller #}
+                    {% if reactions_map is defined %}
+                        {% set reactions = reactions_map.get(post.id, {}) %}
+                    {% elif UpdatePostReaction is defined and UpdatePostReaction %}
+                        {% set reactions = UpdatePostReaction.get_for_message(post.id) %}
+                    {% else %}
+                        {% set reactions = {} %}
+                    {% endif %}
+                    <div class="post-reactions" id="post-reactions-{{ post.id }}">
+                        {% for emoji, data in reactions.items() %}
+                        <button class="post-reaction-badge {% if current_user.id in data.user_ids %}user-reacted{% endif %}"
+                                data-action="post-toggle-reaction" data-post-id="{{ post.id }}" data-emoji="{{ emoji }}"
+                                title="{{ data.users|join(', ') }}">
+                            <span class="post-reaction-emoji">{{ emoji }}</span>
+                            <span class="post-reaction-count">{{ data.count }}</span>
+                        </button>
+                        {% endfor %}
+                        <button class="post-reaction-add" data-action="post-show-picker" data-post-id="{{ post.id }}" title="{{ _('Add reaction') }}">
+                            <i class="far fa-smile"></i>
+                        </button>
+                    </div>
+
+                    {# 10-4 acknowledgment grid — prefer batched map #}
+                    {% if not post.is_anonymous and post.member_id %}
+                        {% if ack_map is defined %}
+                            {% set ack_data = ack_map.get(post.id) %}
+                        {% elif UpdatePostAck is defined and UpdatePostAck %}
+                            {% set ack_data = UpdatePostAck.get_for_post(post.id, current_member_id) %}
+                        {% else %}
+                            {% set ack_data = none %}
+                        {% endif %}
+                        {% if ack_data %}
+                            {% include "updates/desktop/partials/_post_ten_four.html" %}
+                        {% endif %}
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Per-post Edit Blocker modal for this blocker post (open items only). #}
+    {% if blocker_ai and blocker_ai.status == 'open' and post.member_user_id == current_user.id %}
+        {% with modal_id = 'editBlockerModal-' ~ blocker_ai.id, task = blocker_ai %}
+            {% include "updates/desktop/partials/_new_blocker_modal.html" %}
+        {% endwith %}
+    {% endif %}
+
+    {% if loop.last %}</div>{% endif %}
+{% endfor %}
+</div>
+
+{# Infinite scroll sentinel #}
+{% if has_more %}
+<div hx-get="/updates/feed/more?offset={{ next_offset }}&last_date={{ ns.current_date|urlencode }}{% if filter_template_id %}&template={{ filter_template_id }}{% endif %}{% if filter_member_id %}&member={{ filter_member_id }}{% endif %}{% if filter_area_id %}&area={{ filter_area_id }}{% endif %}"
+     hx-trigger="intersect once threshold:0.1"
+     hx-swap="outerHTML transition:true"
+     class="text-center py-3">
+    <div class="spinner-border spinner-border-sm text-muted" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+{% endif %}

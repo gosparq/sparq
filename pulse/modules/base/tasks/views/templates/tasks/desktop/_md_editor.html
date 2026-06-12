@@ -1,0 +1,62 @@
+{# Reusable Write/Preview markdown editor partial.
+   Expected context: field_name, field_id, placeholder, rows, initial_value #}
+<div class="md-editor" x-data='{
+    tab: "write",
+    content: {{ (initial_value or "")|tojson }},
+    wrap(before, after) {
+        const ta = this.$refs.textarea;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const sel = this.content.substring(start, end);
+        this.content = this.content.substring(0, start) + before + sel + after + this.content.substring(end);
+        this.$nextTick(() => { ta.focus(); ta.selectionStart = start + before.length; ta.selectionEnd = end + before.length; });
+    },
+    prefixLines(pfx) {
+        const ta = this.$refs.textarea;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const lineStart = this.content.lastIndexOf("\n", start - 1) + 1;
+        const block = this.content.substring(lineStart, end);
+        const lines = block.split("\n");
+        const prefixed = lines.map(l => pfx + l).join("\n");
+        this.content = this.content.substring(0, lineStart) + prefixed + this.content.substring(end);
+        const added = pfx.length * lines.length;
+        this.$nextTick(() => { ta.focus(); ta.selectionStart = start + pfx.length; ta.selectionEnd = end + added; });
+    }
+}'>
+    <div class="md-editor-header">
+        <div class="md-editor-tabs">
+            <button type="button" class="md-editor-tab"
+                    :class="{ 'md-editor-tab--active': tab === 'write' }"
+                    @click="tab = 'write'">{{ _("Write") }}</button>
+            <button type="button" class="md-editor-tab"
+                    :class="{ 'md-editor-tab--active': tab === 'preview' }"
+                    @click="tab = 'preview'"
+                    hx-post="{{ url_for('tasks_bp.markdown_preview') }}"
+                    hx-target="#{{ field_id }}_preview"
+                    hx-swap="innerHTML"
+                    :hx-vals="JSON.stringify({text: content})">{{ _("Preview") }}</button>
+        </div>
+        <div class="md-editor-toolbar" x-show="tab === 'write'">
+            <button type="button" title="{{ _('Bold') }}" @click="wrap('**', '**')"><i class="fas fa-bold"></i></button>
+            <button type="button" title="{{ _('Italic') }}" @click="wrap('*', '*')"><i class="fas fa-italic"></i></button>
+            <button type="button" title="{{ _('Code') }}" @click="wrap('`', '`')"><i class="fas fa-code"></i></button>
+            <button type="button" title="{{ _('Link') }}" @click="wrap('[', '](url)')"><i class="fas fa-link"></i></button>
+            <span class="md-editor-toolbar-sep"></span>
+            <button type="button" title="{{ _('Bullet list') }}" @click="prefixLines('- ')"><i class="fas fa-list-ul"></i></button>
+            <button type="button" title="{{ _('Numbered list') }}" @click="prefixLines('1. ')"><i class="fas fa-list-ol"></i></button>
+        </div>
+    </div>
+
+    <textarea x-show="tab === 'write'" x-ref="textarea"
+              name="{{ field_name }}" id="{{ field_id }}"
+              class="form-control form-control-sm"
+              rows="{{ rows }}"
+              placeholder="{{ placeholder }}"
+              x-model="content"></textarea>
+
+    <div x-show="tab === 'preview'" x-cloak
+         id="{{ field_id }}_preview"
+         class="md-editor-preview md-content">
+    </div>
+</div>

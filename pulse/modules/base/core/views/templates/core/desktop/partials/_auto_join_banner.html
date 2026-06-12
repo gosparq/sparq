@@ -1,0 +1,20 @@
+{# Rule-3 auto-join confirmation banner — shown once until dismissed. #}
+{% if org_user and not org_user.auto_join_banner_dismissed %}
+<div class="alert alert-info d-flex justify-content-between align-items-center mb-3" id="auto-join-banner">
+    <div>
+        {{ _("You joined") }} <strong>{{ organization.name }}</strong> {{ _("because your email ends in") }} <strong>@{{ current_user.email_domain }}</strong>.
+        <span class="ms-2">
+            <form method="POST" action="{{ url_for('core_bp.leave_organization', org_id=organization.id) }}" style="display:inline;"
+                  onsubmit="return confirm('{{ _("Are you sure you want to leave this organization?") }}')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-link text-danger small p-0">{{ _("Not your team? Leave organization") }}</button>
+            </form>
+        </span>
+    </div>
+    <button type="button" class="btn-close"
+            hx-post="{{ url_for('core_bp.dismiss_auto_join_banner', org_id=organization.id) }}"
+            hx-target="#auto-join-banner"
+            hx-swap="outerHTML"
+            aria-label="{{ _('Close') }}"></button>
+</div>
+{% endif %}

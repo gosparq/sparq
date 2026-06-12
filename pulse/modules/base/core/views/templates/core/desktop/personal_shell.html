@@ -1,0 +1,58 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Welcome") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Welcome to sparQ") }}</h2>
+        <p class="text-muted mb-3 text-center">
+            {{ _("You're not part of an organization yet. Wait for an invite, or create your own.") }}
+        </p>
+
+        {% if pending_invitations %}
+        <div class="mb-3">
+            <h6 class="text-muted">{{ _("Pending Invitations") }}</h6>
+            <div class="list-group">
+                {% for inv in pending_invitations %}
+                <div class="list-group-item d-flex justify-content-between align-items-center" id="invitation-{{ inv.id }}">
+                    <div>
+                        <strong>{{ inv.organization.name }}</strong>
+                        <br><small class="text-muted">{{ _("Role:") }} {{ inv.role }}</small>
+                    </div>
+                    <div>
+                        <form method="POST" action="{{ url_for('core_bp.accept_invitation', invitation_id=inv.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm btn-primary">{{ _("Accept") }}</button>
+                        </form>
+                        <button class="btn btn-sm btn-outline-secondary ms-1"
+                                hx-post="{{ url_for('core_bp.decline_invitation', invitation_id=inv.id) }}"
+                                hx-target="#invitation-{{ inv.id }}"
+                                hx-swap="outerHTML">
+                            {{ _("Decline") }}
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <a href="{{ url_for('core_bp.create_organization') }}" class="btn btn-primary w-100 mb-3">
+            <i class="fas fa-plus me-1"></i>{{ _("Create an Organization") }}
+        </a>
+
+        <div class="mt-3 text-center">
+            <small class="text-muted"><a href="{{ url_for('core_bp.logout') }}">{{ _("Log Out") }}</a></small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">{{ _("Powered by") }} <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a></small>
+{% endblock %}

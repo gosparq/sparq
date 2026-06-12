@@ -1,0 +1,60 @@
+{# Slash-command palette. Variables (all optional):
+   palette_id            — element id (default: slash-palette)
+   palette_fn            — Alpine component function name (default: slashPalette)
+   palette_event_open    — window event to open the palette (default: palette-open)
+   palette_event_close   — window event to close the palette (default: palette-close)
+   palette_task_id       — task id for commands endpoint (default: item.id or 0)
+#}
+{% set _pid     = palette_id | default('slash-palette') %}
+{% set _pfn     = palette_fn | default('slashPalette') %}
+{% set _popen   = palette_event_open | default('palette-open') %}
+{% set _pclose  = palette_event_close | default('palette-close') %}
+{% set _ptid    = palette_task_id | default(item.id if item is defined else 0) %}
+
+<div id="{{ _pid }}"
+     x-data="{{ _pfn }}()"
+     x-show="open"
+     x-cloak
+     x-on:{{ _popen }}.window="onOpen($event.detail)"
+     x-on:{{ _pclose }}.window="close()"
+     @click.outside="close()"
+     @keydown.escape.window="open && closeAndStrip()"
+     data-task-id="{{ _ptid }}"
+     data-csrf="{{ csrf_token }}"
+     class="slash-palette">
+
+  {# ── List step ── #}
+  <template x-if="step === 'list'">
+    <ul class="palette-list"
+        @keydown.arrow-down.window.prevent="activeIdx = Math.min(activeIdx + 1, filteredCommands.length - 1)"
+        @keydown.arrow-up.window.prevent="activeIdx = Math.max(activeIdx - 1, 0)"
+        @keydown.enter.window.prevent="filteredCommands[activeIdx] && selectCommand(filteredCommands[activeIdx])">
+      <template x-for="(cmd, i) in filteredCommands" :key="cmd.id">
+        <li class="palette-item"
+            :class="{'palette-item--active': i === activeIdx}"
+            @click="selectCommand(cmd)"
+            @mouseenter="activeIdx = i">
+          <span x-show="cmd.shortcut" class="palette-shortcut me-2" x-text="cmd.shortcut"></span>
+          <span x-text="cmd.label"></span>
+        </li>
+      </template>
+      <li x-show="filteredCommands.length === 0" class="palette-empty">
+        {{ _("No commands match") }}
+      </li>
+    </ul>
+  </template>
+
+  {# ── Action step — provider panel loaded via HTMX ── #}
+  <template x-if="step === 'action'">
+    <div class="palette-subpanel"
+         :hx-get="actionUrl"
+         hx-trigger="load"
+         hx-target="this"
+         hx-swap="innerHTML"
+         x-on:palette-action-done.window="handleActionDone($event.detail)"
+         x-on:palette-action-back.window="step = 'list'"
+         x-init="$nextTick(() => htmx.process($el))">
+      <span class="text-muted small"><i class="fas fa-spinner fa-spin me-1"></i>{{ _("Loading…") }}</span>
+    </div>
+  </template>
+</div>

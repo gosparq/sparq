@@ -1,0 +1,30 @@
+<div class="text-center py-5" x-data="{ countdown: 5 }" x-init="setInterval(() => { if (countdown > 0) countdown--; else window.location.reload(); }, 1000)">
+    <div class="mb-4">
+        <div class="rounded-circle bg-danger d-inline-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+            <i class="fas fa-map-marker-alt fa-3x text-white"></i>
+        </div>
+    </div>
+
+    <h2 class="mb-2 text-danger">
+        {{ _("Location Restricted") }}
+    </h2>
+
+    <p class="fs-5 mb-3">
+        {{ _("Sorry") }}, {{ member.user.first_name }}
+    </p>
+
+    <div class="alert alert-danger d-inline-block mx-auto" style="max-width: 400px;">
+        <p class="mb-0">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {{ _("You are outside the designated work area and cannot clock in or out from this location.") }}
+        </p>
+    </div>
+
+    <p class="text-muted mt-4">
+        {{ _("Please move to an approved location and try again.") }}
+    </p>
+
+    <p class="text-muted mt-4">
+        {{ _("Returning to PIN entry in") }} <span class="fw-bold" x-text="countdown"></span>...
+    </p>
+</div>

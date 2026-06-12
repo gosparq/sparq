@@ -1,0 +1,25 @@
+<div id="prop-area" class="py-2 border-bottom">
+    <form hx-post="{{ url_for('tasks_bp.inline_save_prop', item_id=item.id, prop='area') }}"
+          hx-target="#prop-area"
+          hx-swap="outerHTML"
+          hx-disabled-elt="button[type=submit]"
+          class="d-flex flex-column gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="text-muted text-sm">{{ _("Area") }}</label>
+        <select name="area_id" class="form-select form-select-sm">
+            <option value="">{{ _("None") }}</option>
+            {% for a in areas %}
+            <option value="{{ a.id }}" {% if item.area_id == a.id %}selected{% endif %}>
+                {{ a.name }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save") }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for('tasks_bp.inline_display_prop', item_id=item.id, prop='area') }}"
+                    hx-target="#prop-area"
+                    hx-swap="outerHTML">{{ _("Cancel") }}</button>
+        </div>
+    </form>
+</div>

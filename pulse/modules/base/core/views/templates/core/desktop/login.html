@@ -1,0 +1,62 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Login") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+        {% if company_name %}
+            <h1 class="company-name">{{ company_name }}</h1>
+        {% endif %}
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Login") }}</h2>
+
+        {% include "core/desktop/auth/_oauth_buttons.html" %}
+
+        {% if show_password %}
+        <form method="POST" action="{{ url_for('core_bp.login') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">{{ _("Email address") }}</label>
+                <input type="email" class="form-control" id="email" name="email" placeholder="you@example.com" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">{{ _("Password") }}</label>
+                <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                <label class="form-check-label" for="remember">{{ _("Remember me") }}</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">{{ _("Log in") }}</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('core_bp.magic_link_request') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">{{ _("Email address") }}</label>
+                <input type="email" class="form-control" id="email" name="email" placeholder="you@example.com" required autofocus>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-paper-plane me-2"></i> {{ _("Send Email Link") }}
+            </button>
+        </form>
+        <p class="text-muted mt-3 text-center text-sm">
+            {{ _("We'll send you an email link to sign in — no password needed.") }}
+        </p>
+        {% endif %}
+
+        <div class="mt-3 text-center">
+            <small class="text-muted">{{ _("Don't have an account?") }} <a href="/signup">{{ _("Sign up") }}</a></small>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">{{ _("Powered by") }} <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a><br><span class="version-text">{{ sparq_display_version }} - {{ sparq_build_date }}</span></small>
+{% endblock %}

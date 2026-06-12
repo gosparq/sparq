@@ -1,0 +1,228 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ item.title[:50] }}{% endblock %}
+
+{% block mobile_bottom_nav %}{# hide module sub-nav on detail view #}{% endblock %}
+
+{% block module_content %}
+<div x-data="{ showResolveNote: false, showLogs: false }">
+<div class="mb-3">
+    <a href="{{ back_url }}" class="text-muted text-decoration-none d-inline-flex align-items-center gap-1 text-base">
+        <i class="fas fa-arrow-left"></i>{{ _("Back") }}
+    </a>
+</div>
+
+{# Header pills #}
+<div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+    <span class="badge" style="background:{{ tier_defaults[item.urgency_tier].color }}22;color:{{ tier_defaults[item.urgency_tier].color }};font-size:0.7rem;padding:0.25em 0.625em;">
+        {{ tier_defaults[item.urgency_tier].label }}
+    </span>
+    {% if workflow_statuses is defined %}
+    {% set ws_info = workflow_statuses|selectattr('key', 'equalto', item.workflow_status|default('todo'))|first %}
+    {% if ws_info %}
+    <span class="badge" style="background:{{ ws_info.color }}22;color:{{ ws_info.color }};font-size:0.7rem;">{{ ws_info.label }}</span>
+    {% endif %}
+    {% endif %}
+    {% if item.status == 'dismissed' %}
+    <span class="badge" style="background:var(--color-gray-100);color:var(--color-gray-500);font-size:0.7rem;">{{ _("Dismissed") }}</span>
+    {% elif item.status == 'canceled' %}
+    <span class="badge" style="background:#fee2e2;color:var(--color-danger);font-size:0.7rem;">{{ _("Canceled") }}</span>
+    {% endif %}
+</div>
+
+<h2 class="mb-3" style="font-size:1.125rem;font-weight:600;line-height:1.35;">{% if item.is_blocker %}<i class="fas fa-hand text-danger me-2" style="font-size: var(--font-size-base);" title="{{ _('Blocker') }}"></i>{% endif %}{{ item.title }}</h2>
+
+{# Details card #}
+<div class="mb-3" style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;">
+    <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+        <span style="font-size:0.8125rem;font-weight:600;color:var(--color-gray-700);">{{ _("Details") }}</span>
+    </div>
+    <div style="padding:1rem;">
+        <div class="mb-2">
+            <label class="text-muted" style="font-size:0.75rem;">{% if item.is_blocker %}{{ _("Blocked By") }}{% else %}{{ _("Assigned To") }}{% endif %}</label>
+            <div class="text-base" style="font-weight:600">
+                {% if item.assignee and item.assignee.user %}
+                {{ item.assignee.user.first_name }} {{ item.assignee.user.last_name }}
+                {% else %}
+                <span class="text-muted" style="font-weight:normal;">{{ _("Unassigned") }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="mb-2">
+            <label class="text-muted" style="font-size:0.75rem;">{{ _("Created By") }}</label>
+            <div class="text-base" style="font-weight:600">
+                {% if item.is_system_raised %}
+                <i class="fas fa-robot me-1 text-muted"></i>{{ _("System") }}
+                {% elif item.raised_by and item.raised_by.user %}
+                {{ item.raised_by.user.first_name }} {{ item.raised_by.user.last_name }}
+                {% endif %}
+            </div>
+        </div>
+        {% if item.due_date %}
+        <div class="mb-2">
+            <label class="text-muted" style="font-size:0.75rem;">{{ _("Due on") }}</label>
+            <div style="font-weight:600" class="{% if item.status == 'open' and item.due_date < today %}text-danger{% endif %} text-base">
+                <i class="fas fa-calendar-day me-1" style="font-size:0.7rem;"></i>{{ item.due_date.strftime('%B %d, %Y') }}
+                {% if item.status == 'open' and item.due_date < today %}<span style="font-size:0.75rem;">({{ _("overdue") }})</span>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% if item.context_note %}
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--color-gray-100);">
+            <label class="text-muted" style="font-size:0.75rem;">{{ _("Context") }}</label>
+            <div class="text-base" style="white-space:pre-wrap;margin-top:0.25rem">{{ item.context_note }}</div>
+        </div>
+        {% endif %}
+        {% if item.resolution_note %}
+        <div class="mt-3 pt-3" style="border-top:1px solid var(--color-gray-100);">
+            <label class="text-muted" style="font-size:0.75rem;">{{ _("Resolution Note") }}</label>
+            <div class="text-base" style="margin-top:0.25rem;white-space:pre-wrap">{{ item.resolution_note }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if watchers %}
+<div class="mb-3">
+    <label class="text-muted" style="font-size:0.75rem;"><i class="fas fa-eye me-1" style="font-size:0.65rem;"></i>{{ _("Watchers") }}</label>
+    <div class="d-flex flex-wrap gap-1 mt-1">
+        {% for w in watchers %}
+        <span class="badge" style="background:var(--color-gray-100);color:var(--color-gray-700);font-size:0.75rem;font-weight:normal;">
+            {{ w.user.first_name }} {{ w.user.last_name }}
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if linked_blocker %}
+<div class="mb-3" style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.625rem;padding:0.875rem;">
+    <div class="mb-1" style="font-size:0.8125rem;font-weight:600;color:var(--color-gray-700);">
+        <i class="fas fa-hand text-danger me-1"></i>{{ _("Linked Blocker") }}
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        {% if linked_blocker.resolved %}
+        <i class="fas fa-check-circle text-success"></i>
+        <span class="text-base" style="text-decoration:line-through">{{ linked_blocker.title }}</span>
+        {% else %}
+        <i class="fas fa-circle text-danger" style="font-size:0.5rem;"></i>
+        <span class="text-base">{{ linked_blocker.title }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# Action buttons #}
+{% if item.status == 'open' %}
+<div class="mb-3">
+    {# Post Now CTA (missed check-in / periodic items) #}
+    {% if post_now_url %}
+    <a href="{{ post_now_url }}" class="btn btn-primary w-100 mb-2">
+        <i class="fas fa-paper-plane me-1"></i>{{ _("Post Now") }}
+    </a>
+    {% endif %}
+
+    {% if (is_raiser or is_admin) and not item.is_system_raised %}
+    <a href="{{ url_for('tasks_bp.edit', item_id=item.id) }}" class="btn btn-outline-secondary w-100 mb-2">
+        <i class="fas fa-pen me-1"></i>{{ _("Edit") }}
+    </a>
+    {% endif %}
+
+    {# Claim (unassigned items — any member) #}
+    {% if is_unassigned %}
+    <form method="POST" action="{{ url_for('tasks_bp.claim', item_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-primary w-100 mb-2">
+            <i class="fas fa-hand-point-up me-1"></i>{{ _("Assign to Me") }}
+        </button>
+    </form>
+    {% endif %}
+
+    {% if is_assignee or is_admin %}
+    {% if item.raised_by_id %}
+    <div x-show="!showResolveNote">
+        <button class="btn btn-outline-success w-100 mb-2" @click="showResolveNote = true">
+            <i class="fas fa-check me-1"></i>{{ _("Resolve") }}
+        </button>
+    </div>
+    <div x-show="showResolveNote" x-cloak>
+        <form method="POST" action="{{ url_for('tasks_bp.resolve', item_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="next" value="{{ back_url }}">
+            <textarea name="resolution_note" class="form-control mb-2" rows="2"
+                      maxlength="1024" placeholder="{{ _('Resolution note (optional)') }}"></textarea>
+            <button type="submit" class="btn btn-success w-100 mb-2">
+                <i class="fas fa-check me-1"></i>{{ _("Confirm Resolve") }}
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if not item.raised_by_id %}
+    <form method="POST" action="{{ url_for('tasks_bp.dismiss', item_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ back_url }}">
+        <button type="submit" class="btn btn-outline-secondary w-100 mb-2">
+            <i class="fas fa-minus-circle me-1"></i>{{ _("Dismiss") }}
+        </button>
+    </form>
+    {% endif %}
+    {% endif %}
+
+    {% if is_raiser %}
+    <form method="POST" action="{{ url_for('tasks_bp.cancel', item_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ back_url }}">
+        <button type="submit" class="btn btn-outline-danger w-100">
+            <i class="fas fa-ban me-1"></i>{{ _("Cancel") }}
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% elif item.status == 'resolved' and item.can_reopen() and is_raiser %}
+<div class="mb-3">
+    <form method="POST" action="{{ url_for('tasks_bp.reopen', item_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-outline-warning w-100">
+            <i class="fas fa-undo me-1"></i>{{ _("Reopen") }}
+        </button>
+    </form>
+    <p class="text-muted mt-2 mb-0" style="font-size:0.75rem;">{{ _("Can reopen within 24 hours of resolution") }}</p>
+</div>
+{% endif %}
+
+{# Comments #}
+<div class="mb-3">
+    {% include 'tasks/desktop/partials/_comments_card.html' %}
+</div>
+
+{# Activity log (collapsed) #}
+{% if logs %}
+<div style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;">
+    <div style="padding:0.75rem 1rem;cursor:pointer;" @click="showLogs = !showLogs">
+        <span style="font-size:0.8125rem;font-weight:600;color:var(--color-gray-700);">
+            <i class="fas" :class="showLogs ? 'fa-chevron-down' : 'fa-chevron-right'" style="font-size:0.6rem;width:12px;"></i>
+            {{ _("Activity") }} <span class="text-muted">({{ logs|length }})</span>
+        </span>
+    </div>
+    <div x-show="showLogs" x-cloak style="padding:0 1rem 1rem;border-top:1px solid var(--color-gray-200);">
+        {% for log in logs %}
+        <div class="d-flex gap-2 py-2 {% if not loop.last %}border-bottom{% endif %}" style="font-size:0.8125rem;">
+            <span class="text-muted" style="font-size:0.75rem;white-space:nowrap;">{{ log.created_at|format_datetime('%b %d') }}</span>
+            <span>
+                {% if log.event_type == 'created' %}<i class="fas fa-plus-circle text-primary" style="font-size:0.7rem;"></i> {{ _("Created") }}
+                {% elif log.event_type == 'resolved' %}<i class="fas fa-check-circle text-success" style="font-size:0.7rem;"></i> {{ _("Resolved") }}
+                {% elif log.event_type == 'dismissed' %}<i class="fas fa-minus-circle text-muted" style="font-size:0.7rem;"></i> {{ _("Dismissed") }}
+                {% elif log.event_type == 'canceled' %}<i class="fas fa-ban text-danger" style="font-size:0.7rem;"></i> {{ _("Canceled") }}
+                {% elif log.event_type == 'reopened' %}<i class="fas fa-undo text-warning" style="font-size:0.7rem;"></i> {{ _("Reopened") }}
+                {% elif log.event_type == 'edited' %}<i class="fas fa-pen text-muted" style="font-size:0.7rem;"></i> {{ _("Edited") }}
+                {% else %}<i class="fas fa-circle text-muted" style="font-size:0.4rem;"></i> {{ log.event_type }}{% endif %}
+                {% if log.actor and log.actor.user %}<span class="text-muted">{{ _("by") }} {{ log.actor.user.first_name }}</span>{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

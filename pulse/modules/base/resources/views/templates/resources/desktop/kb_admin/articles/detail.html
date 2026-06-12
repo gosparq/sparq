@@ -1,0 +1,186 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('knowledge_blueprint.index') }}">{{ _("Knowledge") }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('knowledge_blueprint.articles_list') }}">{{ _("Articles") }}</a></li>
+                    <li class="breadcrumb-item active">{{ article.title|truncate(30) }}</li>
+                </ol>
+            </nav>
+            <h2>{{ article.title }}</h2>
+        </div>
+        <div class="d-flex gap-2">
+            {% if article.is_public %}
+            <a href="{{ article.public_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-external-link-alt me-1"></i> {{ _("View Public") }}
+            </a>
+            {% endif %}
+            <a href="{{ url_for('knowledge_blueprint.article_edit', article_id=article.id) }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit me-1"></i> {{ _("Edit") }}
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Article Content -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="kb-article-content">
+                        {{ article.render_content()|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Metadata -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Details") }}</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <th>{{ _("Category") }}</th>
+                            <td>{{ article.category.name }}</td>
+                        </tr>
+                        {% if article.subcategory %}
+                        <tr>
+                            <th>{{ _("Subcategory") }}</th>
+                            <td>{{ article.subcategory.name }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>{{ _("Status") }}</th>
+                            <td>
+                                {% if article.is_active %}
+                                <span class="badge bg-success">{{ _("Active") }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ _("Inactive") }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{{ _("Visibility") }}</th>
+                            <td>
+                                {% if article.is_public %}
+                                <span class="badge bg-primary">{{ _("Public") }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ _("Private") }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{{ _("Views") }}</th>
+                            <td>{{ article.view_count or 0 }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ _("Created") }}</th>
+                            <td>{{ article.created_at|format_datetime('%b %d, %Y') }}</td>
+                        </tr>
+                        <tr>
+                            <th>{{ _("Updated") }}</th>
+                            <td>{{ article.updated_at|format_datetime('%b %d, %Y') if article.updated_at else '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Feedback Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Feedback") }}</h6>
+                </div>
+                <div class="card-body">
+                    {% if feedback_stats.total > 0 %}
+                    <div class="d-flex justify-content-around text-center mb-3">
+                        <div>
+                            <h3 class="text-success mb-0">{{ feedback_stats.helpful }}</h3>
+                            <small class="text-muted">{{ _("Helpful") }}</small>
+                        </div>
+                        <div>
+                            <h3 class="text-danger mb-0">{{ feedback_stats.not_helpful }}</h3>
+                            <small class="text-muted">{{ _("Not Helpful") }}</small>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: {{ feedback_stats.helpful_percent }}%"></div>
+                    </div>
+                    <p class="text-center text-muted small mt-2 mb-0">
+                        {{ feedback_stats.helpful_percent }}% {{ _("found this helpful") }}
+                    </p>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">{{ _("No feedback yet") }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Feedback List -->
+            {% if feedback_list %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Recent Feedback") }}</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for fb in feedback_list[:10] %}
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-start">
+                            {% if fb.is_helpful %}
+                            <i class="fas fa-thumbs-up text-success me-2 mt-1"></i>
+                            {% else %}
+                            <i class="fas fa-thumbs-down text-danger me-2 mt-1"></i>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                {% if fb.comment %}
+                                <p class="mb-1 small">{{ fb.comment }}</p>
+                                {% endif %}
+                                <small class="text-muted">{{ fb.created_at|format_datetime('%b %d, %H:%M') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.kb-article-content h1, .kb-article-content h2, .kb-article-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+.kb-article-content pre {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    overflow-x: auto;
+}
+.kb-article-content code {
+    background: #f8f9fa;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+}
+.kb-article-content pre code {
+    background: none;
+    padding: 0;
+}
+.kb-article-content table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+}
+.kb-article-content th, .kb-article-content td {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+}
+</style>
+{% endblock %}

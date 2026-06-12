@@ -1,0 +1,13 @@
+{% extends "people/desktop/team-layout.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block base_content %}
+<div class="content-card">
+    <div class="coming-soon">
+        <i class="{{ page_icon }}" style="color: {{ icon_color }}"></i>
+        <h2>{{ title }}</h2>
+        <p>This feature is coming soon. We're working hard to bring you the best experience possible.</p>
+    </div>
+</div>
+{% endblock %} 

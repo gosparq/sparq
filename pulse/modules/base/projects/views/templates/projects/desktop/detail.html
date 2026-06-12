@@ -1,0 +1,627 @@
+{% extends "projects/desktop/layout.html" %}
+
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block module_content %}
+<div id="mru-entry" hidden data-mru-type="project" data-mru-id="{{ project.id }}" data-mru-name="{{ project.name }}" data-mru-url="{{ url_for('projects_bp.detail', project_id=project.id) }}"></div>
+<div class="content-card" x-data="{ showClosed: false, showMenu: false, viewMode: 'board' }">
+
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {# ── Project Header ── #}
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {% set total_count = open_count + done_count %}
+    {% set pct = ((done_count / total_count * 100) | int) if total_count > 0 else 0 %}
+    <style>.project-progress-fill { width: {{ pct }}%; background: #2563eb; }</style>
+    <div class="d-flex align-items-start gap-3 mb-3">
+        <div class="flex-grow-1 min-w-0">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                {% if project.emoji %}<span style="font-size:1.25rem;">{{ project.emoji }}</span>{% endif %}
+                <h2 class="content-heading mb-0">{{ project.name }}{% if project.is_private %} <i class="fas fa-lock text-2xs" style="color:var(--color-gray-400)" title="{{ _('Private project') }}"></i>{% endif %}</h2>
+            </div>
+            <div class="text-muted d-flex align-items-center flex-wrap gap-2 text-base">
+                {% if project.owner and project.owner.user %}
+                <span>{{ _("Owned by") }} {{ project.owner.user.first_name }}{% for c in co_owners %}{% if c.user %}, {{ c.user.first_name }}{% endif %}{% endfor %}</span>
+                <span>&middot;</span>
+                {% endif %}
+                <span id="project-status-pill-inline">
+                    <span class="badge" style="background:{{ project.status_color }}22;color:{{ project.status_color }};font-size:0.75rem;padding:0.2em 0.65em;border-radius:999px;">
+                        {{ project.status_label }}
+                    </span>
+                </span>
+            </div>
+            {% if project.description %}
+            <p class="text-content text-muted mt-1 mb-0 text-base" style="white-space:pre-wrap">{{ project.description|urlize(none, true, '_blank') }}</p>
+            {% endif %}
+        </div>
+
+        {# ── Stat strip ── #}
+        <div class="task-summary-panel task-summary-panel--compact flex-shrink-0">
+            <div class="task-summary-totals">
+                <div class="task-summary-stat">
+                    <div class="task-summary-stat-label">{{ _("Open") }}</div>
+                    <div class="task-summary-stat-value">{{ open_count }}</div>
+                </div>
+                <div class="task-summary-stat">
+                    <div class="task-summary-stat-label">{{ _("In Progress") }}</div>
+                    <div class="task-summary-stat-value">{{ in_progress_count }}</div>
+                </div>
+                <div class="task-summary-stat">
+                    <div class="task-summary-stat-label">{{ _("Done") }}</div>
+                    <div class="task-summary-stat-value text-success">{{ done_count }}</div>
+                </div>
+                <div class="task-summary-stat">
+                    <div class="task-summary-stat-label">{{ _("Overdue") }}</div>
+                    <div class="task-summary-stat-value{% if overdue_count %} text-danger{% endif %}">{{ overdue_count }}</div>
+                </div>
+                <div class="task-summary-stat">
+                    <div class="task-summary-stat-label">{{ _("ETA") }}</div>
+                    <div class="task-summary-stat-value{% if project_eta and project_eta < today %} text-danger{% endif %}">
+                        {% if project_eta %}{{ project_eta.strftime('%b %-d') }}{% else %}&mdash;{% endif %}
+                    </div>
+                </div>
+                <div class="task-summary-stat project-progress-stat">
+                    <div class="task-summary-stat-label">{{ _("Complete") }}</div>
+                    <div class="project-progress-bar-row">
+                        <div class="project-progress-track">
+                            <div class="project-progress-fill"></div>
+                        </div>
+                        <span class="project-progress-pct">{{ pct }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Kebab menu #}
+        <div class="position-relative flex-shrink-0">
+            <button class="btn btn-sm btn-outline-secondary" @click="showMenu = !showMenu" @click.outside="showMenu = false">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end" :class="{ show: showMenu }" style="position:absolute;right:0;top:100%;z-index:10;">
+                <h6 class="dropdown-header">{{ _("Status") }}</h6>
+                {% for ws_status in workspace_statuses %}
+                <form method="POST" action="{{ url_for('projects_bp.update_status', project_id=project.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="status" value="{{ ws_status.code }}">
+                    <button type="submit" class="dropdown-item"
+                            hx-post="{{ url_for('projects_bp.update_status', project_id=project.id) }}"
+                            hx-vals='{"status": "{{ ws_status.code }}"}'
+                            hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                            hx-target="#project-status-pill-inline"
+                            hx-swap="innerHTML"
+                            @click="showMenu = false">
+                        {% if project.status == ws_status.code %}<i class="fas fa-check me-1 text-xs"></i>{% endif %}
+                        {{ _(ws_status.label) }}
+                    </button>
+                </form>
+                {% endfor %}
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="{{ url_for('projects_bp.edit', project_id=project.id) }}">
+                    <i class="fas fa-pen me-1"></i>{{ _("Edit project") }}
+                </a>
+                {% if not project.is_archived %}
+                <form method="POST"
+                      action="{{ url_for('projects_bp.archive', project_id=project.id) }}"
+                      onsubmit="return confirm('{{ _('Archiving this project will also archive its channel') }}{% if project.channel %} #{{ project.channel.name }}{% endif %}. {{ _('Continue?') }}');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="dropdown-item text-danger">
+                        <i class="fas fa-archive me-1"></i>{{ _("Archive project") }}
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('projects_bp.unarchive', project_id=project.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="dropdown-item">
+                        <i class="fas fa-box-open me-1"></i>{{ _("Unarchive") }}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {# ── Tab strip ── #}
+    {# ══════════════════════════════════════════════════════════════════ #}
+    <div class="project-tabs">
+        <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}"
+           class="project-tab {% if active_tab == 'board' %}project-tab--active{% endif %}">{{ _("Board") }}</a>
+        <a href="{{ url_for('projects_bp.detail', project_id=project.id, tab='log') }}"
+           class="project-tab {% if active_tab == 'log' %}project-tab--active{% endif %}">{{ _("Log") }}</a>
+        <a href="{{ url_for('projects_bp.detail', project_id=project.id, tab='attachments') }}"
+           class="project-tab {% if active_tab == 'attachments' %}project-tab--active{% endif %}">{{ _("Attachments") }}</a>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {# ── Tab content ── #}
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {% if active_tab == 'log' %}
+    {% include "projects/desktop/_channel_tab.html" %}
+
+    {% elif active_tab == 'attachments' %}
+    {% with entity_type='project', entity_id=project.id %}
+        {% include 'resources/desktop/docs/_attachments.html' %}
+    {% endwith %}
+
+    {% else %}
+    {# Board tab — kanban + Recent Activity #}
+
+    {# ── Tasks ── #}
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-muted fw-semibold text-uppercase text-xs" style="letter-spacing:0.04em">
+                    {{ _("Tasks") }}
+                </span>
+                {# View toggle #}
+                <div class="d-flex" style="border:1px solid var(--color-gray-200);border-radius:0.375rem;overflow:hidden;">
+                    <button class="btn btn-sm border-0 text-sm" style="padding:0.15rem 0.5rem; border-radius:0"
+                            :style="viewMode === 'list' ? 'background:var(--color-gray-100);color:var(--color-gray-700);' : 'background:transparent;color:var(--color-gray-400);'"
+                            @click="viewMode = 'list'" title="{{ _('List view') }}">
+                        <i class="fas fa-list"></i>
+                    </button>
+                    <button class="btn btn-sm border-0 text-sm" style="padding:0.15rem 0.5rem; border-radius:0; border-left:1px solid var(--color-gray-200)"
+                            :style="viewMode === 'board' ? 'background:var(--color-gray-100);color:var(--color-gray-700);' : 'background:transparent;color:var(--color-gray-400);'"
+                            @click="viewMode = 'board'" title="{{ _('Board view') }}">
+                        <i class="fas fa-columns"></i>
+                    </button>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-sm text-sm"
+                    hx-get="{{ url_for('tasks_bp.create_modal') }}?project_id={{ project.id }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML" style="padding:0.2rem 0.6rem">
+                <i class="fas fa-plus me-1"></i>{{ _("Add") }}
+            </button>
+        </div>
+
+        {% set has_open = open_items|length > 0 %}
+        {% set all_items_count = open_items|length + closed_items|length %}
+
+        {% if all_items_count > 0 %}
+
+        {# ════════════════ LIST VIEW ════════════════ #}
+        {# Hidden initially via inline style so the default board view paints #}
+        {# without a flash. Alpine's x-show takes over on init. #}
+        <div x-show="viewMode === 'list'" style="border:1px solid var(--color-gray-200);border-radius:0.5rem;overflow:hidden;display:none;">
+            {# Column headers #}
+            <div class="d-none d-md-flex align-items-center fw-semibold text-uppercase text-sm" style="padding:0.5rem 0.75rem; background:var(--color-gray-50); border-bottom:1px solid var(--color-gray-200); color:var(--color-gray-500); letter-spacing:0.04em">
+                <div class="min-w-0" style="flex:1">{{ _("Name") }}</div>
+                <div class="text-center" style="width:100px">{{ _("Assignee") }}</div>
+                <div class="text-center" style="width:90px">{{ _("Due date") }}</div>
+                <div class="text-center" style="width:80px">{{ _("Priority") }}</div>
+                <div class="text-center" style="width:90px">{{ _("Status") }}</div>
+            </div>
+
+            {# All items grouped by workflow status #}
+            {% for ws in workflow_statuses %}
+            {% set ws_items = workflow_groups.get(ws.key, []) %}
+            {% if ws_items %}
+            {% set is_done = ws.key == 'done' %}
+            {# Group header #}
+            {% if is_done %}
+            <div class="d-flex align-items-center gap-2 cursor-pointer" style="padding:0.375rem 0.75rem; background:var(--color-gray-50); border-top:1px solid var(--color-gray-200); border-bottom:1px solid var(--color-gray-100)"
+                 @click="showClosed = !showClosed">
+                <i class="fas" :class="showClosed ? 'fa-chevron-down' : 'fa-chevron-right'" style="font-size:0.5rem;width:10px;color:var(--color-gray-400);"></i>
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{{ ws.color }};"></span>
+                <span class="fw-semibold text-sm" style="color:var(--color-gray-600)">{{ ws.label }}</span>
+                <span class="text-sm" style="color:var(--color-gray-400)">{{ ws_items|length }}</span>
+            </div>
+            {% else %}
+            <div class="d-flex align-items-center gap-2" style="padding:0.375rem 0.75rem;background:var(--color-gray-50);border-top:1px solid var(--color-gray-200);border-bottom:1px solid var(--color-gray-100);">
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{{ ws.color }};"></span>
+                <span class="fw-semibold text-sm" style="color:var(--color-gray-600)">{{ ws.label }}</span>
+                <span class="text-sm" style="color:var(--color-gray-400)">{{ ws_items|length }}</span>
+            </div>
+            {% endif %}
+
+            {# Items #}
+            <div {% if is_done %}x-show="showClosed" x-cloak{% endif %}>
+            {% for item in ws_items %}
+            <div class="d-flex align-items-center position-relative"
+               style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-gray-100);transition:background 0.1s;{% if is_done %}opacity:0.6;{% endif %}"
+               onmouseover="this.style.background='var(--color-gray-50)'" onmouseout="this.style.background='transparent'">
+                <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="stretched-link" aria-label="{{ item.title }}"></a>
+                {# Name #}
+                <div class="{% if is_done %}d-flex align-items-center gap-2{% endif %} text-truncate text-base" style="flex:1;min-width:0;color:{% if is_done %}var(--color-gray-400){% else %}var(--color-gray-800){% endif %}">
+                    {% if is_done %}<i class="fas fa-check-circle text-success flex-shrink-0 text-3xs"></i>{% endif %}
+                    <span class="text-truncate">{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}</span>
+                </div>
+                {# Assignee #}
+                <div class="text-center" style="width:100px">
+                    {% if item.assignee and item.assignee.user %}
+                    <span class="avatar-circle" style="width:22px;height:22px;font-size:0.5rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};" title="{{ item.assignee.user.first_name }} {{ item.assignee.user.last_name }}">
+                        {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+                    </span>
+                    {% endif %}
+                </div>
+                {# Due date #}
+                <div class="text-center text-sm" style="width:90px">
+                    {% if item.due_date %}
+                    <span {% if item.status == 'open' and item.due_date < today %}class="text-danger fw-semibold"{% else %}class="text-muted"{% endif %}>{{ item.due_date.strftime('%b %d') }}</span>
+                    {% else %}<span class="text-muted text-sm">&mdash;</span>{% endif %}
+                </div>
+                {# Priority #}
+                <div class="text-center" style="width:80px">
+                    <span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:999px;font-size:0.8rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;">{{ tier_defaults[item.urgency_tier].label }}</span>
+                </div>
+                {# Status #}
+                <div class="text-center" style="width:90px">
+                    <span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:999px;font-size:0.8rem;background:{{ ws.color }}15;color:{{ ws.color }};font-weight:500;">{{ ws.label }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {# ════════════════ BOARD VIEW ════════════════ #}
+        <div x-show="viewMode === 'board'">
+        <div class="d-flex gap-3" style="overflow-x:auto;padding-bottom:0.5rem;">
+            {% for ws in workflow_statuses %}
+            {% set ws_items = workflow_groups.get(ws.key, []) %}
+            {% set is_done = ws.key == 'done' %}
+            <div style="min-width:220px;flex:1;border:1px solid var(--color-gray-200);border-radius:0.5rem;overflow:hidden;background:var(--color-gray-50);">
+                {# Column header #}
+                <div class="d-flex align-items-center justify-content-between" style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-gray-200);">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ ws.color }};"></span>
+                        <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ ws.label }}</span>
+                    </div>
+                    <span class="board-col-count text-sm" style="color:var(--color-gray-400); background:var(--color-gray-200); border-radius:999px; padding:0 0.4rem">{{ ws_items|length }}</span>
+                </div>
+                {# Sortable card container #}
+                <div class="board-column" data-status="{{ ws.key }}" style="padding:0.5rem;min-height:60px;">
+                    {% for item in ws_items %}
+                    <div class="board-card position-relative" data-item-id="{{ item.id }}"
+                         style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.375rem;padding:0.625rem;margin-bottom:0.375rem;cursor:grab;transition:box-shadow 0.15s;{% if is_done %}opacity:0.6;{% endif %}">
+                        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="stretched-link" aria-label="{{ item.title }}"></a>
+                        <div class="{% if is_done %}d-flex align-items-center gap-2{% endif %} text-base" style="margin-bottom:{% if is_done %}0{% else %}0.375rem{% endif %}">
+                            {% if is_done %}<i class="fas fa-check-circle text-success text-3xs"></i>{% endif %}
+                            <span class="task-board-card-title" style="color:{% if is_done %}var(--color-gray-400){% else %}var(--color-gray-800){% endif %};font-weight:500;">{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}</span>
+                        </div>
+                        {% if not is_done %}
+                        <div class="d-flex align-items-center gap-2">
+                            {% if item.assignee and item.assignee.user %}
+                            <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};" title="{{ item.assignee.user.first_name }} {{ item.assignee.user.last_name }}">
+                                {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+                            </span>
+                            {% endif %}
+                            {% if item.due_date %}
+                            <span {% if item.due_date < today %}class="text-danger fw-semibold text-sm"{% else %}class="text-muted"{% endif %}>
+                                <i class="fas fa-calendar-day me-1 text-icon"></i>{{ item.due_date.strftime('%b %d') }}
+                            </span>
+                            {% endif %}
+                            <span style="display:inline-block;padding:0.0625rem 0.375rem;border-radius:999px;font-size:0.75rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;margin-left:auto;">
+                                {{ tier_defaults[item.urgency_tier].label }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        </div>
+
+        {% else %}
+        <div class="text-center" style="border:1px solid var(--color-gray-200); border-radius:0.5rem; padding:2rem">
+            <p class="text-muted mb-2 text-base">{{ _("No action items yet.") }}</p>
+            <button class="btn btn-primary btn-sm text-sm"
+                    hx-get="{{ url_for('tasks_bp.create_modal') }}?project_id={{ project.id }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML">
+                <i class="fas fa-plus me-1"></i>{{ _("Create first action item") }}
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <hr style="border-color:var(--color-gray-200);">
+
+    {# ── Bottom row: Recent Activity / Linked Docs / People Involved ── #}
+    <div class="row g-3">
+
+        {# ── Recent Activity (channel posts, capped at 3) ── #}
+        <div class="col-md-4">
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.75rem 1rem;min-height:180px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted fw-semibold text-uppercase text-2xs" style="letter-spacing:0.04em">{{ _("Recent Activity") }}</span>
+                    {% if project.channel %}
+                    <a href="{{ url_for('projects_bp.detail', project_id=project.id, tab='log') }}" class="text-decoration-none text-xs" style="color:var(--color-primary)">{{ _("View log") }}</a>
+                    {% endif %}
+                </div>
+                {% if channel_posts %}
+                <div class="mt-2">
+                    {% for post in channel_posts[:3] %}
+                    <div class="d-flex align-items-start gap-2 {% if not loop.last %}mb-2 pb-2{% endif %}" {% if not loop.last %}style="border-bottom:1px solid var(--color-gray-100);"{% endif %}>
+                        <div class="flex-shrink-0">
+                            {% if post.member and post.member.user %}
+                            <span class="avatar-circle" style="width:24px;height:24px;font-size:0.5rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                                {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="d-flex align-items-baseline gap-1">
+                                {% if post.member and post.member.user %}
+                                <span class="fw-semibold text-sm">{{ post.member.user.first_name }}</span>
+                                {% endif %}
+                                {% if post.subject %}
+                                <span class="text-truncate text-sm" style="color:var(--color-gray-600)">{{ post.subject }}</span>
+                                {% elif post.template %}
+                                <span class="badge sync-badge-update text-icon">{{ post.template.name }}</span>
+                                {% endif %}
+                                <span class="text-muted ms-auto text-2xs">{{ post.time_ago() }}</span>
+                            </div>
+                            {% if post.body %}
+                            <p class="mb-0 text-truncate text-muted text-sm" style="max-width:400px">{{ post.body|striptags|truncate(80) }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif project.channel_id %}
+                <p class="text-muted mt-2 mb-0 text-sm">{{ _("No posts in the project channel yet.") }}</p>
+                {% else %}
+                <p class="text-muted mt-2 mb-0 text-sm">{{ _("No channel linked.") }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Linked Docs ── #}
+        <div class="col-md-4">
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.75rem 1rem;min-height:180px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted fw-semibold text-uppercase text-2xs" style="letter-spacing:0.04em">{{ _("Attachments") }}</span>
+                    <a href="{{ url_for('projects_bp.detail', project_id=project.id, tab='attachments') }}" class="text-decoration-none project-linked-doc-viewall">{{ _("View all") }}</a>
+                </div>
+                {% if project_docs %}
+                <div class="mt-2">
+                    {% for attachment in project_docs %}
+                    <div class="d-flex align-items-center gap-2 mb-2 pb-2 project-linked-doc">
+                        <i class="fas fa-file text-secondary project-linked-doc-icon"></i>
+                        <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=attachment.id) }}"
+                           class="text-decoration-none text-truncate project-linked-doc-name" target="_blank">
+                            {{ attachment.filename }}
+                        </a>
+                        <small class="text-muted ms-auto flex-shrink-0 project-linked-doc-size">{{ attachment.size_display }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mt-2 mb-0 text-sm">
+                    <i class="fas fa-paperclip me-1" style="color:var(--color-gray-300);"></i>
+                    {{ _("No attachments yet.") }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── People Involved ── #}
+        <div class="col-md-4" id="project-people-card">
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.75rem 1rem;min-height:180px;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted fw-semibold text-uppercase text-2xs" style="letter-spacing:0.04em">{{ _("People Involved") }}</span>
+                    {# Follow / Unfollow toggle — hidden for the owner #}
+                    {% if not is_owner %}
+                    {% if is_following %}
+                    <form method="POST" action="{{ url_for('projects_bp.unfollow', project_id=project.id) }}" style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm text-2xs" style="padding:0.15rem 0.5rem; border:1px solid var(--color-gray-200); border-radius:999px; background:var(--color-gray-100); color:var(--color-gray-600)"
+                                hx-post="{{ url_for('projects_bp.unfollow', project_id=project.id) }}"
+                                hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                title="{{ _('Stop following') }}">
+                            <i class="fas fa-bell-slash me-1 text-3xs"></i>{{ _("Following") }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('projects_bp.follow', project_id=project.id) }}" style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm text-2xs" style="padding:0.15rem 0.5rem; border:1px solid var(--color-primary); border-radius:999px; background:transparent; color:var(--color-primary)"
+                                hx-post="{{ url_for('projects_bp.follow', project_id=project.id) }}"
+                                hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                title="{{ _('Follow this project') }}">
+                            <i class="fas fa-bell me-1 text-3xs"></i>{{ _("Follow") }}
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                {# Activity-derived people + followers + add pill (inline) #}
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    {% for member in people_involved %}
+                    {% if member.user %}
+                    <div class="d-flex align-items-center gap-2" style="padding:0.2rem 0.5rem;border:1px solid var(--color-gray-200);border-radius:999px;font-size:0.775rem;">
+                        <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;background:{{ member.user.avatar_color|default('#6b7280') }};">
+                            {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+                        </span>
+                        <span style="color:var(--color-gray-700);">{{ member.user.first_name }} {{ member.user.last_name[0] }}.</span>
+                        {% if member.id in co_owner_id_set %}
+                        <i class="fas fa-crown text-3xs" style="color:var(--color-warning, #d97706); opacity:0.85" title="{{ _('Co-owner') }}"></i>
+                        {% elif member.id in follower_id_set %}
+                        <i class="fas fa-bell text-3xs" style="color:var(--color-primary); opacity:0.7" title="{{ _('Interested party') }}"></i>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
+                    {# Followers not already shown above #}
+                    {% for member in extra_followers %}
+                    {% if member.user %}
+                    <div class="d-flex align-items-center gap-2" style="padding:0.2rem 0.5rem;border:1px solid var(--color-gray-200);border-radius:999px;font-size:0.775rem;">
+                        <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;background:{{ member.user.avatar_color|default('#6b7280') }};">
+                            {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+                        </span>
+                        <span style="color:var(--color-gray-700);">{{ member.user.first_name }} {{ member.user.last_name[0] }}.</span>
+                        <i class="fas fa-bell text-3xs" style="color:var(--color-primary); opacity:0.7" title="{{ _('Interested party') }}"></i>
+                        {% if is_owner %}
+                        <form method="POST" action="{{ url_for('projects_bp.remove_follower', project_id=project.id, member_id=member.id) }}" style="margin:0;display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button class="cursor-pointer" type="submit" style="background:none; border:none; padding:0; color:var(--color-gray-400); font-size:0.85rem; line-height:1"
+                                    hx-post="{{ url_for('projects_bp.remove_follower', project_id=project.id, member_id=member.id) }}"
+                                    hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                    title="{{ _('Remove follower') }}">&times;</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
+                    {# Co-owners not already shown in people_involved #}
+                    {% set people_id_set_local = people_involved | map(attribute='id') | list %}
+                    {% for member in co_owners %}
+                    {% if member.user and member.id not in people_id_set_local %}
+                    <div class="d-flex align-items-center gap-2" style="padding:0.2rem 0.5rem;border:1px solid var(--color-gray-200);border-radius:999px;font-size:0.775rem;">
+                        <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;background:{{ member.user.avatar_color|default('#6b7280') }};">
+                            {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+                        </span>
+                        <span style="color:var(--color-gray-700);">{{ member.user.first_name }} {{ member.user.last_name[0] }}.</span>
+                        <i class="fas fa-crown text-3xs" style="color:var(--color-warning, #d97706); opacity:0.85" title="{{ _('Co-owner') }}"></i>
+                        {% if is_primary_owner %}
+                        <form method="POST" action="{{ url_for('projects_bp.remove_co_owner', project_id=project.id, member_id=member.id) }}" style="margin:0;display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button class="cursor-pointer" type="submit" style="background:none; border:none; padding:0; color:var(--color-gray-400); font-size:0.85rem; line-height:1"
+                                    hx-post="{{ url_for('projects_bp.remove_co_owner', project_id=project.id, member_id=member.id) }}"
+                                    hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                    title="{{ _('Remove co-owner') }}">&times;</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
+                    {# Owner: add-follower pill + dropdown, inline after the user pills #}
+                    {% if is_owner and non_follower_members %}
+                    <div x-data="{ open: false }" style="position:relative;">
+                        <button class="d-flex align-items-center cursor-pointer" @click="open = !open" @click.outside="open = false" style="gap:0.3rem; padding:0.2rem 0.5rem; border:1px dashed var(--color-gray-300); border-radius:999px; background:transparent; font-size:0.775rem; color:var(--color-gray-500)">
+                            <i class="fas fa-plus text-3xs"></i>{{ _("Follower") }}
+                        </button>
+                        <div class="dropdown-menu" :class="{ show: open }"
+                             style="position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:160px;padding:0.25rem 0;">
+                            {% for m in non_follower_members %}
+                            {% if m.user %}
+                            <form method="POST" action="{{ url_for('projects_bp.follow', project_id=project.id) }}" style="margin:0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="member_id" value="{{ m.id }}">
+                                <button type="submit"
+                                        class="d-flex align-items-center gap-2 w-100 cursor-pointer text-sm" style="background:none; border:none; padding:0.35rem 0.75rem; color:var(--text); text-align:left"
+                                        onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'"
+                                        hx-post="{{ url_for('projects_bp.follow', project_id=project.id) }}"
+                                        hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                        hx-include="closest form">
+                                    <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;flex-shrink:0;background:{{ m.user.avatar_color|default('#6b7280') }};">
+                                        {{ m.user.first_name[0]|upper }}{{ m.user.last_name[0]|upper }}
+                                    </span>
+                                    {{ m.user.first_name }} {{ m.user.last_name }}
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Primary owner: add-co-owner pill + dropdown #}
+                    {% if is_primary_owner and non_co_owner_members %}
+                    <div x-data="{ openCoOwner: false }" style="position:relative;">
+                        <button class="d-flex align-items-center cursor-pointer" @click="openCoOwner = !openCoOwner" @click.outside="openCoOwner = false" style="gap:0.3rem; padding:0.2rem 0.5rem; border:1px dashed var(--color-warning, #d97706); border-radius:999px; background:transparent; font-size:0.775rem; color:var(--color-warning, #d97706)"
+                                title="{{ _('Add co-owner') }}">
+                            <i class="fas fa-plus text-3xs"></i>{{ _("Co-owner") }}
+                        </button>
+                        <div class="dropdown-menu" :class="{ show: openCoOwner }"
+                             style="position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:160px;padding:0.25rem 0;">
+                            {% for m in non_co_owner_members %}
+                            {% if m.user %}
+                            <form method="POST" action="{{ url_for('projects_bp.add_co_owner', project_id=project.id) }}" style="margin:0;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="member_id" value="{{ m.id }}">
+                                <button type="submit"
+                                        class="d-flex align-items-center gap-2 w-100 cursor-pointer text-sm" style="background:none; border:none; padding:0.35rem 0.75rem; color:var(--text); text-align:left"
+                                        onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'"
+                                        hx-post="{{ url_for('projects_bp.add_co_owner', project_id=project.id) }}"
+                                        hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                        hx-include="closest form">
+                                    <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;flex-shrink:0;background:{{ m.user.avatar_color|default('#6b7280') }};">
+                                        {{ m.user.first_name[0]|upper }}{{ m.user.last_name[0]|upper }}
+                                    </span>
+                                    {{ m.user.first_name }} {{ m.user.last_name }}
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if not people_involved and not extra_followers and not co_owners and not (is_owner and non_follower_members) and not (is_primary_owner and non_co_owner_members) %}
+                    <p class="text-muted mb-0 text-sm">{{ _("No team members yet.") }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>{# end bottom row #}
+
+    {% endif %}{# end board tab content #}
+</div>
+
+<div id="modals"></div>
+
+{% if active_tab == 'board' %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    var wsUrl = '{{ url_for("tasks_bp.set_workflow_status", item_id=0) }}';
+    var csrfToken = '{{ csrf_token }}';
+
+    document.querySelectorAll('.board-column').forEach(function(col) {
+        Sortable.create(col, {
+            group: 'board',
+            animation: 150,
+            ghostClass: 'board-card-ghost',
+            dragClass: 'board-card-drag',
+            onStart: function(evt) {
+                evt.item.querySelectorAll('a').forEach(function(a) { a.style.pointerEvents = 'none'; });
+            },
+            onEnd: function(evt) {
+                evt.item.querySelectorAll('a').forEach(function(a) { a.style.pointerEvents = ''; });
+
+                if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return;
+
+                var card = evt.item;
+                var itemId = card.dataset.itemId;
+                var newStatus = evt.to.dataset.status;
+
+                card.style.opacity = (newStatus === 'done') ? '0.6' : '1';
+
+                [evt.from, evt.to].forEach(function(container) {
+                    var countEl = container.closest('[style*="min-width:220px"]').querySelector('.board-col-count');
+                    if (countEl) countEl.textContent = container.children.length;
+                });
+
+                var form = new FormData();
+                form.append('workflow_status', newStatus);
+                form.append('csrf_token', csrfToken);
+
+                fetch(wsUrl.replace('/0/', '/' + itemId + '/'), {
+                    method: 'POST',
+                    body: form,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    redirect: 'follow'
+                }).catch(function() {
+                    window.location.reload();
+                });
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.board-card-ghost { opacity: 0.4; background: var(--color-gray-100) !important; }
+.board-card-drag { box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: rotate(2deg); }
+</style>
+{% endif %}
+{% endblock %}

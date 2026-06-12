@@ -1,0 +1,203 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block title %}{{ _("Preferences") }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .settings-page-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .settings-back-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .settings-back-link:active {
+        background: var(--color-gray-200);
+    }
+
+    .settings-page-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-900);
+        margin: 0;
+    }
+
+    .settings-form-section {
+        background: var(--color-white);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .settings-form-section-title {
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        color: var(--color-gray-700);
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-label {
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+
+    .mobile-form-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 0.5rem;
+        background: var(--color-white);
+        color: var(--color-gray-900);
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+    }
+
+    .mobile-form-select:focus {
+        outline: none;
+        border-color: var(--workspace-color);
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .mobile-form-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-500);
+        margin-top: 0.5rem;
+    }
+
+    .profile-link-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: var(--color-gray-50);
+        border-radius: 0.5rem;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .profile-link-card:active {
+        background: var(--color-gray-100);
+    }
+
+    .profile-link-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .profile-link-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--workspace-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-link-text strong {
+        display: block;
+        color: var(--color-gray-900);
+    }
+
+    .profile-link-text span {
+        font-size: 0.8125rem;
+        color: var(--color-gray-500);
+    }
+
+    .profile-link-chevron {
+        color: var(--color-gray-400);
+    }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="settings-page-header">
+    <a href="{{ url_for('dashboard_bp.index') }}" class="settings-back-link">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="settings-page-title">{{ _("Preferences") }}</h1>
+</div>
+
+<div class="settings-form-section">
+    <div class="settings-form-section-title">{{ _("Language") }}</div>
+    <label for="language" class="mobile-form-label">{{ _("Interface Language") }}</label>
+    <select class="mobile-form-select" id="language" name="language">
+        {% for code, name in languages.items() %}
+        <option value="{{ code }}" {% if code == current_language %}selected{% endif %}>
+            {{ name }}
+        </option>
+        {% endfor %}
+    </select>
+    <div class="mobile-form-text">{{ _("Select your preferred language for the interface") }}</div>
+</div>
+
+<div class="settings-form-section">
+    <div class="settings-form-section-title">{{ _("Start Time") }}</div>
+    <label for="start_time" class="mobile-form-label">{{ _("Approximate Start Time") }}</label>
+    <input type="time" class="mobile-form-select" id="start_time" name="start_time"
+           value="{{ current_start_time }}"
+           hx-post="{{ url_for('core_bp.update_start_time') }}"
+           hx-trigger="change"
+           hx-swap="none"
+           hx-on::after-request="this.classList.add('is-valid'); setTimeout(() => this.classList.remove('is-valid'), 2000)">
+    <div class="mobile-form-text">{{ _("When your workday starts. Nudge reminders are scheduled relative to this time.") }}</div>
+</div>
+
+<div class="settings-form-section">
+    <div class="settings-form-section-title">{{ _("Profile") }}</div>
+    <a href="{{ url_for('people_bp.person_detail', employee_id=current_user.workspace_membership.id) }}" class="profile-link-card">
+        <div class="profile-link-content">
+            <div class="profile-link-icon">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-link-text">
+                <strong>{{ _("Edit Profile") }}</strong>
+                <span>{{ _("Update your personal information") }}</span>
+            </div>
+        </div>
+        <i class="fas fa-chevron-right profile-link-chevron"></i>
+    </a>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.getElementById('language').addEventListener('change', function() {
+    fetch('/settings/language', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'language=' + this.value
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+});
+</script>
+{% endblock %}

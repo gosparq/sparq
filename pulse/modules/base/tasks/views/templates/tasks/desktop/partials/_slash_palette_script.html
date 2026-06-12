@@ -1,0 +1,252 @@
+<script nonce="{{ csp_nonce }}">
+// makePalette(cfg) — shared factory for the slash-command palette Alpine component.
+// cfg.titleSelector: CSS selector to read context title from (null = use #mru-entry)
+function makePalette(cfg) {
+  return {
+    open: false, step: 'list', filter: '', commands: [], activeIdx: 0,
+    anchorEl: null, slashStart: null, taskId: 0, csrfToken: '',
+    actionUrl: '', loading: false, error: '',
+
+    init() {
+      this.taskId = parseInt(this.$el.dataset.taskId) || 0;
+      this.csrfToken = this.$el.dataset.csrf || '';
+      fetch('/integrations/palette/commands?task_id=' + this.taskId)
+        .then(r => r.json())
+        .then(data => { this.commands = data.commands || []; })
+        .catch(() => {});
+    },
+
+    get filteredCommands() {
+      const q = this.filter.toLowerCase();
+      if (!q) return this.commands;
+      const byShortcut = this.commands.filter(c => (c.shortcut || '').toLowerCase().startsWith(q));
+      return byShortcut.length
+        ? byShortcut
+        : this.commands.filter(c => c.label.toLowerCase().includes(q));
+    },
+
+    onOpen(detail) {
+      if (!this.commands.length) return;
+      this.open = true; this.step = 'list'; this.activeIdx = 0;
+      this.filter = detail.filter || ''; this.anchorEl = detail.anchorEl;
+      this.slashStart = detail.slashStart; this.error = ''; this.actionUrl = '';
+      this.$el.style.top = (detail.rect.bottom + 4) + 'px';
+      this.$el.style.left = detail.rect.left + 'px';
+    },
+
+    close() {
+      this.open = false; this.step = 'list'; this.filter = ''; this.error = '';
+      this.loading = false; this.actionUrl = ''; this.anchorEl = null;
+    },
+
+    closeAndStrip() { if (this.open) this._stripSlashToken(); this.close(); },
+
+    selectCommand(cmd) {
+      if (!cmd.action_url) return;
+      let url = cmd.action_url;
+      const src = cfg.titleSelector ? document.querySelector(cfg.titleSelector) : null;
+      const mru = document.getElementById('mru-entry');
+      const title = (src ? src.value.trim() : '') || (mru ? mru.dataset.mruRawname || '' : '');
+      if (title) url += (url.includes('?') ? '&' : '?') + 'context=' + encodeURIComponent(title);
+      this.actionUrl = url;
+      this.step = 'action';
+    },
+
+    handleActionDone(detail) {
+      if (detail && detail.cardId) {
+        const card = document.getElementById(detail.cardId);
+        if (card && detail.chipHtml) card.innerHTML = detail.chipHtml;
+      }
+      // Strip the slash token first — before injecting [GH-N] — so that
+      // _stripSlashToken reads the correct cursor position (it slices from
+      // slashStart to selectionStart; appending [GH-N] first moves the cursor
+      // to the end and would strip the token we just added).
+      this.closeAndStrip();
+      // In create-modal context, inject [GH-N] into the title after stripping.
+      // Detail-page context skips this — the server already updates task.title.
+      if (detail && detail.ghToken && cfg.titleSelector) {
+        const titleEl = document.querySelector(cfg.titleSelector);
+        if (titleEl && !titleEl.value.includes(detail.ghToken)) {
+          titleEl.value = titleEl.value.trimEnd() + ' ' + detail.ghToken;
+          titleEl.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+      }
+    },
+
+    _stripSlashToken() {
+      const el = this.anchorEl; const start = this.slashStart;
+      if (!el || start == null) return;
+      const val = el.value;
+      const cursor = el.selectionStart != null ? el.selectionStart : val.length;
+      el.value = val.slice(0, start) + val.slice(cursor);
+      el.selectionStart = el.selectionEnd = start;
+      this.slashStart = null;
+      el.dispatchEvent(new Event('input', {bubbles: true}));
+    },
+  };
+}
+
+window.slashPalette = function() {
+  return makePalette({ titleSelector: null });
+};
+window.slashPaletteCreate = function() {
+  return makePalette({ titleSelector: '#create_task_title' });
+};
+
+// Panel Alpine components — defined here (at page-load time) so they are always
+// available when HTMX swaps in a provider panel, avoiding the Alpine/HTMX init
+// race where Alpine sees x-data="ghPaletteCreate()" before the panel's <script>
+// has executed.  Data is passed via data-* attributes on the panel element.
+window.ghPaletteCreate = function() {
+  return {
+    title: '', body: '', loading: false, error: '',
+    _taskId: 0, _csrf: '',
+    init() {
+      this._taskId = parseInt(this.$el.dataset.taskId) || 0;
+      this._csrf = this.$el.dataset.csrf || '';
+      this.title = this.$el.dataset.prefillTitle || '';
+    },
+    async submit() {
+      if (!this.title.trim()) return;
+      if (this._taskId === 0) {
+        // Deferred: write to integration_actions so the issue is created after
+        // the task exists and can use the task's actual urgency_tier.
+        const form = this.$el.closest('#createActionModal')?.querySelector('form');
+        if (form) {
+          const field = form.querySelector('[name="integration_actions"]');
+          if (field) {
+            const pending = JSON.parse(field.value || '{}');
+            pending.github = { action: 'create', title: this.title, body: this.body };
+            field.value = JSON.stringify(pending);
+          }
+        }
+        window.dispatchEvent(new CustomEvent('palette-action-done', {
+          detail: { chipHtml: '', cardId: '', ghToken: '' },
+        }));
+        // Surface the pending issue creation so the user sees it registered before saving.
+        window.dispatchEvent(new CustomEvent('github-pending', {
+          detail: { action: 'create', ref: '', title: this.title },
+        }));
+        return;
+      }
+      // Immediate path — task already exists (task detail context).
+      if (this.loading) return;
+      this.loading = true; this.error = '';
+      try {
+        const r = await fetch('/integrations/github/issues', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRF-Token': this._csrf},
+          body: JSON.stringify({
+            title: this.title, body: this.body,
+            object_type: 'task', object_id: this._taskId,
+            create_action_item: false, urgency: 2,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) { this.error = data.error || 'Failed'; this.loading = false; return; }
+        window.dispatchEvent(new CustomEvent('palette-action-done', {
+          detail: { chipHtml: data.chip_html || '', cardId: 'task-github-card-body', ghToken: data.gh_token || '' },
+        }));
+      } catch (e) { this.error = 'Request failed'; this.loading = false; }
+    },
+  };
+};
+
+window.ghPaletteLink = function() {
+  return {
+    loading: false, error: '',
+    _taskId: 0, _csrf: '',
+    init() {
+      this._taskId = parseInt(this.$el.dataset.taskId) || 0;
+      this._csrf = this.$el.dataset.csrf || '';
+    },
+    async link(issueNumber, issueTitle) {
+      if (this._taskId === 0) {
+        // Deferred: store the link intent; executed after task creation.
+        const form = this.$el.closest('#createActionModal')?.querySelector('form');
+        if (form) {
+          const field = form.querySelector('[name="integration_actions"]');
+          if (field) {
+            const pending = JSON.parse(field.value || '{}');
+            pending.github = { action: 'link', external_id: String(issueNumber) };
+            field.value = JSON.stringify(pending);
+          }
+        }
+        window.dispatchEvent(new CustomEvent('palette-action-done', {
+          detail: { chipHtml: '', cardId: '', ghToken: '' },
+        }));
+        // Surface the pending link so the user sees it registered before saving.
+        window.dispatchEvent(new CustomEvent('github-pending', {
+          detail: { action: 'link', ref: '#' + issueNumber, title: issueTitle || '' },
+        }));
+        return;
+      }
+      // Immediate path — task already exists.
+      if (this.loading) return;
+      this.loading = true; this.error = '';
+      try {
+        const r = await fetch('/integrations/github/issues', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRF-Token': this._csrf},
+          body: JSON.stringify({
+            external_id: String(issueNumber), title: issueTitle,
+            object_type: 'task', object_id: this._taskId, create_action_item: false,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) { this.error = data.error || 'Failed'; this.loading = false; return; }
+        window.dispatchEvent(new CustomEvent('palette-action-done', {
+          detail: { chipHtml: data.chip_html || '', cardId: 'task-github-card-body', ghToken: data.gh_token || '' },
+        }));
+      } catch (e) { this.error = 'Request failed'; this.loading = false; }
+    },
+    handleClick(e) {
+      const btn = e.target.closest('[data-issue-number]');
+      if (btn) this.link(parseInt(btn.dataset.issueNumber), btn.dataset.issueTitle);
+    },
+  };
+};
+
+if (!window._slashPaletteListening) {
+  window._slashPaletteListening = true;
+
+  function _initSlashEl(el, paletteId, openEvt, closeEvt) {
+    el.addEventListener('input', function() {
+      const val = el.value;
+      const cursor = el.selectionStart;
+      let i = cursor - 1;
+      while (i >= 0 && !/\s/.test(val[i])) i--;
+      const tokenStart = i + 1;
+      if (val[tokenStart] === '/') {
+        if (document.getElementById(paletteId)) {
+          window.dispatchEvent(new CustomEvent(openEvt, {
+            detail: { rect: el.getBoundingClientRect(), filter: val.slice(tokenStart + 1, cursor), anchorEl: el, slashStart: tokenStart },
+          }));
+        }
+      } else {
+        window.dispatchEvent(new CustomEvent(closeEvt));
+      }
+    });
+  }
+
+  document.addEventListener('focusin', function(e) {
+    var el = e.target;
+    if (el.closest('#createActionModal')) {
+      if (el._slashCreateInit) return;
+      if ((el.tagName === 'TEXTAREA' && el.name === 'context_note') ||
+          (el.tagName === 'INPUT' && el.name === 'title')) {
+        el._slashCreateInit = true;
+        _initSlashEl(el, 'slash-palette-create', 'palette-create-open', 'palette-create-close');
+      }
+    } else {
+      if (el._slashInit) return;
+      if ((el.tagName === 'TEXTAREA' && el.name === 'context_note') ||
+          (el.tagName === 'INPUT' && el.name === 'title') ||
+          el.classList.contains('task-comment-textarea')) {
+        el._slashInit = true;
+        _initSlashEl(el, 'slash-palette', 'palette-open', 'palette-close');
+      }
+    }
+  });
+}
+</script>

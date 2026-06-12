@@ -1,0 +1,154 @@
+{# Mobile Primary Nav Drawer —
+   Global navigation drawer, mirrors the desktop sidebar sections (Today/Connect/Work/People).
+   Opened by the hamburger button in core/mobile/base.html header.
+   Expects Alpine state `drawerOpen` on a parent element.
+   Nav items sourced from sections.py via context processor (nav_sections, default_section_order).
+#}
+
+{# Active-state macro — matches core/desktop/nav_sections_all.html #}
+{% macro is_active_item(item) -%}
+    {%- if item.get('match_exact') and request.path in item['match_exact'] -%}active
+    {%- elif item.get('match_prefix') and request.path.startswith(item['match_prefix']) -%}
+        {%- set _excl = item['exclude_prefixes'] if item.get('exclude_prefixes') else (item['exclude_prefix'] if item.get('exclude_prefix') and item['exclude_prefix'] is sequence and item['exclude_prefix'] is not string else ([item['exclude_prefix']] if item.get('exclude_prefix') else [])) -%}
+        {%- set _ns = namespace(blocked=false) -%}
+        {%- for ex in _excl -%}{%- if request.path.startswith(ex) -%}{%- set _ns.blocked = true -%}{%- endif -%}{%- endfor -%}
+        {%- if not _ns.blocked -%}active{%- endif -%}
+    {%- endif -%}
+{%- endmacro %}
+
+<!-- Drawer backdrop -->
+<div class="mobile-drawer-overlay"
+     :class="{ 'open': drawerOpen }"
+     @click="drawerOpen = false"
+     x-cloak></div>
+
+<!-- Drawer panel -->
+<nav class="mobile-drawer"
+     :class="{ 'open': drawerOpen }"
+     aria-label="{{ _('Primary navigation') }}"
+     x-cloak>
+    <div class="mobile-drawer-header">
+        <span class="mobile-drawer-title">{{ _("sparQ") }}</span>
+        <button class="mobile-drawer-close" @click="drawerOpen = false" aria-label="{{ _('Close menu') }}">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    {% if current_organization %}
+    {% if user_organizations|length > 1 %}
+    <button class="mobile-drawer-org" type="button"
+            @click="drawerOpen = false; orgOpen = true">
+        <div class="mobile-drawer-org-label">{{ _("Organization") }}</div>
+        <div class="mobile-drawer-org-row">
+            <div class="mobile-drawer-org-avatar">{{ current_organization.name[:1]|upper }}</div>
+            <span class="mobile-drawer-org-name">{{ current_organization.name }}</span>
+            <i class="fas fa-chevron-right mobile-drawer-org-chevron"></i>
+        </div>
+    </button>
+    {% else %}
+    <div class="mobile-drawer-org mobile-drawer-org--static">
+        <div class="mobile-drawer-org-label">{{ _("Organization") }}</div>
+        <div class="mobile-drawer-org-row">
+            <div class="mobile-drawer-org-avatar">{{ current_organization.name[:1]|upper }}</div>
+            <span class="mobile-drawer-org-name">{{ current_organization.name }}</span>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% set mobile_hidden = ['hiring', 'onboarding', 'offboarding'] %}
+    <div class="mobile-drawer-items">
+        {% for section_id in default_section_order %}
+        {% set section = nav_sections.get(section_id) %}
+        {% if section %}
+
+        {# Section-level visibility guards #}
+        {% set show_section = true %}
+        {% if section.get('module_check') and not module_enabled(section['module_check']) %}{% set show_section = false %}{% endif %}
+        {% if section.get('admin_only') and not current_user.is_admin %}{% set show_section = false %}{% endif %}
+        {% if section.get('requires_access') and not current_user.has_access(section['requires_access']) %}{% set show_section = false %}{% endif %}
+
+        {% if show_section %}
+
+        {% if section.get('collapsible') %}
+        {# Collapsible section (People) #}
+        <div class="mobile-drawer-section" x-data="{ open: localStorage.getItem('sparq-mob-nav-{{ section.id }}-open') === 'true' }">
+            <button class="mobile-drawer-section-label mobile-drawer-section-label--toggle"
+                    @click="open = !open; localStorage.setItem('sparq-mob-nav-{{ section.id }}-open', open)"
+                    type="button">
+                <span>{{ _(section['label']) }}</span>
+                <i class="fas fa-chevron-down" :class="{ 'mobile-drawer-chevron-open': open }"></i>
+            </button>
+            <div x-show="open" x-collapse>
+                {% for item in section['items'] %}
+                {% if item['id'] not in mobile_hidden %}
+                {% set show_item = true %}
+                {% if item.get('module_check') and not module_enabled(item['module_check']) %}{% set show_item = false %}{% endif %}
+                {% if item.get('admin_only') and not current_user.is_admin %}{% set show_item = false %}{% endif %}
+                {% if item.get('requires_access') and not current_user.has_access(item['requires_access']) %}{% set show_item = false %}{% endif %}
+                {% if show_item %}
+                <a href="{{ item['url'] }}"
+                   class="mobile-drawer-item {{ is_active_item(item) }}"
+                   @click="drawerOpen = false">
+                    <i class="{{ item['icon'] }}"></i>
+                    <span>{{ _(item['label']) }}</span>
+                </a>
+                {% endif %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {% else %}
+        {# Regular section #}
+        <div class="mobile-drawer-section-label">{{ _(section['label']) }}</div>
+        {% for item in section['items'] %}
+        {% if item['id'] not in mobile_hidden %}
+        {% set show_item = true %}
+        {% if item.get('module_check') and not module_enabled(item['module_check']) %}{% set show_item = false %}{% endif %}
+        {% if item.get('admin_only') and not current_user.is_admin %}{% set show_item = false %}{% endif %}
+        {% if item.get('requires_access') and not current_user.has_access(item['requires_access']) %}{% set show_item = false %}{% endif %}
+        {% if show_item %}
+        <a href="{{ item['url'] }}"
+           class="mobile-drawer-item {{ is_active_item(item) }}"
+           @click="drawerOpen = false">
+            <i class="{{ item['icon'] }}"></i>
+            <span>{{ _(item['label']) }}</span>
+            {% if item['id'] == 'inbox' and notification_count|default(0) > 0 %}
+            <span style="margin-left:auto;font-size:0.6rem;font-weight:600;background:var(--color-danger);color:var(--color-white, #fff);border-radius:10px;padding:1px 6px;flex-shrink:0;">{{ notification_count if notification_count <= 99 else '99+' }}</span>
+            {% endif %}
+            {% if item['id'] == 'tasks' %}
+            <span class="mobile-drawer-badge" data-tasks-badge style="{% if not tasks_open_count or tasks_open_count == 0 %}display:none{% endif %}"></span>
+            {% endif %}
+            {% if item['id'] == 'blockers' and open_blockers_count|default(0) > 0 %}
+            <span class="mobile-drawer-badge"></span>
+            {% endif %}
+        </a>
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+
+        {% endif %}{# end show_section #}
+        {% endif %}{# end section exists #}
+        {% endfor %}
+    </div>
+
+    <div class="mobile-drawer-footer">
+        <button class="mobile-drawer-item"
+                style="border:none;background:none;width:100%;cursor:pointer;text-align:left;"
+                x-data="{ dark: document.body.classList.contains('dark') }"
+                @click="dark = !dark; document.body.classList.toggle('dark', dark); localStorage.setItem('sparq-dark-mode', dark);">
+            <i class="fas" :class="dark ? 'fa-sun' : 'fa-moon'"></i>
+            <span x-text="dark ? '{{ _('Light Mode') }}' : '{{ _('Dark Mode') }}'"></span>
+        </button>
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <a href="{{ url_for('core_bp.settings') }}"
+           class="mobile-drawer-item{% if request.path.startswith('/settings') or request.path in ('/sync/settings', '/presence/timesheets/settings') %} active{% endif %}"
+           @click="drawerOpen = false">
+            <i class="fas fa-gear"></i>
+            <span>{{ _("Settings") }}</span>
+        </a>
+        {% endif %}
+    </div>
+</nav>

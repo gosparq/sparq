@@ -1,0 +1,71 @@
+{% extends "projects/mobile/layout.html" %}
+
+{% block title %}{{ _("Projects") }}{% endblock %}
+
+{% block module_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0 proj-mobile-page-title">{{ _("Projects") }}</h2>
+        <span class="text-muted proj-mobile-page-subtitle">{{ _("Active work containers") }}</span>
+    </div>
+</div>
+
+{% if projects %}
+    {% set status_order = ['current', 'upcoming', 'on_hold', 'archived'] %}
+    {% for status in status_order %}
+        {% set status_projects = projects | selectattr('status', 'equalto', status) | list %}
+        {% if status_projects %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="proj-mobile-status-dot" style="background:{{ status_projects[0].status_color }};"></span>
+                <span class="text-muted fw-semibold text-uppercase proj-mobile-status-label">
+                    {{ status_projects[0].status_label }}
+                </span>
+                <span class="text-muted proj-mobile-status-count">({{ status_projects|length }})</span>
+            </div>
+
+            {% for project in status_projects %}
+            <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}"
+               class="d-flex align-items-center gap-3 text-decoration-none mb-2 proj-mobile-card">
+                <div class="flex-grow-1 proj-mobile-card-body">
+                    <div class="text-truncate proj-mobile-card-name">
+                        {% if project.emoji %}{{ project.emoji }} {% endif %}{{ project.name }}
+                    </div>
+                    <div class="text-muted d-flex align-items-center gap-2 proj-mobile-card-meta">
+                        {% if project.owner_first_name %}
+                        <span>{{ project.owner_first_name }}</span>
+                        <span>&middot;</span>
+                        {% endif %}
+                        <span>{{ project.open_count }} {{ _("open items") if project.open_count != 1 else _("open item") }}</span>
+                    </div>
+                </div>
+                {% if project.color %}
+                <span class="proj-mobile-color-bar" style="background:{{ project.color }};"></span>
+                {% endif %}
+                <i class="fas fa-chevron-right text-muted proj-mobile-chevron"></i>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endfor %}
+
+    {% if archived_count|default(0) > 0 %}
+    <div class="mt-3 pt-3 proj-mobile-archived-divider">
+        <a href="{{ url_for('projects_bp.archived') }}" class="text-muted text-decoration-none d-flex align-items-center justify-content-between proj-mobile-archived-link">
+            <span>{{ archived_count }} {{ _("archived") }}</span>
+            <i class="fas fa-chevron-right proj-mobile-archived-chevron"></i>
+        </a>
+    </div>
+    {% endif %}
+{% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-folder-open fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-1 proj-mobile-empty-title">{{ _("No projects yet") }}</p>
+        <p class="mb-3 proj-mobile-empty-desc">{{ _("Create a project to start grouping action items and updates") }}</p>
+    </div>
+{% endif %}
+
+<a href="{{ url_for('projects_bp.new') }}" class="fab" aria-label="{{ _('New Project') }}">
+    <i class="fas fa-plus"></i>
+</a>
+{% endblock %}

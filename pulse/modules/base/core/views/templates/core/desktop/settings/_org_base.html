@@ -1,0 +1,52 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{% block page_title %}{% endblock %} - {{ _("Organization") }}{% endblock %}
+
+{% block app_class %}settings-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('dashboard_bp.static', filename='css/base.css') }}">
+<link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+        <div class="d-flex gap-4 align-items-start">
+
+            {# ── Left: vertical org settings nav ── #}
+            <div class="flex-shrink-0" style="min-width:140px; max-width:160px">
+                <div class="d-flex flex-column gap-1">
+                    <div class="settings-nav-group-label">{{ _("Organization") }}</div>
+                    {% for key, label in [
+                        ("general",    _("General")),
+                        ("workspaces", _("Workspaces")),
+                        ("members",    _("Members")),
+                        ("audit-log",  _("Audit Log")),
+                    ] %}
+                    <a href="{{ url_for('core_bp.settings_organization', tab=key) }}"
+                       class="btn btn-sm text-start {% if active_tab == key %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ label }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# ── Right: settings content ── #}
+            <div class="flex-grow-1 min-width-0">
+                <div class="settings-page-header">
+                    <div>
+                        <h2>{% block page_icon %}<i class="fas fa-building"></i>{% endblock %} {% block page_title_display %}{% endblock %}</h2>
+                        {% block page_description %}<p class="text-muted"></p>{% endblock %}
+                    </div>
+                    {% block page_actions %}{% endblock %}
+                </div>
+                <div class="settings-form-container">
+                    {% block settings_content %}{% endblock %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

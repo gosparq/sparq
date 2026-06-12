@@ -1,0 +1,295 @@
+/* extends: base.css, desktop.css */
+/* -----------------------------------------------------------------------------
+ * sparQ - Time Tracking Module Styles
+ * Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+ * -------------------------------------------------------------------------- */
+
+/* Time entry row */
+.time-entry-row {
+    transition: all 0.2s ease;
+    background: var(--color-white);
+}
+
+.time-entry-row:hover {
+    background-color: var(--color-gray-100);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.time-entry-row.approved {
+    background-color: var(--color-info-light);
+}
+
+/* Time Entry Row Badges - Aligned to 32px button height */
+.time-entry-row .badge {
+    padding: 0 0.75rem !important;
+    font-size: var(--font-size-xs) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 32px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+}
+
+/* Time entry action buttons */
+.time-entry-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.time-entry-actions .btn {
+    min-width: 80px;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.25rem 0.75rem !important;
+}
+
+.time-entry-actions .btn-icon-only {
+    min-width: auto !important;
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Timer display */
+.timer-display {
+    font-family: 'Courier New', monospace;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--workspace-color);
+}
+
+.timer-running {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Week view grid */
+.week-grid {
+    display: grid;
+    grid-template-columns: 200px repeat(7, 1fr);
+    gap: 1px;
+    background-color: var(--color-gray-300);
+}
+
+.week-grid-cell {
+    background-color: var(--color-white);
+    padding: 0.5rem;
+    min-height: 60px;
+}
+
+.week-grid-header {
+    background-color: var(--color-gray-100);
+    font-weight: bold;
+    text-align: center;
+}
+
+.week-grid-hours {
+    font-weight: bold;
+}
+
+.week-grid-hours.status-approved {
+    color: var(--color-success);
+}
+
+.week-grid-hours.status-submitted {
+    color: var(--color-warning);
+}
+
+.week-grid-hours.status-rejected {
+    color: var(--color-danger);
+}
+
+.week-day-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.week-day-link:hover {
+    opacity: 0.8;
+}
+
+/* Clickable list rows */
+.clickable-row {
+    cursor: pointer;
+}
+
+/* Week view today column highlight */
+.table th.is-today,
+.table td.is-today {
+    background-color: var(--color-gray-50);
+}
+
+/* Timesheet summary */
+.timesheet-summary {
+    background-color: var(--color-gray-100);
+}
+
+
+/* ============================================
+   View Toggle Active State
+   ============================================ */
+
+/* Active state for outline buttons - force override Bootstrap styles */
+.btn-group .btn-outline-primary.active,
+.btn-group .btn-outline-primary.active:hover,
+.btn-group .btn-outline-primary.active:focus {
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: var(--color-white) !important;
+    pointer-events: none;
+    cursor: default;
+}
+
+/* ============================================
+   Status Badge Variants (Mobile)
+   ============================================ */
+
+/* Approval summary card - warning gradient */
+.summary-card-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* Date filter input constrained width */
+.date-filter-input {
+    max-width: 200px;
+}
+
+/* Modal backdrop for HTMX-loaded modals */
+.modal-active-backdrop {
+    display: block;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Admin Employee Selector */
+.employee-selector-container {
+    background-color: var(--color-gray-100);
+    border: 1px solid var(--color-gray-300);
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+}
+
+.employee-selector-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-gray-600);
+}
+
+.employee-selector {
+    min-width: 180px;
+    border-color: var(--color-gray-300) !important;
+    font-size: 0.875rem;
+}
+
+.employee-selector:focus {
+    border-color: var(--color-gray-500) !important;
+    box-shadow: 0 0 0 0.2rem rgba(107, 114, 128, 0.15) !important;
+}
+
+/* ============================================
+   In/Out Board Cards
+   ============================================ */
+
+.board-card { transition: all 0.2s ease; border: 1px solid var(--color-gray-300); }
+.board-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.board-card:hover .edit-clock-btn { opacity: 1 !important; }
+.board-card.clocked-in { border-left: 3px solid var(--color-success); }
+
+/* ============================================
+   Availability Forecast Badges
+   ============================================ */
+
+.fc-badge {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 0.375rem;
+    padding: 0.2rem 0.5rem;
+    font-size: var(--font-size-2xs);
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.fc-badge[data-status="in"]     { background: var(--color-success-light); color: var(--color-success-dark); }
+.fc-badge[data-status="remote"] { background: var(--color-info-light);    color: var(--color-info-dark); }
+.fc-badge[data-status="out"]    { background: var(--color-gray-100);      color: var(--color-gray-500); }
+.fc-badge[data-status="pto"]    { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.fc-badge .fc-badge-time { font-weight: 400; opacity: 0.85; }
+
+/* Punch history table layout */
+.punch-table { table-layout: fixed; }
+.punch-table col:nth-child(1) { width: 50%; }
+.punch-table col:nth-child(2) { width: 40%; }
+.punch-table col:nth-child(3) { width: 10%; }
+
+/* Compact punch edit button */
+.punch-edit-btn { padding: 0.25rem 0.5rem; min-height: 32px; }
+
+/* Small badge variant */
+.badge-sm { font-size: var(--font-size-3xs); }
+
+/* Approved/upcoming leave indicator border */
+.leave-approved-border {
+    border-left: 3px solid var(--color-success) !important;
+}
+
+/* Hide number input spinners on compact hours inputs */
+.modal-hours-input::-webkit-outer-spin-button,
+.modal-hours-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.modal-hours-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* ============================================
+   Day Picker – Add Time Modal
+   ============================================ */
+
+/* Filled day (has hours entered but not the active/selected day) */
+.week-day-filled {
+    background-color: var(--color-gray-100) !important;
+    border-color: var(--color-gray-400) !important;
+    color: var(--color-gray-700) !important;
+}
+
+/* Day picker hover – gray instead of purple (overrides base.css .btn-group-sm rule) */
+#addTimeModal .btn-group-sm .btn-outline-secondary:hover,
+#addTimeModal .btn-group-sm .week-day-filled:hover {
+    background-color: var(--color-gray-200) !important;
+    border-color: var(--color-gray-400) !important;
+    color: var(--color-gray-700) !important;
+}
+
+/* Preserve active day appearance on hover */
+#addTimeModal .btn-group-sm .btn-outline-secondary.active:hover {
+    background-color: var(--color-gray-500) !important;
+    border-color: var(--color-gray-500) !important;
+    color: var(--color-white) !important;
+}
+
+/* Hour label beneath each day button */
+.week-day-hours {
+    font-size: var(--font-size-2xs);
+    line-height: 1;
+    margin-top: 2px;
+    font-weight: 700;
+    color: inherit;
+}
+

@@ -1,0 +1,73 @@
+{% extends "projects/mobile/layout.html" %}
+
+{% block title %}{{ _("Edit Project") }}{% endblock %}
+
+{% block module_content %}
+<div class="mb-3">
+    <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}" class="text-muted text-decoration-none d-inline-flex align-items-center gap-1 text-base">
+        <i class="fas fa-arrow-left"></i>{{ _("Back") }}
+    </a>
+</div>
+
+<h2 class="mb-3" style="font-size:1.25rem;font-weight:600;">{{ _("Edit Project") }}</h2>
+
+<form method="POST" action="{{ url_for('projects_bp.update', project_id=project.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Name") }} <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control" required maxlength="200" value="{{ project.name }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Description") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <textarea name="description" class="form-control" rows="3" maxlength="500">{{ project.description or '' }}</textarea>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Owner") }}</label>
+        <select name="owner_id" class="form-select">
+            {% for m in members %}
+            <option value="{{ m.id }}" {% if project.owner_id == m.id %}selected{% endif %}>{{ m.user.first_name }} {{ m.user.last_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3" x-data="{ selectedColor: '{{ project.color or '' }}' }">
+        <label class="form-label text-base">{{ _("Color") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            {% set colors = ['var(--color-danger)', '#d97706', '#16a34a', '#2563eb', 'var(--color-focus)', '#ec4899'] %}
+            {% for c in colors %}
+            <label style="cursor:pointer;display:inline-block;">
+                <input type="radio" name="color" value="{{ c }}" class="d-none" x-model="selectedColor">
+                <span :style="'display:block;width:36px;height:36px;border-radius:8px;background:{{ c }};border:3px solid ' + (selectedColor === '{{ c }}' ? 'var(--color-gray-900)' : 'transparent')"></span>
+            </label>
+            {% endfor %}
+            <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" style="font-size:0.8rem;"
+                    @click="selectedColor = ''" x-show="selectedColor">
+                {{ _("Clear") }}
+            </button>
+        </div>
+        <template x-if="!selectedColor"><input type="hidden" name="color" value=""></template>
+    </div>
+
+    {% if project.channel %}
+    <div class="mb-3 p-3" style="border:1px solid var(--color-gray-200);border-radius:0.5rem;background:var(--color-gray-50);">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-hashtag text-muted" style="font-size:0.75rem;"></i>
+            <span class="text-base" style="font-weight:500">{{ project.channel.name }}</span>
+        </div>
+        <div class="text-muted mt-1" style="font-size:0.75rem;">{{ _("Channel cannot be changed") }}</div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="fas fa-check me-1"></i>{{ _("Save Changes") }}
+        </button>
+        <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}" class="btn btn-outline-secondary">
+            {{ _("Cancel") }}
+        </a>
+    </div>
+</form>
+{% endblock %}

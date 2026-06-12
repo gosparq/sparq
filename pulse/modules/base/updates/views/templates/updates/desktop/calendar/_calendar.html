@@ -1,0 +1,222 @@
+{# Company Calendar Grid — Unified view with events, PTO, action items #}
+
+{% if view == 'month' %}
+<!-- Month View -->
+<div class="company-calendar-month">
+    <!-- Day Headers -->
+    <div class="calendar-header-row">
+        {% for header in weekday_headers_short %}
+        <div class="calendar-header-cell">{{ header }}</div>
+        {% endfor %}
+    </div>
+
+    <!-- Weeks -->
+    {% for week in calendar_data.weeks %}
+    <div class="calendar-week-row">
+        {# Row 1: Day numbers #}
+        <div class="calendar-day-numbers">
+            {% for day in week.days %}
+            <div class="calendar-day-num {% if not day.is_current_month %}other-month{% endif %} {% if day.is_today %}today{% endif %}"
+                 {% if current_user.is_admin %}
+                 hx-get="{{ url_for('sync_bp.event_new', date=day.date.strftime('%Y-%m-%d'), view=view) }}"
+                 hx-target="#modal-container"
+                 {% endif %}>
+                <span class="day-number">{{ day.day }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {# Row 2: Spanning bars (PTO) #}
+        {% if week.spanning_entries %}
+        <div class="calendar-spanning-layer">
+            {# Background cells to match day column backgrounds #}
+            <div class="spanning-bg">
+                {% for day in week.days %}
+                <div class="spanning-bg-cell{% if not day.is_current_month %} other-month{% endif %}{% if day.is_today %} today{% endif %}"></div>
+                {% endfor %}
+            </div>
+            {% for entry in week.spanning_entries %}
+            <a href="{{ entry.url }}"
+               class="calendar-spanning-bar cal-{{ entry.type }}{% if entry.continues_left %} continues-left{% endif %}{% if entry.continues_right %} continues-right{% endif %}"
+               style="grid-column: {{ entry.col_start }} / span {{ entry.col_span }}; grid-row: {{ entry.row_index + 1 }}"
+               title="{{ entry.label }}"
+               @click.stop="">
+                {{ entry.label }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Row 3: Day event cells #}
+        <div class="calendar-day-events-row">
+            {% for day in week.days %}
+            <div class="calendar-day-content {% if not day.is_current_month %}other-month{% endif %}{% if day.is_today %} today{% endif %}"
+                 {% if current_user.is_admin %}
+                 hx-get="{{ url_for('sync_bp.event_new', date=day.date.strftime('%Y-%m-%d'), view=view) }}"
+                 hx-target="#modal-container"
+                 {% endif %}>
+                {% set all_items = day.events + day.tasks %}
+                {% for item in all_items[:3] %}
+                {% if item.type == 'event' %}
+                <div class="calendar-event{% if item.is_holiday %} cal-holiday{% endif %}"
+                     hx-get="{{ url_for('sync_bp.event_detail', event_id=item.id, view=view) }}"
+                     hx-target="#modal-container"
+                     @click.stop=""
+                     title="{{ item.title }} - {{ item.time }}">
+                    {% if item.is_holiday %}<i class="fas fa-flag fa-xs me-1"></i>{% endif %}{{ item.title }}
+                </div>
+                {% elif item.type == 'task' %}
+                <a href="{{ item.url }}" class="cal-action-item" @click.stop=""
+                   title="{{ item.title }}{% if item.assignee %} — {{ item.assignee }}{% endif %}">
+                    {{ item.title }}
+                </a>
+                {% endif %}
+                {% endfor %}
+                {% if all_items|length > 3 %}
+                <div class="more-events" @click.stop="">
+                    +{{ all_items|length - 3 }} {{ _("more") }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% elif view == 'week' %}
+<!-- Week View -->
+<div class="company-calendar-week">
+    {# Row 1: Day headers #}
+    <div class="calendar-week-headers">
+        {% for day in calendar_data.days %}
+        <div class="week-header-cell {% if day.is_today %}today{% endif %}">
+            <span class="day-name">{{ day.day_name }}</span>
+            <span class="day-number">{{ day.day }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Row 2: Spanning bars (PTO) #}
+    {% if calendar_data.spanning_entries %}
+    <div class="calendar-spanning-layer calendar-spanning-layer--week">
+        <div class="spanning-bg">
+            {% for day in calendar_data.days %}
+            <div class="spanning-bg-cell{% if day.is_today %} today{% endif %}"></div>
+            {% endfor %}
+        </div>
+        {% for entry in calendar_data.spanning_entries %}
+        <a href="{{ entry.url }}"
+           class="calendar-spanning-bar cal-{{ entry.type }}{% if entry.continues_left %} continues-left{% endif %}{% if entry.continues_right %} continues-right{% endif %}"
+           style="grid-column: {{ entry.col_start }} / span {{ entry.col_span }}; grid-row: {{ entry.row_index + 1 }}"
+           title="{{ entry.label }}"
+           @click.stop="">
+            {{ entry.label }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Row 3: Day event columns #}
+    <div class="calendar-week-columns">
+        {% for day in calendar_data.days %}
+        <div class="calendar-day-column {% if day.is_today %}today{% endif %}">
+            <div class="day-events {% if current_user.is_admin %}day-events--clickable{% endif %}"
+                 {% if current_user.is_admin %}
+                 hx-get="{{ url_for('sync_bp.event_new', date=day.date.strftime('%Y-%m-%d'), view=view) }}"
+                 hx-target="#modal-container"
+                 {% endif %}>
+                {% for event in day.events %}
+                <div class="calendar-event{% if event.is_holiday %} cal-holiday{% endif %}"
+                     hx-get="{{ url_for('sync_bp.event_detail', event_id=event.id, view=view) }}"
+                     hx-target="#modal-container"
+                     @click.stop="">
+                    <div class="event-time">{{ event.time }}</div>
+                    <div class="event-title">{% if event.is_holiday %}<i class="fas fa-flag fa-xs me-1"></i>{% endif %}{{ event.title }}</div>
+                    {% if event.location %}
+                    <div class="event-location"><i class="fas fa-map-marker-alt fa-xs"></i> {{ event.location }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% for item in day.tasks %}
+                <a href="{{ item.url }}" class="cal-action-item cal-action-item--week" @click.stop="">
+                    <div class="cal-action-item-title">{{ item.title }}</div>
+                    {% if item.assignee %}
+                    <div class="cal-action-item-assignee">{{ item.assignee }}</div>
+                    {% endif %}
+                </a>
+                {% endfor %}
+                {% if not day.events and not day.tasks %}
+                <div class="no-events text-muted small text-center py-3">
+                    <i class="fas fa-calendar-plus fa-lg mb-2 d-block opacity-50"></i>
+                    {% if current_user.is_admin %}{{ _("Click to add event") }}{% else %}{{ _("No events") }}{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% else %}
+<!-- Day View -->
+<div class="company-calendar-day">
+    {# Active spanning entries (PTO/projects active on this day) #}
+    {% if calendar_data.spanning_entries %}
+    <div class="calendar-day-banners">
+        {% for entry in calendar_data.spanning_entries %}
+        <a href="{{ entry.url }}" class="calendar-day-banner cal-{{ entry.type }}">
+            <span class="calendar-day-banner-label">{{ entry.label }}</span>
+            <span class="calendar-day-banner-dates">{{ entry.start_date.strftime('%b %d') }} — {{ entry.end_date.strftime('%b %d') }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="day-events-list {% if current_user.is_admin %}day-events-list--clickable{% endif %}"
+         {% if current_user.is_admin %}
+         hx-get="{{ url_for('sync_bp.event_new', date=current_date.strftime('%Y-%m-%d'), view=view) }}"
+         hx-target="#modal-container"
+         {% endif %}>
+        {% if calendar_data.events or calendar_data.tasks %}
+        {% for event in calendar_data.events %}
+        <div class="calendar-event-card{% if event.is_holiday %} cal-holiday{% endif %}"
+             hx-get="{{ url_for('sync_bp.event_detail', event_id=event.id, view=view) }}"
+             hx-target="#modal-container"
+             @click.stop="">
+            <div class="event-time">
+                <i class="fas fa-{% if event.is_holiday %}flag{% else %}clock{% endif %} me-1"></i>{{ event.time }}
+            </div>
+            <div class="event-title">{% if event.is_holiday %}<i class="fas fa-flag fa-xs me-1"></i>{% endif %}{{ event.title }}</div>
+            {% if event.location %}
+            <div class="event-location">
+                <i class="fas fa-map-marker-alt me-1"></i>{{ event.location }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% for item in calendar_data.tasks %}
+        <a href="{{ item.url }}" class="calendar-event-card cal-action-item-card" @click.stop="">
+            <div class="event-time">
+                <i class="fas fa-clipboard-check me-1"></i>{{ _("Due Today") }}
+            </div>
+            <div class="event-title">{{ item.title }}</div>
+            {% if item.assignee %}
+            <div class="event-location">
+                <i class="fas fa-user me-1"></i>{{ item.assignee }}
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+        {% else %}
+        <div class="no-events text-center text-muted py-5">
+            <i class="fas fa-calendar-day fa-3x mb-3 opacity-25"></i>
+            <p class="mb-0">{{ _("No events scheduled for this day") }}</p>
+            {% if current_user.is_admin %}
+            <p class="small">{{ _("Click anywhere to add an event") }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

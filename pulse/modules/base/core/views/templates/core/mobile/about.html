@@ -1,0 +1,67 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .settings-mobile-wrapper {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: calc(100vh - 60px - var(--safe-area-bottom) - 2rem);
+    }
+
+    .about-card {
+        background: var(--color-white);
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        padding: 2rem 1.5rem;
+        text-align: center;
+    }
+
+    .about-logo {
+        width: 96px;
+        height: 96px;
+        margin: 0 auto 0.75rem;
+    }
+
+    .about-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .about-version {
+        font-size: 1rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .about-build-date {
+        font-size: 0.8125rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1.5rem;
+    }
+
+    .about-copyright {
+        font-size: var(--font-size-base);
+        color: var(--color-gray-400);
+        line-height: 1.5;
+    }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="about-card">
+    <div class="about-logo">
+        <img src="{{ url_for('static', filename='images/sparq-logo.png') }}" alt="sparQ">
+    </div>
+
+    <p class="about-version">Version {{ sparq_version }}</p>
+    <p class="about-build-date">{{ sparq_build_date }}</p>
+
+    <p class="about-copyright">
+        Copyright 2025-2026 sparQ Software LLC<br>
+        All rights reserved.
+    </p>
+</div>
+{% endblock %}

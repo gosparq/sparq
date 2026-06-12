@@ -1,0 +1,95 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}connect-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/connect.css') }}">
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/connect-mobile.css') }}">
+{% endblock %}
+
+{% block title %}{{ _("Board") }}{% endblock %}
+
+{% block content %}
+<div style="padding:1rem;padding-bottom:calc(80px + var(--safe-area-bottom));">
+    <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.25rem;">{{ _("Board") }}</h2>
+    <p style="font-size:0.8125rem;color:var(--color-gray-500);margin-bottom:1rem;">{{ _("Announcements, events, and more") }}</p>
+
+    {# ── Filter pills ── #}
+    {% if templates|length > 1 %}
+    <div style="display:flex;gap:0.375rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:1rem;">
+        <a href="{{ url_for('sync_bp.board_index') }}" style="flex-shrink:0;padding:0.375rem 0.75rem;border-radius:999px;font-size:0.8125rem;font-weight:500;text-decoration:none;{% if not filter_template_id %}background:var(--color-primary);color:white;{% else %}background:var(--color-gray-100);color:var(--color-gray-600);{% endif %}">{{ _("All") }}</a>
+        {% for tmpl in templates %}
+        <a href="{{ url_for('sync_bp.board_index', template=tmpl.id) }}" style="flex-shrink:0;padding:0.375rem 0.75rem;border-radius:999px;font-size:0.8125rem;font-weight:500;text-decoration:none;{% if filter_template_id == tmpl.id %}background:var(--color-primary);color:white;{% else %}background:var(--color-gray-100);color:var(--color-gray-600);{% endif %}">{{ tmpl.name }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Posts ── #}
+    {% if posts %}
+        {% for post in posts %}
+        <div style="background:var(--color-white);border:1px solid {% if post.is_pinned %}var(--color-primary){% else %}var(--color-gray-200){% endif %};border-radius:12px;padding:1rem;margin-bottom:0.75rem;">
+            {# Category + time #}
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                <span style="font-size:0.6875rem;padding:0.125rem 0.5rem;border-radius:999px;background:var(--color-gray-100);color:var(--color-gray-500);font-weight:600;">{{ post.template.name if post.template else '' }}</span>
+                <span style="font-size:0.75rem;color:var(--color-gray-400);">{{ post.time_ago() }}</span>
+            </div>
+
+            {# Title #}
+            {% set title_val = post.payload.get('title', '') %}
+            {% if title_val %}
+            <h3 style="font-size:0.9375rem;font-weight:600;margin-bottom:0.375rem;">{{ title_val }}</h3>
+            {% endif %}
+
+            {# Body preview #}
+            {% set body_val = post.payload.get('body', '') %}
+            {% if body_val %}
+            <p style="font-size:0.8125rem;color:var(--color-gray-600);white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:0.5rem;">{{ body_val }}</p>
+            {% endif %}
+
+            {# Author + pin indicator #}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding-top:0.5rem;border-top:1px solid var(--color-gray-100);">
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    {% if post.member and post.member.user %}
+                    <div style="width:24px;height:24px;border-radius:50%;background:{{ post.member.user.avatar_color|default('var(--color-primary)') }};color:white;display:flex;align-items:center;justify-content:center;font-size:0.5625rem;font-weight:600;">
+                        {{ post.member.user.first_name[:1]|upper }}{{ post.member.user.last_name[:1]|upper }}
+                    </div>
+                    <span style="font-size:0.8125rem;color:var(--color-gray-600);">{{ post.member.user.first_name }}</span>
+                    {% endif %}
+                </div>
+                {% if post.is_pinned %}
+                <span style="font-size:0.75rem;color:var(--color-primary);"><i class="fas fa-thumbtack"></i></span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align:center;padding:3rem 1rem;color:var(--color-gray-400);">
+            <i class="far fa-clipboard" style="font-size:2.5rem;display:block;margin-bottom:0.75rem;color:var(--color-gray-300);"></i>
+            <p class="text-base" style="color:var(--color-gray-500)">{{ _("No posts on the board yet.") }}</p>
+        </div>
+    {% endif %}
+
+    {# ── FAB ── #}
+    {% if templates %}
+    <div x-data="{ open: false }">
+        <button @click="open = true" class="fab">
+            <i class="fas fa-plus"></i>
+        </button>
+        <div class="bottom-sheet-overlay" :class="{ 'open': open }" @click.self="open = false" x-cloak>
+            <div class="bottom-sheet" @click.stop>
+                <div class="bottom-sheet-handle"></div>
+                <div class="bottom-sheet-header">{{ _("Choose template") }}</div>
+                <div class="bottom-sheet-content">
+                    {% for tmpl in templates %}
+                    <a href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}" class="bottom-sheet-item">
+                        <i class="far fa-clipboard"></i>
+                        <span>{{ tmpl.name }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock content %}

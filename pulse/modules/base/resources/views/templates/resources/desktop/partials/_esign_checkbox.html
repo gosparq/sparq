@@ -1,0 +1,33 @@
+{#
+    E-Sign Checkbox Partial
+
+    Include this in any form that sends documents to enable e-signature.
+
+    Usage:
+        {% include "resources/desktop/partials/_esign_checkbox.html" %}
+
+    The including form should have:
+    - An attachment/document field
+    - To email and name fields
+
+    When "require_esign" is checked, the controller should use ESignService
+    instead of sending the document directly.
+#}
+
+{% set esign_enabled = true %}
+{# Check if e-sign is enabled - import settings if needed #}
+
+{% if esign_enabled %}
+<div class="mb-3 esign-option">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="require_esign" name="require_esign">
+        <label class="form-check-label" for="require_esign">
+            <i class="fas fa-signature text-primary me-1"></i>
+            {{ _("Require E-Signature") }}
+        </label>
+    </div>
+    <small class="text-muted ms-4">
+        {{ _("Recipient must electronically sign before accessing the document.") }}
+    </small>
+</div>
+{% endif %}

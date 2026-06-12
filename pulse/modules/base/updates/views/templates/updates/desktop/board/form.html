@@ -1,0 +1,110 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{% if post %}{{ _("Edit Post") }}{% else %}{{ _("New Post") }}{% endif %} - {{ _("Board") }}{% endblock %}
+
+{% block app_class %}board-app{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/board.css') }}">
+<!-- Quill Editor -->
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="board-header">
+        <a href="{{ url_for('sync_bp.board_index') }}" class="btn btn-sm btn-outline-secondary mb-3">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Board") }}
+        </a>
+        <h2>
+            <i class="fas fa-{% if post %}edit{% else %}plus{% endif %} me-2"></i>
+            {% if post %}{{ _("Edit Post") }}{% else %}{{ _("New Post") }}{% endif %}
+        </h2>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" class="board-post-form mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3">
+            <label for="title" class="form-label">{{ _("Title") }} <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control"
+                   id="title"
+                   name="title"
+                   value="{{ post.title if post else '' }}"
+                   placeholder="{{ _('Enter a title for your post') }}"
+                   required>
+        </div>
+
+        <div class="mb-3">
+            <label for="image_url" class="form-label">{{ _("Featured Image URL") }}</label>
+            <input type="url"
+                   class="form-control"
+                   id="image_url"
+                   name="image_url"
+                   value="{{ post.image_url if post and post.image_url else '' }}"
+                   placeholder="https://example.com/image.jpg"
+                   pattern="https?://.+\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?"
+                   title="{{ _('Must be a direct image link (e.g. .jpg, .png, .gif)') }}">
+            <div class="form-text">{{ _("Optional. Must be a direct image link (e.g. .jpg, .png, .gif).") }}</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ _("Content") }} <span class="text-danger">*</span></label>
+            <!-- Quill Editor Container -->
+            <div id="editor" style="height: 300px;">{{ post.content | safe if post else '' }}</div>
+            <!-- Hidden input to store content -->
+            <input type="hidden" name="content" id="content">
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-save me-1"></i>
+                {% if post %}{{ _("Save Changes") }}{% else %}{{ _("Publish Post") }}{% endif %}
+            </button>
+            <a href="{{ url_for('sync_bp.board_index') }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Quill Editor -->
+<script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.min.js"></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Quill
+    var quill = new Quill('#editor', {
+        theme: 'snow',
+        placeholder: '{{ _("Write your announcement...") }}',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                ['link'],
+                ['clean']
+            ]
+        }
+    });
+
+    // On form submit, copy content to hidden input
+    document.querySelector('form').addEventListener('submit', function(e) {
+        var content = quill.root.innerHTML;
+        // Don't submit if content is empty (just whitespace/empty tags)
+        var text = quill.getText().trim();
+        if (!text) {
+            e.preventDefault();
+            alert('{{ _("Please enter some content for your post.") }}');
+            return false;
+        }
+        document.getElementById('content').value = content;
+    });
+});
+</script>
+{% endblock %}

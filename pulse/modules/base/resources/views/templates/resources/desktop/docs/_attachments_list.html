@@ -1,0 +1,68 @@
+{# Attachment list partial - returned by HTMX for dynamic updates #}
+{% if attachments %}
+    {% set ns = namespace(has_images=false, has_files=false) %}
+    {% for attachment in attachments %}
+        {% set is_img = show_previews|default(false) and attachment.mime_type and attachment.mime_type.startswith('image/') %}
+        {% if is_img %}{% set ns.has_images = true %}{% else %}{% set ns.has_files = true %}{% endif %}
+    {% endfor %}
+
+    {% if ns.has_images %}
+    <div class="attach-img-grid {% if ns.has_files %}mb-2{% endif %}">
+        {% for attachment in attachments %}
+        {% if show_previews|default(false) and attachment.mime_type and attachment.mime_type.startswith('image/') %}
+        <div class="attach-img-card">
+            <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=attachment.id) }}" target="_blank">
+                <img src="{{ url_for('docs_blueprint.preview_attachment', attachment_id=attachment.id) }}"
+                     alt="{{ attachment.filename }}">
+            </a>
+            <div class="attach-img-actions">
+                <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=attachment.id) }}"
+                   class="btn btn-sm attach-img-action-btn" title="{{ _('Download') }}">
+                    <i class="fas fa-download"></i>
+                </a>
+                <button type="button"
+                        class="btn btn-sm attach-img-action-btn"
+                        title="{{ _('Remove') }}"
+                        hx-post="{{ url_for('docs_blueprint.detach_attachment', attachment_id=attachment.id) }}"
+                        hx-vals='{"entity_type": "{{ entity_type }}", "entity_id": "{{ entity_id }}"}'
+                        hx-target="#attachments-list"
+                        hx-confirm="{{ _('Remove this attachment?') }}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% for attachment in attachments %}
+    {% set is_image = show_previews|default(false) and attachment.mime_type and attachment.mime_type.startswith('image/') %}
+    {% if not is_image %}
+    <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+        <i class="fas fa-file text-secondary me-2"></i>
+        <div class="flex-grow-1">
+            <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=attachment.id) }}"
+               class="text-decoration-none" target="_blank">
+                {{ attachment.filename }}
+            </a>
+            <small class="text-muted ms-2">{{ attachment.size_display }}</small>
+        </div>
+        <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=attachment.id) }}"
+           class="btn btn-sm btn-outline-secondary me-1"
+           title="{{ _('Download') }}">
+            <i class="fas fa-download"></i>
+        </a>
+        <button type="button"
+                class="btn btn-sm btn-outline-danger"
+                title="{{ _('Remove') }}"
+                hx-post="{{ url_for('docs_blueprint.detach_attachment', attachment_id=attachment.id) }}"
+                hx-vals='{"entity_type": "{{ entity_type }}", "entity_id": "{{ entity_id }}"}'
+                hx-target="#attachments-list"
+                hx-confirm="{{ _('Remove this attachment?') }}">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    {% endif %}
+    {% endfor %}
+{% endif %}

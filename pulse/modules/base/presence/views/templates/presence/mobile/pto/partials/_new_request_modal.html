@@ -1,0 +1,103 @@
+<!-- New PTO Request - Mobile Bottom Sheet -->
+<div class="bottom-sheet-overlay open" id="newPtoOverlay" data-action="close-new-pto-overlay">
+    <div class="bottom-sheet" @click.stop="" style="transform: translateY(0);">
+        <div class="bottom-sheet-handle"></div>
+
+        <!-- Header -->
+        <div class="px-4 pb-2 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-umbrella-beach me-2"></i>{{ _("Request Time Off") }}</h6>
+            <button type="button" class="btn btn-sm btn-light"
+                    hx-get="{{ url_for('pto_bp.clear_modal') }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="bottom-sheet-content px-4">
+            <form hx-post="{{ url_for('pto_bp.new_request') }}"
+                  hx-target="#modals"
+                  hx-swap="innerHTML"
+                  x-data="{
+                      startDate: '{{ form_data.start_date if form_data else '' }}',
+                      endDate: '{{ form_data.end_date if form_data else '' }}',
+                      get totalDays() {
+                          if (!this.startDate || !this.endDate) return 0;
+                          const start = new Date(this.startDate);
+                          const end = new Date(this.endDate);
+                          const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                          return diff > 0 ? diff : 0;
+                      }
+                  }">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                {% if overlap_error %}
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ overlap_error }}
+                </div>
+                {% endif %}
+
+                <!-- Leave Type -->
+                <div class="mb-2">
+                    <label for="mobile_leave_type" class="form-label">{{ _("Type") }}</label>
+                    <select name="leave_type" id="mobile_leave_type" class="form-select" required>
+                        <option value="">{{ _("Select type...") }}</option>
+                        {% for lt in leave_types %}
+                        <option value="{{ lt.name }}" {% if form_data and form_data.leave_type == lt.name %}selected{% endif %}>{{ lt.value }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Dates -->
+                <div class="mb-2">
+                    <label for="mobile_start_date" class="form-label">{{ _("Start Date") }}</label>
+                    <input type="date" name="start_date" id="mobile_start_date"
+                           class="form-control" required
+                           x-model="startDate" min="{{ today }}">
+                </div>
+
+                <div class="mb-2">
+                    <label for="mobile_end_date" class="form-label">{{ _("End Date") }}</label>
+                    <input type="date" name="end_date" id="mobile_end_date"
+                           class="form-control" required
+                           x-model="endDate" :min="startDate">
+                </div>
+
+                <!-- Total Days (computed) -->
+                <div class="mb-2 text-muted small" x-show="totalDays > 0" x-cloak>
+                    <span class="badge bg-primary" x-text="totalDays + ' {{ _("days") }}'"></span>
+                </div>
+
+                <!-- Notes -->
+                <div class="mb-2">
+                    <label for="mobile_employee_notes" class="form-label">
+                        {{ _("Notes") }} <small class="text-muted">({{ _("optional") }})</small>
+                    </label>
+                    <textarea name="employee_notes" id="mobile_employee_notes"
+                              class="form-control" rows="2"
+                              placeholder="{{ _('Reason for time off request...') }}">{{ form_data.employee_notes if form_data else '' }}</textarea>
+                </div>
+
+                <!-- Submit -->
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-primary btn-touch">
+                        <i class="fas fa-paper-plane me-1"></i>{{ _("Submit Request") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function closeNewPtoSheet(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('modals').innerHTML = '';
+}
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="close-new-pto-overlay"]');
+    if (t && e.target === t) closeNewPtoSheet(e);
+});
+</script>

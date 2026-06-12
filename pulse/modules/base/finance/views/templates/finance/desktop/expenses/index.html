@@ -1,0 +1,125 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Expenses") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ _("Expenses") }}</h2>
+            {% if current_user.is_admin and pending_count > 0 %}
+            <span class="badge bg-warning text-dark">{{ pending_count }} {{ _("pending approval") }}</span>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('finance_bp.expense_new') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i> {{ _("Submit Expense") }}
+        </a>
+    </div>
+
+    {% if expenses %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ _("Date") }}</th>
+                    <th>{{ _("Description") }}</th>
+                    <th>{{ _("Category") }}</th>
+                    {% if current_user.is_admin %}
+                    <th>{{ _("Submitted By") }}</th>
+                    {% endif %}
+                    <th class="text-end">{{ _("Amount") }}</th>
+                    <th>{{ _("Status") }}</th>
+                    {% if current_user.is_admin %}
+                    <th class="text-center">{{ _("Actions") }}</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody x-data="{ nav(e, url) { e.ctrlKey || e.metaKey ? window.open(url, '_blank') : location.href = url } }">
+                {% for expense in expenses %}
+                <tr style="cursor: pointer" @click="nav($event, '{{ url_for('finance_bp.expense_detail', expense_id=expense.id) }}')">
+                    <td>{{ expense.expense_date.strftime('%m/%d/%Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('finance_bp.expense_detail', expense_id=expense.id) }}" @click.stop>
+                            {{ expense.description }}
+                        </a>
+                        {% if expense.job %}
+                        <br><small class="text-muted">Job: {{ expense.job.job_number }}</small>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-secondary">{{ expense.category.value }}</span></td>
+                    {% if current_user.is_admin %}
+                    <td>{{ expense.submitted_by.first_name }} {{ expense.submitted_by.last_name }}</td>
+                    {% endif %}
+                    <td class="text-end">${{ "%.2f"|format(expense.amount) }}</td>
+                    <td>
+                        {% if expense.status == ExpenseStatus.PENDING %}
+                        <span class="badge bg-warning text-dark">{{ expense.status.value }}</span>
+                        {% elif expense.status == ExpenseStatus.APPROVED %}
+                        <span class="badge bg-success">{{ expense.status.value }}</span>
+                        {% elif expense.status == ExpenseStatus.REJECTED %}
+                        <span class="badge bg-danger">{{ expense.status.value }}</span>
+                        {% endif %}
+                    </td>
+                    {% if current_user.is_admin %}
+                    <td class="text-center">
+                        {% if expense.status == ExpenseStatus.PENDING %}
+                        <form action="{{ url_for('finance_bp.expense_approve', expense_id=expense.id) }}" method="POST" class="d-inline" @click.stop>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success" title="{{ _('Approve') }}">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-danger" title="{{ _('Reject') }}" @click.stop
+                                data-bs-toggle="modal" data-bs-target="#rejectModal{{ expense.id }}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+
+                <!-- Reject Modal -->
+                {% if current_user.is_admin and expense.status == ExpenseStatus.PENDING %}
+                <div class="modal fade" id="rejectModal{{ expense.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form action="{{ url_for('finance_bp.expense_reject', expense_id=expense.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{{ _("Reject Expense") }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>{{ _("Are you sure you want to reject this expense?") }}</p>
+                                    <p><strong>{{ expense.description }}</strong> - ${{ "%.2f"|format(expense.amount) }}</p>
+                                    <div class="mb-3">
+                                        <label for="reason{{ expense.id }}" class="form-label">{{ _("Reason (optional)") }}</label>
+                                        <textarea class="form-control" name="reason" id="reason{{ expense.id }}" rows="2"></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">{{ _("Reject") }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+        <p class="text-muted">{{ _("No expenses found.") }}</p>
+        <a href="{{ url_for('finance_bp.expense_new') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i> {{ _("Submit Your First Expense") }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+<nav class="side-nav">
+    <div class="nav-module-header" style="--section-color: {{ g.workspace_color }}">
+        <a href="{{ url_for('dashboard_bp.index') }}" class="nav-module-back">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <span class="nav-module-name">{{ _("Sync") }}</span>
+    </div>
+    <ul class="nav-menu">
+        <li class="nav-item">
+            <a href="{{ url_for('sync_bp.chat_index') }}"
+               class="nav-link {% if active_page == 'chat' or request.path.startswith('/sync/chat') %}active{% endif %}">
+                <i class="fas fa-comments"></i>{{ _("Chat") }}
+                <span class="chat-activity-dot" data-chat-badge style="{% if not chat_unread_count or chat_unread_count == 0 %}display: none;{% endif %}"></span>
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{{ url_for('sync_bp.calendar_index') }}"
+               class="nav-link {% if active_page == 'calendar' or request.path.startswith('/sync/calendar') %}active{% endif %}">
+                <i class="fas fa-calendar-days"></i>
+                {{ _("Calendar") }}
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{{ url_for('sync_bp.get_dm_threads') }}"
+               class="nav-link {% if active_page == 'dm' or request.path.startswith('/sync/dm') %}active{% endif %}">
+                <i class="fas fa-envelope"></i>
+                {{ _("Direct Messages") }}
+            </a>
+        </li>
+
+        {% if current_user.is_admin %}
+        <li class="nav-divider"></li>
+
+        <li class="nav-item">
+            <a href="{{ url_for('sync_bp.settings') }}"
+               class="nav-link {% if active_page == 'settings' or request.path.endswith('/settings') %}active{% endif %}">
+                <i class="fas fa-cog"></i>
+                {{ _("Settings") }}
+            </a>
+        </li>
+        {% endif %}
+
+    </ul>
+</nav>

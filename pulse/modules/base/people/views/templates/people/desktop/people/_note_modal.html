@@ -1,0 +1,22 @@
+<div class="modal-header">
+    <h5 class="modal-title">{{ _("Edit Note") if note else _("Add Note") }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <form id="noteForm"
+          hx-post="{{ url_for('people_bp.update_person_note', employee_id=employee_id, note_id=note.id) if note else url_for('people_bp.create_person_note', employee_id=employee_id) }}"
+          hx-target="#notes-list"
+          hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <textarea name="content" class="form-control" rows="4"
+                  placeholder="{{ _('Write a note...') }}" required>{{ note.content if note else '' }}</textarea>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+        {{ _("Cancel") }}
+    </button>
+    <button type="submit" form="noteForm" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+        <i class="fas fa-save me-1"></i>{{ _("Save") }}
+    </button>
+</div>

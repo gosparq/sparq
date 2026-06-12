@@ -1,0 +1,210 @@
+{# Mobile create screen — plain fixed-position overlay sitting BELOW the main mobile header
+   so the workspace pill / hamburger / bell / avatar stay visible (matches other full-page routes).
+   The overlay relocates itself to document.body on mount to escape any ancestor stacking traps. #}
+<div id="mobileCreateAction"
+     x-init="document.body.appendChild($el)"
+     style="position:fixed;top:calc(56px + var(--safe-area-top));left:0;right:0;bottom:0;z-index:1055;background:var(--color-white);display:flex;flex-direction:column;padding-bottom:var(--safe-area-bottom);">
+    <form method="POST" action="{{ url_for('tasks_bp.create') }}"
+          style="display:flex;flex-direction:column;height:100%;min-height:0;"
+          x-data="{
+              assignMode: 'single',
+              tier: 2,
+              titleVal: '',
+              showWatchers: false,
+              pickCanned(title, defaultTier) {
+                  this.titleVal = title;
+                  if (defaultTier) this.tier = defaultTier;
+              },
+              close() {
+                  var el = document.getElementById('mobileCreateAction');
+                  if (el && el.parentNode) el.parentNode.removeChild(el);
+              }
+          }">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if return_url %}
+        <input type="hidden" name="next" value="{{ return_url }}">
+        {% endif %}
+
+        {# Page subheader — Back + title #}
+        <div style="flex-shrink:0;display:flex;align-items:center;gap:0.5rem;padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+            <button type="button" @click="close()"
+                    style="border:none;background:none;color:var(--color-gray-500);padding:0.25rem 0;cursor:pointer;display:inline-flex;align-items:center;gap:0.375rem">
+                <i class="fas fa-arrow-left"></i>{{ _("Back") }}
+            </button>
+            <h5 style="font-size:1rem;font-weight:600;margin:0 0 0 auto;">{{ _("Create Task") }}</h5>
+        </div>
+
+        {# Scrollable body #}
+        <div style="flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding:1rem;">
+            {# Quick Actions chips #}
+            {% if canned_tasks %}
+            <div class="mb-3">
+                <label class="form-label text-muted" style="font-size:0.75rem;">{{ _("Quick Actions") }}</label>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for ca in canned_tasks %}
+                    <button type="button"
+                            style="font-size:0.8125rem;padding:0.3rem 0.7rem;border:1px solid var(--color-gray-200);border-radius:1rem;background:var(--color-gray-50);color:var(--color-gray-700);"
+                            data-title="{{ ca.title }}" data-tier="{{ ca.default_tier or '' }}"
+                            @click="pickCanned($el.dataset.title, $el.dataset.tier ? Number($el.dataset.tier) : null)">
+                        {% if ca.default_tier %}
+                        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{{ tier_defaults[ca.default_tier].color }};margin-right:0.25rem;"></span>
+                        {% endif %}
+                        {{ ca.title }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("What needs to be done?") }}</label>
+                <input type="text" name="title" class="form-control" required maxlength="200"
+                       placeholder="{{ _('Brief, actionable description') }}"
+                       x-model="titleVal">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Urgency") }}</label>
+                <div class="d-flex gap-2">
+                    {% for t in [1, 2, 3] %}
+                    <label class="flex-fill text-center"
+                           :style="'cursor:pointer;padding:0.5rem;border-radius:0.5rem;border:2px solid ' + (tier === {{ t }} ? '{{ tier_defaults[t].color }}' : 'var(--color-gray-200)') + ';background:' + (tier === {{ t }} ? '{{ tier_defaults[t].color }}15' : 'transparent')">
+                        <input type="radio" name="urgency_tier" value="{{ t }}" class="d-none"
+                               x-model.number="tier" {% if t == 2 %}checked{% endif %}>
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ tier_defaults[t].color }};margin-right:0.25rem;"></span>
+                        <span style="font-size:0.8125rem;font-weight:500;">{{ tier_defaults[t].label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Assign to") }}</label>
+                <div class="d-flex gap-2 mb-2 flex-wrap">
+                    {% for mode, label in [('single', _('One person')), ('multi', _('Select people')), ('all', _('All members')), ('unassigned', _('Unassigned'))] %}
+                    <label class="flex-fill text-center"
+                           :style="'cursor:pointer;padding:0.5rem;border-radius:0.5rem;font-size:0.8125rem;font-weight:500;border:2px solid ' + (assignMode === '{{ mode }}' ? 'var(--color-primary)' : 'var(--color-gray-200)') + ';background:' + (assignMode === '{{ mode }}' ? 'var(--color-primary-lightest, rgba(99,102,241,0.08))' : 'transparent') + ';color:' + (assignMode === '{{ mode }}' ? 'var(--color-primary)' : 'var(--color-gray-700)')">
+                        <input type="radio" name="assign_mode" value="{{ mode }}" class="d-none"
+                               x-model="assignMode" {% if mode == 'single' %}checked{% endif %}>
+                        {{ label }}
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div x-show="assignMode === 'single'">
+                    <select name="assignee_id" class="form-select">
+                        {% for m in members %}
+                        <option value="{{ m.id }}" {% if m.id == current_member.id %}selected{% endif %}>
+                            {{ m.user.first_name }} {{ m.user.last_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div x-show="assignMode === 'multi'" x-cloak>
+                    <div style="max-height:200px;overflow-y:auto;border:1px solid var(--color-gray-200);border-radius:0.375rem;padding:0.5rem;">
+                        {% for m in members %}
+                        {% if m.id != current_member.id %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="assignee_ids" value="{{ m.id }}" id="m-member-{{ m.id }}">
+                            <label class="form-check-label text-base" for="m-member-{{ m.id }}">
+                                {{ m.user.first_name }} {{ m.user.last_name }}
+                            </label>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div x-show="assignMode === 'all'" x-cloak>
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-info-circle me-1"></i>{{ _("Will create an action item for every active team member (excluding you).") }}
+                    </p>
+                </div>
+
+                <div x-show="assignMode === 'unassigned'" x-cloak>
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-info-circle me-1"></i>{{ _("Will create an action item with no assignee — anyone can pick it up.") }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Context") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                <textarea name="context_note" class="form-control" rows="6"
+                          placeholder="{{ _('Why this needs attention') }}">What's the change?
+
+Why does it matter?
+
+Any Additional Notes?
+</textarea>
+            </div>
+
+            {% if areas is defined and areas %}
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Area") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                <select name="area_id" class="form-select">
+                    <option value="">{{ _("No area") }}</option>
+                    {% for a in areas %}
+                    <option value="{{ a.id }}">{{ a.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% elif current_user.is_admin %}
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Area") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                <div class="text-muted" style="font-size:0.8rem;">
+                    {{ _("No areas yet") }} — <a href="{{ url_for('sync_bp.settings') }}" class="text-decoration-none">{{ _("create areas") }}</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if projects is defined and projects %}
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Project") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                <select name="project_id" class="form-select">
+                    <option value="">{{ _("No project") }}</option>
+                    {% for p in projects %}
+                    <option value="{{ p.id }}" {% if preselected_project_id and p.id == preselected_project_id %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+                <label class="form-label text-base">{{ _("Due on") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                <input type="date" name="due_date" class="form-control">
+            </div>
+
+            {% if eligible_watchers %}
+            <div class="mb-3">
+                <a href="#" class="text-muted" style="font-size:0.8125rem;text-decoration:none;"
+                   @click.prevent="showWatchers = !showWatchers">
+                    <i class="fas fa-eye me-1" style="font-size:0.7rem;"></i>{{ _("Notify someone when done?") }}
+                    <i class="fas" :class="showWatchers ? 'fa-chevron-up' : 'fa-chevron-down'" style="font-size:0.55rem;margin-left:0.25rem;"></i>
+                </a>
+                <div x-show="showWatchers" x-cloak class="mt-2">
+                    <div style="max-height:150px;overflow-y:auto;border:1px solid var(--color-gray-200);border-radius:0.375rem;padding:0.5rem;">
+                        {% for m in eligible_watchers %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="watcher_ids" value="{{ m.id }}" id="m-watcher-{{ m.id }}">
+                            <label class="form-check-label text-base" for="m-watcher-{{ m.id }}">
+                                {{ m.user.first_name }} {{ m.user.last_name }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Footer #}
+        <div style="flex-shrink:0;display:flex;gap:0.5rem;padding:0.75rem 1rem;border-top:1px solid var(--color-gray-200);">
+            <button type="button" class="btn btn-outline-secondary" @click="close()" style="flex:1;">{{ _("Cancel") }}</button>
+            <button type="submit" class="btn btn-primary" style="flex:2;">
+                <i class="fas fa-bolt me-1"></i>{{ _("Create Task") }}
+            </button>
+        </div>
+    </form>
+</div>

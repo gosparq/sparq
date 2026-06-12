@@ -1,0 +1,22 @@
+{# Loaded via HTMX into the palette action slot when "Link Issue" is selected.
+   Alpine component (ghPaletteLink) is defined in _slash_palette_script.html. #}
+<div x-data="ghPaletteLink()"
+     data-task-id="{{ task_id }}"
+     data-csrf="{{ csrf_token }}"
+     @click="handleClick($event)">
+  <div class="palette-subpanel-title">{{ _("Link GitHub Issue") }}</div>
+  <input type="text" name="q" class="form-control form-control-sm mb-2"
+         hx-get="{{ url_for('github_bp.palette_github_orphans') }}"
+         hx-trigger="load, input changed delay:200ms"
+         hx-target="#palette-link-orphan-results"
+         hx-include="this"
+         hx-vals='{"task_id": {{ task_id }}}'
+         placeholder="{{ _('Search issues…') }}"
+         x-init="$nextTick(() => $el.focus())">
+  <div id="palette-link-orphan-results"></div>
+  <div x-show="error" class="text-danger small mt-1" x-text="error"></div>
+  <button class="btn btn-sm btn-outline-secondary mt-2"
+          @click="window.dispatchEvent(new CustomEvent('palette-action-back'))">
+    {{ _("Back") }}
+  </button>
+</div>

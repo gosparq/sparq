@@ -1,0 +1,575 @@
+/* extends: base.css, desktop.css */
+/* Connect Module Styles */
+
+/* Module Color Variables */
+:root {
+    --connect-color: var(--color-success);
+    --connect-color-hover: color-mix(in srgb, var(--color-success) 85%, black);
+    --connect-color-light: var(--color-success-light);
+}
+
+/* Module-colored buttons */
+.connect-app .btn-module {
+    background-color: var(--connect-color);
+    border-color: var(--connect-color);
+    color: white;
+}
+
+.connect-app .btn-module:hover {
+    background-color: var(--connect-color-hover);
+    border-color: var(--connect-color-hover);
+    color: white;
+}
+
+.connect-app .btn-outline-module {
+    background-color: transparent;
+    border-color: var(--color-gray-300);
+    color: var(--color-gray-700);
+}
+
+.connect-app .btn-outline-module:hover {
+    background-color: var(--connect-color-light);
+    border-color: var(--connect-color);
+    color: var(--connect-color);
+}
+
+.connect-app .btn-outline-module.active {
+    background-color: var(--connect-color);
+    border-color: var(--connect-color);
+    color: white;
+}
+
+.connect-app .btn-group .btn-outline-module {
+    border-radius: 0;
+}
+
+.connect-app .btn-group .btn-outline-module:first-child {
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+
+.connect-app .btn-group .btn-outline-module:last-child {
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+/* Connect Landing Page */
+.connect-landing {
+    padding: 2rem;
+}
+
+.connect-landing h1 {
+    color: var(--color-gray-900);
+    font-weight: 700;
+}
+
+.connect-feature-card {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.connect-feature-card .card {
+    border: 1px solid var(--color-gray-200);
+    transition: all 0.3s ease;
+}
+
+.connect-feature-card:hover .card {
+    border-color: var(--connect-color);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-success) 15%, transparent);
+    transform: translateY(-4px);
+}
+
+.connect-feature-card .feature-icon {
+    opacity: 0.8;
+}
+
+.connect-feature-card:hover .feature-icon {
+    opacity: 1;
+}
+
+.connect-feature-card .card-title {
+    color: var(--color-gray-900);
+    font-weight: 600;
+}
+
+.connect-feature-card .card-text {
+    font-size: 0.9rem;
+}
+
+/* Sync feed card — mobile "I'm blocked" feed on the Blockers page.
+   Keeps the card structure identical across feed-style views so any future
+   feed rendering can reuse the same classes. */
+.sync-feed-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.sync-feed-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+}
+
+.sync-feed-card-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: var(--color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.sync-feed-card-author {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.sync-feed-card-time {
+    font-size: var(--font-size-xs);
+    color: var(--color-gray-400);
+    margin-left: auto;
+}
+
+.sync-feed-card-badge {
+    font-size: 0.6875rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 0.375rem;
+}
+
+.sync-feed-card-body {
+    font-size: 0.875rem;
+    color: var(--color-gray-700);
+}
+
+.sync-feed-card-body p {
+    white-space: pre-wrap;
+    margin: 0;
+}
+
+.sync-feed-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--color-gray-400);
+}
+
+.sync-feed-empty-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.75rem;
+    color: var(--color-gray-300);
+}
+
+.sync-feed-empty-text {
+    font-size: 0.875rem;
+    color: var(--color-gray-500);
+}
+
+/* Settings page icon container */
+/* Status update badge colors — tokenized so dark mode + future palette
+   changes cascade automatically via body.dark remap in base.css. */
+.sync-badge-update { background: var(--color-info-light); color: var(--color-info-dark); border: 1px solid var(--color-info-light); }
+.sync-badge-win { background: var(--color-success-light); color: var(--color-success-dark); border: 1px solid var(--color-success-light); }
+.sync-badge-blocked { background: var(--color-danger-light); color: var(--color-danger-dark); border: 1px solid var(--color-danger-light); }
+.sync-badge-headsup { background: var(--color-warning-light); color: var(--color-warning-dark); border: 1px solid var(--color-warning-light); }
+.sync-badge-resolved { background: var(--color-success-light); color: var(--color-success); border: 1px solid var(--color-success-light); }
+.sync-badge-bumped { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); }
+.sync-resolved-status { font-size: var(--font-size-sm); }
+
+/* Channel thread row hover */
+.channel-thread-row:hover { background: var(--color-gray-50); }
+
+/* Win accent color */
+.win-accent-border { border-left: 3px solid var(--color-warning); }
+.win-accent-icon { color: var(--color-warning); }
+.win-badge { background: var(--color-warning-light); color: var(--color-warning-dark); }
+
+/* Post hover actions (copy link) */
+.post-actions {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+}
+.card:hover > .post-actions {
+    opacity: 1;
+}
+.post-actions .action-btn {
+    color: var(--color-gray-400, #9ca3af);
+    padding: 2px 6px;
+    font-size: var(--font-size-xs);
+    text-decoration: none;
+}
+.post-actions .action-btn:hover {
+    color: var(--color-gray-700, #374151);
+}
+.post-actions .action-btn-danger:hover {
+    color: var(--color-danger, #dc2626);
+}
+
+/* 10-4 Acknowledgment Grid (shared by chat + posts) */
+.ten4-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+    font-size: var(--font-size-xs);
+}
+
+.ten4-check-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: var(--font-size-2xs);
+    line-height: 1.4;
+}
+
+.ten4-check-item.acked {
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+
+.ten4-check-item.pending {
+    color: var(--color-gray-400);
+    background: var(--color-gray-100);
+}
+
+.ten4-inline-btn {
+    opacity: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border: 1px solid var(--color-gray-300);
+    border-radius: 4px;
+    background: var(--color-white);
+    color: var(--color-gray-600);
+    font-size: var(--font-size-2xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.card:hover .ten4-inline-btn {
+    opacity: 1;
+}
+
+.ten4-inline-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+}
+
+.ten4-inline-btn.done {
+    border-color: var(--color-success);
+    color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+
+/* Settings page icon container */
+.connect-settings-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--color-success-light);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.connect-settings-icon i {
+    color: var(--color-success);
+}
+
+/* ============================================
+   Momentum Report
+   ============================================ */
+
+.pulse-summary {
+    background: var(--color-gray-50);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.625rem;
+    padding: 1rem 1.125rem;
+}
+
+.pulse-summary-totals {
+    display: grid;
+    gap: 0;
+}
+
+.pulse-summary-stat {
+    padding: 0 1rem;
+    border-left: 1px solid var(--color-gray-200);
+}
+.pulse-summary-stat:first-child { border-left: none; padding-left: 0; }
+
+.pulse-summary-stat-label {
+    font-size: var(--font-size-2xs);
+    font-weight: 600;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+}
+
+.pulse-summary-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+    line-height: 1.2;
+}
+
+.pulse-member-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.375rem;
+    border-bottom: 1px solid var(--color-gray-100);
+    text-decoration: none;
+    color: inherit;
+    border-radius: 4px;
+}
+.pulse-member-row:last-child { border-bottom: none; }
+.pulse-member-row:hover {
+    background: var(--color-gray-50);
+    color: inherit;
+}
+
+.pulse-col-header {
+    font-size: var(--font-size-2xs);
+    font-weight: 600;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pulse-history-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-gray-100);
+}
+.pulse-history-row:last-child { border-bottom: none; }
+
+/* Column layout */
+.pulse-col-avatar   { flex-shrink: 0; width: 32px; }
+.pulse-col-name     { flex: 1; min-width: 0; }
+.pulse-col-stat     { width: 175px; flex-shrink: 0; text-align: right; }
+.pulse-col-chevron  { flex-shrink: 0; width: 16px; text-align: center; }
+.pulse-col-date     { width: 100px; flex-shrink: 0; }
+.pulse-col-time     { width: 80px; flex-shrink: 0; }
+.pulse-col-type     { width: 130px; flex-shrink: 0; }
+.pulse-col-result   { width: 100px; flex-shrink: 0; text-align: right; }
+.pulse-header-border { border-bottom: 2px solid var(--color-gray-200); }
+
+/* Text styles */
+.pulse-text-primary   { font-size: 0.8125rem; font-weight: 500; color: var(--color-gray-800); }
+.pulse-text-secondary { font-size: 0.8125rem; color: var(--color-gray-500); }
+.pulse-text-muted     { font-size: var(--font-size-xs); color: var(--color-gray-400); }
+.pulse-stat-fraction  { font-size: var(--font-size-xs); font-weight: 500; color: var(--color-gray-400); margin-left: 0.25rem; }
+
+/* Progress bar */
+.pulse-progress { height: 4px; border-radius: 2px; width: 60px; background: var(--color-gray-200); }
+.pulse-pct      { font-size: var(--font-size-xs); font-weight: 600; min-width: 32px; }
+
+/* Status result badges */
+.pulse-result-completed  { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-success); }
+.pulse-result-missed     { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-danger); }
+.pulse-result-superseded { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-warning); }
+.pulse-result-pending    { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-gray-400); }
+
+/* Type badge */
+.pulse-type-badge { font-size: var(--font-size-2xs); font-weight: 600; padding: 2px 8px; border-radius: 10px; background: var(--color-gray-100); color: var(--color-gray-500); }
+
+/* Summary grid column variants */
+.pulse-grid-1 { grid-template-columns: minmax(0, 1fr); }
+.pulse-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pulse-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pulse-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Progress bar + text color tiers */
+.pulse-bar-success { background: var(--color-success); }
+.pulse-bar-warning { background: var(--color-warning); }
+.pulse-bar-danger  { background: var(--color-danger); }
+.pulse-pct-success { color: var(--color-success); }
+.pulse-pct-warning { color: var(--color-warning); }
+.pulse-pct-danger  { color: var(--color-danger); }
+
+/* Avatar — uses --avatar-bg custom property for per-user color */
+.pulse-avatar      { background: var(--avatar-bg, var(--color-gray-500)); }
+.pulse-avatar-fallback-icon { font-size: var(--font-size-3xs); }
+
+/* Detail view */
+.pulse-back-link     { font-size: 0.8125rem; color: var(--color-gray-500); text-decoration: none; }
+.pulse-detail-avatar { width: 40px; height: 40px; font-size: 0.85rem; }
+.pulse-chevron-icon  { font-size: var(--font-size-icon); color: var(--color-gray-400); }
+.pulse-avatar-sm     { width: 32px; height: 32px; font-size: var(--font-size-2xs); }
+
+/* Empty state */
+.pulse-empty      { color: var(--color-gray-400); }
+.pulse-empty-icon { opacity: 0.5; }
+.pulse-empty-text { font-size: 0.8125rem; }
+
+/* ── Audio recorder (post form) ── */
+.audio-recorder { margin-top: 0.5rem; }
+
+.audio-recorder .btn {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm, 0.25rem);
+}
+
+.audio-recorder .audio-record-btn {
+    background: var(--color-danger, #dc2626);
+    color: #fff;
+    border: none;
+}
+
+.audio-recorder .audio-record-btn:hover { opacity: 0.9; }
+
+.audio-recorder .btn-outline-danger:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    background: var(--color-gray-300, #d1d5db);
+    color: var(--color-gray-500, #6b7280);
+    border-color: var(--color-gray-300, #d1d5db);
+}
+
+.audio-recording-label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-danger, #dc2626);
+}
+
+.audio-duration {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9375rem;
+    color: var(--color-gray-600, #4b5563);
+    min-width: 3rem;
+}
+
+.audio-recording-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-danger, #dc2626);
+    animation: audio-pulse 1s ease-in-out infinite;
+}
+
+@keyframes audio-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.textarea-locked {
+    background: var(--color-gray-50, #f9fafb) !important;
+    cursor: default;
+}
+
+/* ── Audio playback pill (feed) ── */
+.audio-playback-pill {
+    background: var(--color-gray-50, #f9fafb);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: var(--radius-md, 0.375rem);
+    padding: 0.3rem 0.625rem 0.3rem 0.375rem;
+    gap: 0.375rem;
+    position: relative;
+    overflow: hidden;
+    min-width: 140px;
+}
+
+.audio-play-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--color-gray-100, #f3f4f6);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--color-gray-600, #4b5563);
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.audio-play-btn:hover {
+    background: var(--color-gray-200, #e5e7eb);
+}
+
+.audio-progress-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--color-gray-200, #e5e7eb);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+}
+
+.audio-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--color-gray-400, #9ca3af);
+    border-radius: 2px;
+    transition: width 0.15s linear;
+}
+
+.audio-playback-pill .audio-time {
+    font-size: 0.6875rem;
+    color: var(--color-gray-500, #6b7280);
+    font-variant-numeric: tabular-nums;
+    min-width: 2rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.audio-mic-denied {
+    font-size: 0.8125rem;
+    color: var(--color-gray-500, #6b7280);
+    padding: 0.375rem 0;
+}
+
+.audio-mic-denied i { font-size: var(--font-size-xs); color: var(--color-danger, #dc2626); opacity: 0.55; }
+
+.audio-hint-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0.375rem;
+    width: 320px;
+    padding: 0.75rem;
+    background: var(--color-white, #fff);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: var(--radius-md, 0.375rem);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-size: 0.8125rem;
+    color: var(--color-gray-700, #374151);
+    z-index: 20;
+    line-height: 1.45;
+}
+
+
+
+/* ── Extracted inline style utilities ──────────────────── */
+.sync-card           { border: 1px solid var(--color-gray-200); border-radius: 0.625rem; }
+.sync-tracking       { letter-spacing: 0.04em; }
+.sync-pre-wrap       { white-space: pre-wrap; }
+.sync-chip           { background: var(--color-gray-100); color: var(--color-gray-500); }
+.sync-text-subtle    { color: var(--color-gray-400); }

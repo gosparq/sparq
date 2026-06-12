@@ -1,0 +1,230 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}
+{% if viewing_other %}{{ member.user.full_name }} - {% endif %}{{ _("My Timesheets") }} - {{ _("Week") }}
+{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="content-heading">{{ _("Timesheets") }}</h2>
+        {% if current_user.is_admin and members %}
+        {% set selector_action_url = url_for('presence_bp.week_view', date_str=week_start.isoformat()) %}
+        {% set selector_id = "employee_selector_week" %}
+        {% include "presence/desktop/partials/_person_selector.html" with context %}
+        {% endif %}
+    </div>
+
+    <!-- Sub-navigation (admin only) -->
+    {% if current_user.is_admin %}
+    <div class="d-flex gap-1 mb-4 pb-3" style="border-bottom: 1px solid var(--color-gray-200);">
+        <a href="{{ url_for('presence_bp.week_view', date_str=week_start.isoformat(), member_id=selected_member_id) }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="background: var(--color-primary-lightest); color: var(--color-primary-dark);">
+            {{ _("Timesheets") }}
+        </a>
+        <a href="{{ url_for('presence_bp.approve_timesheets') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Approve") }}
+        </a>
+        <a href="{{ url_for('presence_bp.payroll') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Payroll") }}
+        </a>
+    </div>
+    {% endif %}
+
+    {% if viewing_other %}
+    <div class="alert alert-info py-2 mb-3">
+        <i class="fas fa-user-edit me-1"></i>
+        {{ (_("Managing timesheets for %(name)s") % {"name": member_name_html}) | safe }}
+    </div>
+    {% endif %}
+
+    <!-- Date selector -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- View toggle -->
+        <div class="btn-group" role="group">
+            <a href="{{ url_for('presence_bp.day_view', member_id=selected_member_id) }}"
+               class="btn btn-sm btn-outline-primary">
+                {{ _("Day") }}
+            </a>
+
+            <a href="{{ url_for('presence_bp.week_view', date_str=week_start.isoformat(), member_id=selected_member_id) }}"
+               class="btn btn-sm btn-primary active">
+                {{ _("Week") }}
+            </a>
+        </div>
+
+        <!-- Week navigation -->
+        <div class="d-flex align-items-center gap-2">
+            {% set prev_week = (week_start - timedelta(days=7)) %}
+            {% set next_week = (week_start + timedelta(days=7)) %}
+
+            <a href="{{ url_for('presence_bp.week_view', date_str=prev_week.isoformat(), member_id=selected_member_id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+
+            <span class="px-3">
+                {{ week_start.strftime('%b %d') }} - {{ week_end.strftime('%b %d, %Y') }}
+            </span>
+
+            <a href="{{ url_for('presence_bp.week_view', date_str=next_week.isoformat(), member_id=selected_member_id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
+
+        <a href="{{ url_for('presence_bp.day_view', member_id=selected_member_id) }}" class="btn btn-sm btn-primary">
+            {{ _("Today") }}
+        </a>
+    </div>
+
+    <!-- Week grid -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                {% if viewing_other %}
+                    {{ _("Hours for") }} {{ member.user.first_name }} - {{ _("this week") }}
+                {% else %}
+                    {{ _("My hours for this week") }}
+                {% endif %}
+            </h5>
+            <button class="btn btn-sm btn-outline-success"
+                    hx-get="{{ url_for('presence_bp.add_time_modal', week_start_str=week_start.isoformat(), member_id=selected_member_id) }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML">
+                <i class="fas fa-plus"></i> {{ _("Add Time") }}
+            </button>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 200px;"></th>
+                            {% for i in range(7) %}
+                                {% set day = week_start + timedelta(days=i) %}
+                                <th class="text-center{{ ' is-today' if day == today else '' }}">
+                                    <div>{{ day.strftime('%a') }}</div>
+                                    <div class="small text-muted">{{ day.strftime('%b %d') }}</div>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job_key, job_data in entries_by_job.items() %}
+                        <tr>
+                            <td>
+                                <strong>{{ job_data.label }}</strong>
+                                {% if job_data.total %}
+                                <div class="small text-muted">{{ "%.2f"|format(job_data.total) }} {{ _("hrs") }}</div>
+                                {% endif %}
+                            </td>
+                            {% for i in range(7) %}
+                                {% set day = week_start + timedelta(days=i) %}
+                                {% set date_key = day.isoformat() %}
+                                {% set day_entries = job_data.entries.get(date_key, []) %}
+                                <td class="text-center{{ ' is-today' if day == today else '' }}">
+                                    {% if day_entries %}
+                                        {% set day_hours = day_entries|sum(attribute='hours')|float %}
+                                        {% if day_hours > 0 %}
+                                        {# Sum hours per status #}
+                                        {% set ns = namespace(approved=0, submitted=0, rejected=0) %}
+                                        {% for e in day_entries %}
+                                            {% if e.status.name == 'APPROVED' %}{% set ns.approved = ns.approved + e.hours|float %}
+                                            {% elif e.status.name == 'SUBMITTED' %}{% set ns.submitted = ns.submitted + e.hours|float %}
+                                            {% elif e.status.name == 'REJECTED' %}{% set ns.rejected = ns.rejected + e.hours|float %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {# Dominant status for number color #}
+                                        {% if ns.rejected %}{% set dominant = 'status-rejected' %}
+                                        {% elif ns.submitted %}{% set dominant = 'status-submitted' %}
+                                        {% else %}{% set dominant = 'status-approved' %}
+                                        {% endif %}
+                                        <a href="{{ url_for('presence_bp.day_view', date_str=day.isoformat(), member_id=selected_member_id) }}" class="week-day-link">
+                                            <div class="week-grid-hours {{ dominant }}">{{ "%.2f"|format(day_hours) }}</div>
+                                            <div>
+                                                {% if ns.approved %}<small class="text-success">&#9679;</small>{% endif %}
+                                                {% if ns.submitted %}<small class="text-warning">&#9679;</small>{% endif %}
+                                                {% if ns.rejected %}<small class="text-danger">&#9679;</small>{% endif %}
+                                            </div>
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+
+                        {% if not entries_by_job %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="fas fa-calendar-times fa-3x mb-3 opacity-25"></i>
+                                <p>{{ _("No time entries for this week") }}</p>
+                                <button class="btn btn-sm btn-primary"
+                                        hx-get="{{ url_for('presence_bp.add_time_modal', week_start_str=week_start.isoformat(), member_id=selected_member_id) }}"
+                                        hx-target="#modals"
+                                        hx-swap="innerHTML">
+                                    {{ _("Add Time") }}
+                                </button>
+                            </td>
+                        </tr>
+                        {% endif %}
+
+                        <!-- Daily totals row -->
+                        {% if entries_by_job %}
+                        <tr class="table-light">
+                            <td><strong>{{ _("Total Hours:") }}</strong></td>
+                            {% for i in range(7) %}
+                                {% set day = week_start + timedelta(days=i) %}
+                                {% set date_key = day.isoformat() %}
+                                <td class="text-center{{ ' is-today' if day == today else '' }}">
+                                    <strong class="text-primary">{{ "%.2f"|format(daily_totals.get(date_key, 0)) }}</strong>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if entries_by_job %}
+        {# Compute hours totals per status across all entries #}
+        {% set ns = namespace(approved=0, submitted=0, rejected=0) %}
+        {% for job_data in entries_by_job.values() %}
+            {% for day_entries in job_data.entries.values() %}
+                {% for e in day_entries %}
+                    {% if e.status.name == 'APPROVED' %}{% set ns.approved = ns.approved + e.hours|float %}
+                    {% elif e.status.name == 'SUBMITTED' %}{% set ns.submitted = ns.submitted + e.hours|float %}
+                    {% elif e.status.name == 'REJECTED' %}{% set ns.rejected = ns.rejected + e.hours|float %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        {% endfor %}
+        <div class="card-footer bg-light">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <small class="text-muted">
+                        <strong class="text-success">{{ "%.2f"|format(ns.approved) }}</strong> <span class="text-success">&#9679;</span> {{ _("Approved") }}
+                        <strong class="text-warning ms-3">{{ "%.2f"|format(ns.submitted) }}</strong> <span class="text-warning">&#9679;</span> {{ _("Pending") }}
+                        <strong class="text-danger ms-3">{{ "%.2f"|format(ns.rejected) }}</strong> <span class="text-danger">&#9679;</span> {{ _("Rejected") }}
+                    </small>
+                </div>
+                <div class="col-md-6 text-end">
+                    <strong>{{ _("Week Total:") }}</strong>
+                    <span class="h4 mb-0 text-primary ms-2">{{ "%.2f"|format(week_total) }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal container for HTMX -->
+<div id="modals"></div>
+{% endblock %}

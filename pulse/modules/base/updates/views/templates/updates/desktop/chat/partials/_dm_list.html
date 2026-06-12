@@ -1,0 +1,60 @@
+{# DM member list for sidebar - shows all members with unread badges #}
+{# sparQy AI bot — always first #}
+<div class="dm-item"
+     hx-get="{{ url_for('sync_bp.get_sparqy_dm') }}"
+     hx-target="#chat-messages"
+     hx-swap="innerHTML"
+     data-action="select-sparqy">
+    <div class="user-avatar" style="background-color: var(--color-ai);">
+        <i class="fas fa-robot"></i>
+    </div>
+    <span class="dm-name">sparQy</span>
+</div>
+{% for member in members %}
+{% set thread_info = thread_map.get(member.id) %}
+{% set thread = thread_info[0] if thread_info else None %}
+{% set unread = thread_info[1] if thread_info else 0 %}
+<div class="dm-item {% if unread > 0 %}has-unread{% endif %}"
+     {% if thread %}id="dm-thread-{{ thread.id }}" data-thread-id="{{ thread.id }}"{% endif %}
+     hx-get="{{ url_for('sync_bp.get_or_create_dm', target_member_id=member.id) }}"
+     hx-target="#chat-messages"
+     hx-swap="innerHTML"
+     hx-on::after-request="htmx.ajax('GET', '{{ url_for('sync_bp.get_dm_threads') }}', '#dm-list')"
+     data-action="select-dm-thread" data-member-id="{{ member.id }}" data-thread-id="{{ thread.id if thread else 0 }}" data-unread="{{ unread }}">
+    <div class="user-avatar" data-bg="{{ member.user.avatar_color if member.user else '#6b7280' }}">
+        <i class="fas fa-user"></i>
+    </div>
+    <script nonce="{{ csp_nonce }}">document.currentScript.previousElementSibling.style.backgroundColor = document.currentScript.previousElementSibling.dataset.bg;</script>
+    <span class="dm-name">{{ member.user.full_name if member.user else _('Unknown') }}</span>
+    {% if unread > 0 %}
+    <span class="unread-badge" id="dm-unread-{{ thread.id }}">{{ unread }}</span>
+    {% endif %}
+</div>
+{% else %}
+<div class="text-center text-muted py-3 small">
+    {{ _('No other members yet') }}
+</div>
+{% endfor %}
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    var s = e.target.closest('[data-action="select-sparqy"]');
+    if (s) {
+        if (window.clearTypingIndicator) window.clearTypingIndicator();
+        var c = document.querySelector('.chat-container') || document.querySelector('.mobile-chat-container');
+        if (c && c._x_dataStack) {
+            var d = c._x_dataStack[0];
+            d.activeView = 'dm';
+            d.activeChannel = null;
+            d.activeDmUser = 'sparqy';
+            d.activeDmThread = null;
+            if (window.emitViewing) window.emitViewing('dm', 'sparqy');
+        }
+        document.querySelectorAll('.dm-item').forEach(function(el) { el.classList.remove('active'); });
+        s.classList.add('active');
+        return;
+    }
+    var t = e.target.closest('[data-action="select-dm-thread"]');
+    if (t) selectDmThread(t, parseInt(t.dataset.memberId), parseInt(t.dataset.threadId), parseInt(t.dataset.unread));
+});
+</script>

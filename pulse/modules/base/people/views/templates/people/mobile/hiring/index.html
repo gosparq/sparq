@@ -1,0 +1,95 @@
+{% extends "people/mobile/hiring/layout.html" %}
+
+{% block title %}{{ _("Hiring") }}{% endblock %}
+
+{% block hiring_content %}
+<!-- Header -->
+<div class="hiring-header">
+    <h1>{{ _("Hiring") }}</h1>
+    <p>{{ _("Manage jobs and applications") }}</p>
+</div>
+
+<!-- Tabs -->
+<div class="hiring-tabs">
+    <a href="{{ url_for('people_bp.hiring_index') }}" class="hiring-tab active">
+        <i class="fas fa-briefcase"></i>{{ _("Jobs") }}
+    </a>
+    <a href="{{ url_for('people_bp.hiring_candidates') }}" class="hiring-tab">
+        <i class="fas fa-users"></i>{{ _("Candidates") }}
+    </a>
+    <a href="{{ url_for('people_bp.hiring_interviews') }}" class="hiring-tab">
+        <i class="fas fa-calendar"></i>{{ _("Interviews") }}
+    </a>
+</div>
+
+<!-- Open Jobs -->
+<div class="section-title">{{ _("Open Jobs") }}</div>
+
+{% set open_jobs = jobs|selectattr('status.name', 'equalto', 'OPEN')|list if jobs else [] %}
+{% if open_jobs %}
+    {% for job in open_jobs %}
+    <a href="{{ url_for('people_bp.hiring_job_detail', job_id=job.id) }}" class="job-card-mobile">
+        <div class="job-card-title">{{ job.title }}</div>
+        <div class="job-card-meta">
+            {% if job.department %}
+            <span><i class="fas fa-building"></i> {{ job.department }}</span>
+            {% endif %}
+            {% if job.location %}
+            <span><i class="fas fa-map-marker-alt"></i> {{ job.location }}</span>
+            {% endif %}
+            <span class="status-pill open">{{ _("Open") }}</span>
+        </div>
+        <div class="job-card-stats">
+            <div class="job-stat">
+                <strong>{{ job.applications|length }}</strong> {{ _("applicants") }}
+            </div>
+            {% set active_apps = job.applications|selectattr('status.name', 'in', ['NEW', 'REVIEWING', 'INTERVIEWING'])|list %}
+            {% if active_apps %}
+            <div class="job-stat">
+                <strong>{{ active_apps|length }}</strong> {{ _("in pipeline") }}
+            </div>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+{% else %}
+<div class="empty-state-mini">
+    <i class="fas fa-briefcase"></i>
+    <p>{{ _("No open jobs") }}</p>
+</div>
+{% endif %}
+
+<!-- Recent Applications -->
+{% if recent_applications %}
+<div class="section-title">{{ _("Recent Applications") }}</div>
+{% for app in recent_applications[:5] %}
+<a href="{{ url_for('people_bp.hiring_application_detail', application_id=app.id) }}" class="application-card-mobile">
+    <div class="application-avatar">
+        {{ app.candidate.first_name[0]|upper }}{{ app.candidate.last_name[0]|upper if app.candidate.last_name else '' }}
+    </div>
+    <div class="application-info">
+        <div class="application-name">{{ app.candidate.first_name }} {{ app.candidate.last_name }}</div>
+        <div class="application-job">{{ app.job.title }} &middot; {{ app.status.value }}</div>
+    </div>
+    <i class="fas fa-chevron-right application-chevron"></i>
+</a>
+{% endfor %}
+{% endif %}
+
+<!-- Draft Jobs (collapsed) -->
+{% set draft_jobs = jobs|selectattr('status.name', 'equalto', 'DRAFT')|list if jobs else [] %}
+{% if draft_jobs %}
+<div class="section-title">{{ _("Drafts") }}</div>
+{% for job in draft_jobs %}
+<a href="{{ url_for('people_bp.hiring_job_detail', job_id=job.id) }}" class="job-card-mobile">
+    <div class="job-card-title">{{ job.title }}</div>
+    <div class="job-card-meta">
+        <span class="status-pill draft">{{ _("Draft") }}</span>
+        {% if job.department %}
+        <span><i class="fas fa-building"></i> {{ job.department }}</span>
+        {% endif %}
+    </div>
+</a>
+{% endfor %}
+{% endif %}
+{% endblock %}

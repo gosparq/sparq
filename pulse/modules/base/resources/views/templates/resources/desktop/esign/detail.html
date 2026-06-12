@@ -1,0 +1,258 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ sig_request.title }} - {{ _("E-Sign") }}{% endblock %}
+
+{% block module_content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('resources_esign_bp.index') }}">{{ _("E-Sign") }}</a></li>
+            <li class="breadcrumb-item active">{{ sig_request.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Document Info -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-signature text-primary me-2"></i>
+                        {{ sig_request.title }}
+                    </h5>
+                    {% if sig_request.status == 'pending' %}
+                    <span class="badge bg-warning text-dark">{{ _("Pending") }}</span>
+                    {% elif sig_request.status == 'completed' %}
+                    <span class="badge bg-success">{{ _("Completed") }}</span>
+                    {% elif sig_request.status == 'cancelled' %}
+                    <span class="badge bg-secondary">{{ _("Cancelled") }}</span>
+                    {% elif sig_request.status == 'expired' %}
+                    <span class="badge bg-danger">{{ _("Expired") }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>{{ _("Document ID:") }}</strong></p>
+                            <p class="text-muted small">{{ sig_request.uuid }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>{{ _("Document Hash:") }}</strong></p>
+                            <p class="text-muted small font-monospace">{{ sig_request.original_document_hash[:24] }}...</p>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>{{ _("Created:") }}</strong></p>
+                            <p class="text-muted">{{ sig_request.created_at|format_datetime }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>{{ _("Expires:") }}</strong></p>
+                            <p class="text-muted">{{ sig_request.expires_at|format_datetime(show_date_only=True) }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>{{ _("Completed:") }}</strong></p>
+                            <p class="text-muted">{{ sig_request.completed_at|format_datetime }}</p>
+                        </div>
+                    </div>
+                    {% if sig_request.message %}
+                    <div class="mt-3">
+                        <p class="mb-1"><strong>{{ _("Message to signers:") }}</strong></p>
+                        <p class="text-muted">{{ sig_request.message }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('resources_esign_bp.download_original', uuid=sig_request.uuid) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-file-pdf me-1"></i>{{ _("Download Original") }}
+                    </a>
+                    {% if sig_request.status == 'completed' %}
+                    <a href="{{ url_for('resources_esign_bp.download_signed', uuid=sig_request.uuid) }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-download me-1"></i>{{ _("Download Signed") }}
+                    </a>
+                    {% endif %}
+                    {% if sig_request.status == 'pending' %}
+                    <form action="{{ url_for('resources_esign_bp.cancel', uuid=sig_request.uuid) }}" method="POST" class="d-inline"
+                          data-confirm="{{ _('Are you sure you want to cancel this request?') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-times me-1"></i>{{ _("Cancel Request") }}
+                        </button>
+                    </form>
+                    {% if sig_request.all_signed %}
+                    <form action="{{ url_for('resources_esign_bp.retry_complete', uuid=sig_request.uuid) }}" method="POST" class="d-inline ms-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            <i class="fas fa-redo me-1"></i>{{ _("Retry Completion") }}
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recipients -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Recipients") }}</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{{ _("Name") }}</th>
+                                <th>{{ _("Email") }}</th>
+                                <th>{{ _("Status") }}</th>
+                                <th>{{ _("Signed") }}</th>
+                                <th class="text-end">{{ _("Actions") }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for recipient in sig_request.recipients %}
+                            <tr>
+                                <td>{{ recipient.name }}</td>
+                                <td>{{ recipient.email }}</td>
+                                <td>
+                                    {% if recipient.status == 'signed' %}
+                                    <span class="badge bg-success">{{ _("Signed") }}</span>
+                                    {% elif recipient.status == 'declined' %}
+                                    <span class="badge bg-danger">{{ _("Declined") }}</span>
+                                    {% elif recipient.status == 'viewed' %}
+                                    <span class="badge bg-info">{{ _("Viewed") }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ _("Pending") }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if recipient.signed_at %}
+                                    <small>{{ recipient.signed_at|format_datetime }}</small>
+                                    <br>
+                                    <small class="text-muted">as "{{ recipient.signed_name }}"</small>
+                                    {% if recipient.ip_address %}
+                                    <br>
+                                    <small class="text-muted font-monospace">IP: {{ recipient.ip_address }}</small>
+                                    {% endif %}
+                                    {% if recipient.has_geolocation %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                        {% if recipient.geo_location_name %}
+                                        <a href="https://www.google.com/maps?q={{ recipient.geo_latitude }},{{ recipient.geo_longitude }}" target="_blank" class="text-decoration-none" title="{{ "%.4f"|format(recipient.geo_latitude) }}, {{ "%.4f"|format(recipient.geo_longitude) }}">
+                                            {{ recipient.geo_location_name }}
+                                        </a>
+                                        {% else %}
+                                        <a href="https://www.google.com/maps?q={{ recipient.geo_latitude }},{{ recipient.geo_longitude }}" target="_blank" class="text-decoration-none">
+                                            {{ "%.4f"|format(recipient.geo_latitude) }}, {{ "%.4f"|format(recipient.geo_longitude) }}
+                                        </a>
+                                        {% endif %}
+                                        {% if recipient.geo_accuracy %}
+                                        <span class="text-muted">(±{{ recipient.geo_accuracy|int }}m)</span>
+                                        {% endif %}
+                                    </small>
+                                    {% endif %}
+                                    {% set device = recipient.device_info_dict %}
+                                    {% if device %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-desktop me-1"></i>{{ device.get('browser', 'Unknown') }} / {{ device.get('os', 'Unknown') }}
+                                    </small>
+                                    {% if device.get('timezone') %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ device.timezone }}
+                                    </small>
+                                    {% endif %}
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if recipient.status in ['pending', 'viewed'] and sig_request.status == 'pending' %}
+                                    <form action="{{ url_for('resources_esign_bp.resend', uuid=sig_request.uuid, recipient_id=recipient.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <button type="submit" class="btn btn-sm btn-primary" title="{{ _('Send Reminder') }}">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar - Audit Log -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Audit Log") }}</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                        {% for log in audit_logs|reverse %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="mb-1">
+                                        {% if log.event_type == 'created' %}
+                                        <i class="fas fa-plus-circle text-primary me-1"></i>
+                                        {% elif log.event_type == 'sent' %}
+                                        <i class="fas fa-paper-plane text-info me-1"></i>
+                                        {% elif log.event_type == 'viewed' %}
+                                        <i class="fas fa-eye text-secondary me-1"></i>
+                                        {% elif log.event_type == 'signed' %}
+                                        <i class="fas fa-check-circle text-success me-1"></i>
+                                        {% elif log.event_type == 'declined' %}
+                                        <i class="fas fa-times-circle text-danger me-1"></i>
+                                        {% elif log.event_type == 'completed' %}
+                                        <i class="fas fa-flag-checkered text-success me-1"></i>
+                                        {% elif log.event_type == 'cancelled' %}
+                                        <i class="fas fa-ban text-secondary me-1"></i>
+                                        {% elif log.event_type == 'downloaded' %}
+                                        <i class="fas fa-download text-primary me-1"></i>
+                                        {% elif log.event_type == 'reminder_sent' %}
+                                        <i class="fas fa-bell text-warning me-1"></i>
+                                        {% else %}
+                                        <i class="fas fa-circle text-muted me-1"></i>
+                                        {% endif %}
+                                        {{ log.event_description }}
+                                    </p>
+                                    {% if log.actor_email %}
+                                    <small class="text-muted">{{ log.actor_email }}</small>
+                                    {% endif %}
+                                    {% if log.ip_address %}
+                                    <br><small class="text-muted font-monospace">{{ log.ip_address }}</small>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ log.timestamp|format_datetime('%b %d %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center text-muted py-4">
+                            {{ _("No audit events yet") }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+        });
+    });
+});
+</script>
+{% endblock %}

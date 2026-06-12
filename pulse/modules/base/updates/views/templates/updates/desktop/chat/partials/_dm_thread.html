@@ -1,0 +1,140 @@
+{# DM thread view with messages #}
+<div class="dm-view" x-data="dmThreadApp()" x-init="init()">
+    <div class="dm-header">
+        <div class="dm-user-info">
+            <div class="user-avatar" style="background-color: {{ other_user.avatar_color }}">
+                <i class="fas fa-user"></i>
+            </div>
+            <h3>{{ other_user.full_name }}</h3>
+            <span class="presence-indicator {{ other_user.presence_status }}" title="{{ other_user.presence_status|capitalize }}"></span>
+        </div>
+    </div>
+
+    <div class="dm-messages" id="dm-messages-{{ thread.id }}">
+        {% set ns = namespace(last_author=none) %}
+        {% for message in messages %}
+        {% set is_continuation = (ns.last_author is not none and ns.last_author == message.author_id) %}
+        {% include "updates/desktop/chat/partials/_dm_message.html" %}
+        {% set ns.last_author = message.author_id %}
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <p>{{ _('No messages yet. Start the conversation!') }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="dm-typing-indicator" class="typing-indicator" style="display: none;"></div>
+
+    <div class="dm-input-area">
+        <form id="dm-form-{{ thread.id }}"
+              hx-post="{{ url_for('sync_bp.send_dm', thread_id=thread.id) }}"
+              hx-trigger="submit"
+              hx-swap="none"
+              @htmx:after-request="clearDmAfterSend();">
+            <div class="input-group">
+                <input type="hidden" name="attachment_ids" :value="getDmAttachmentIds()">
+                <input type="hidden" name="content" :value="convertDmMentionsForSend(dmContent)">
+                <div class="input-wrapper">
+                    <textarea x-show="!dmPreviewMode"
+                              x-ref="dmInput"
+                              class="form-control"
+                              x-model="dmContent"
+                              placeholder="{{ _('Message') }} {{ other_user.full_name }}..."
+                              rows="2"
+                              @input="handleDmMentionInput($event); if (window.emitTyping) window.emitTyping('dm', {{ thread.id }})"
+                              @keydown.enter="if (!$event.shiftKey && dmContent.trim()) { $event.preventDefault(); if (window.emitStopTyping) window.emitStopTyping('dm', {{ thread.id }}); $el.closest('form').requestSubmit(); }"
+                              @keydown.escape="showDmMentionDropdown = false"></textarea>
+                    <div x-show="dmPreviewMode" x-cloak class="preview-pane form-control" x-html="dmPreviewContent || '<em class=\'text-muted\'>{{ _('Nothing to preview') }}</em>'"></div>
+
+                    <!-- Mention Autocomplete Dropdown -->
+                    <div class="mention-dropdown" x-show="showDmMentionDropdown" x-cloak @click.outside="showDmMentionDropdown = false">
+                        <template x-for="user in dmMentionResults" :key="user.id">
+                            <div class="mention-item" @click="insertDmMention(user)">
+                                <div class="user-avatar-sm" :style="'background-color: ' + user.avatar_color">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span class="mention-name" x-text="user.full_name"></span>
+                            </div>
+                        </template>
+                        <div class="mention-empty" x-show="dmMentionResults.length === 0">
+                            {{ _('No users found') }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attachment Preview -->
+                <div class="attachment-preview" x-show="dmPendingAttachments.length > 0" x-cloak>
+                    <template x-for="(att, index) in dmPendingAttachments" :key="att.id">
+                        <div class="attachment-item">
+                            <template x-if="att.is_image">
+                                <img :src="'/sync/chat/attachments/' + att.uuid" :alt="att.filename" class="attachment-thumb">
+                            </template>
+                            <template x-if="!att.is_image">
+                                <div class="attachment-file">
+                                    <i class="fas fa-file"></i>
+                                </div>
+                            </template>
+                            <span class="attachment-name" x-text="att.filename"></span>
+                            <span class="attachment-size" x-text="att.size_display"></span>
+                            <button type="button" class="btn btn-link btn-sm attachment-remove" @click="removeDmAttachment(index)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="message-footer">
+                <div class="message-actions">
+                    <!-- Hidden file input -->
+                    <input type="file" x-ref="dmFileInput" @change="handleDmFileSelect($event)" class="d-none"
+                           accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.rtf,.json,.xml,.html,.css,.js,.py,.yaml,.yml,.md,.log,.sql,.sh,.ini,.toml,.cfg,.env" multiple>
+                    <button type="button" class="btn btn-link" :class="{ 'uploading': dmIsUploading }" @click="triggerDmFileInput()" title="{{ _('Add attachment') }}">
+                        <i class="fas" :class="dmIsUploading ? 'fa-spinner fa-spin' : 'fa-plus-circle'"></i>
+                    </button>
+                    <div class="emoji-picker-container">
+                        <button type="button" class="btn btn-link" @click="showDmEmojiPicker = !showDmEmojiPicker" title="{{ _('Add emoji') }}">
+                            <i class="far fa-smile"></i>
+                        </button>
+                        <div class="emoji-picker" x-show="showDmEmojiPicker" x-cloak @click.outside="showDmEmojiPicker = false">
+                            <div class="emoji-grid">
+                                <template x-for="item in (typeof emojiList !== 'undefined' ? emojiList : [])" :key="item.shortcode">
+                                    <button type="button" class="emoji-btn" @click="insertDmEmoji(item.emoji)" :title="item.shortcode" x-text="item.emoji"></button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-link" @click="$refs.dmInput.focus(); dmContent += '@'; handleDmMentionInput({target: $refs.dmInput})" title="{{ _('Mention someone') }}">
+                        <i class="fas fa-at"></i>
+                    </button>
+                    <div class="toolbar-divider"></div>
+                    <button type="button" class="btn btn-sm btn-link" @click="formatDmBold()" title="{{ _('Bold') }}">
+                        <i class="fas fa-bold"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link" @click="formatDmItalic()" title="{{ _('Italic') }}">
+                        <i class="fas fa-italic"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link" @click="formatDmStrike()" title="{{ _('Strikethrough') }}">
+                        <i class="fas fa-strikethrough"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link" @click="formatDmCodeBlock()" title="{{ _('Code Block') }}">
+                        <i class="fas fa-code"></i>
+                    </button>
+                </div>
+                <button type="submit" class="btn btn-send" :disabled="!dmContent.trim() && dmPendingAttachments.length === 0" title="{{ _('Send message') }}">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+// Sync activeDmThread with the actual thread ID after HTMX load
+(function() {
+    var c = document.querySelector('.chat-container');
+    if (c && c._x_dataStack && c._x_dataStack[0]) {
+        c._x_dataStack[0].activeDmThread = {{ thread.id }};
+    }
+})();
+</script>

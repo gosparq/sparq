@@ -1,0 +1,65 @@
+{
+    "_comment": "English strings pass through unchanged - this file documents available keys",
+
+    "Dashboard": "Dashboard",
+    "My Dashboard": "My Dashboard",
+    "This Month": "This Month",
+    "This Quarter": "This Quarter",
+    "Year to Date": "Year to Date",
+
+    "Business Pipeline": "Business Pipeline",
+    "Requests": "Requests",
+    "Quotes": "Quotes",
+    "Jobs": "Jobs",
+    "Invoices": "Invoices",
+    "Payments": "Payments",
+
+    "Time Clock": "Time Clock",
+    "Clocked In": "Clocked In",
+    "Clocked Out": "Clocked Out",
+    "Clock In": "Clock In",
+    "Clock Out": "Clock Out",
+    "Hours This Week": "Hours This Week",
+    "hours worked": "hours worked",
+    "PTO Balance": "PTO Balance",
+    "days available": "days available",
+    "Request": "Request",
+
+    "This Week": "This Week",
+    "Schedule": "Schedule",
+    "Calendar": "Calendar",
+    "View All": "View All",
+    "No visits scheduled": "No visits scheduled",
+    "No upcoming events": "No upcoming events",
+
+    "Conversion Funnel": "Conversion Funnel",
+    "30 Days": "30 Days",
+    "Accepted": "Accepted",
+
+    "My Jobs": "My Jobs",
+    "No jobs assigned": "No jobs assigned",
+
+    "Outstanding Invoices": "Outstanding Invoices",
+    "Total Outstanding": "Total Outstanding",
+    "Current": "Current",
+    "1-30": "1-30",
+    "31-60": "31-60",
+    "90+": "90+",
+
+    "Who's In": "Who's In",
+    "In": "In",
+    "Out": "Out",
+    "View board": "View board",
+
+    "Business Expenses": "Business Expenses",
+    "YTD": "YTD",
+    "Reimbursements": "Reimbursements",
+    "pending": "pending",
+    "All caught up": "All caught up",
+
+    "Recent Activity": "Recent Activity",
+    "No recent activity": "No recent activity",
+
+    "Connect": "Connect",
+    "Reset to defaults": "Reset to defaults"
+}

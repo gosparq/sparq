@@ -1,0 +1,55 @@
+<!-- Partial template for group modal -->
+<div class="modal-overlay" tabindex="-1"></div>
+<div class="modal-form">
+    <form hx-post="{{ url }}"
+          hx-target="body"
+          hx-swap="none">
+        <div class="modal-header">
+            <h5>{{ _(title) }}</h5>
+            <button type="button" 
+                    hx-get="{{ url_for('core_bp.clear_modal') }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML"
+                    tabindex="0"
+                    class="close-btn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="mb-3">
+                <label for="name">{{ _("Name") }} *</label>
+                <input type="text" 
+                       name="name" 
+                       id="name"
+                       value="{{ group.name if group else '' }}"
+                       required
+                       pattern="[\w\-]+"
+                       tabindex="0"
+                       class="form-control">
+                <div class="form-text">{{ _("Group name must be unique") }}</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="description">{{ _("Description") }}</label>
+                <textarea name="description" 
+                          id="description"
+                          tabindex="0"
+                          class="form-control" 
+                          rows="3">{{ group.description if group else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button"
+                    hx-get="{{ url_for('core_bp.clear_modal') }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML"
+                    tabindex="0"
+                    class="btn btn-sm btn-outline-secondary">{{ _("Cancel") }}</button>
+            <button type="submit"
+                    tabindex="0"
+                    class="btn btn-sm btn-primary">{{ _("Save") }}</button>
+        </div>
+    </form>
+</div> 

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %} - sparQ</title>
+    <link rel="icon" type="image/png" href="{{ url_for('core_bp.static', filename='images/favicon-96x96.png') }}" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('core_bp.static', filename='images/favicon.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('core_bp.static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('core_bp.static', filename='images/apple-touch-icon.png') }}">
+    <meta name="theme-color" content="#E8431A">
+    <link rel="manifest" href="{{ url_for('core_bp.manifest') }}">
+    <script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script nonce="{{ csp_nonce }}">htmx.config.inlineScriptNonce = "{{ csp_nonce }}";</script>
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script nonce="{{ csp_nonce }}">
+    // Apply dark mode before CSS loads to prevent flash
+    if (localStorage.getItem('sparq-dark-mode') === 'true') {
+        document.documentElement.style.colorScheme = 'dark';
+    }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/desktop.css') }}">
+    <link rel="stylesheet" href="{{ url_for('integrations_bp.static', filename='css/integrations.css') }}">
+    <link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/tasks.css') }}">
+    {% block additional_styles %}{% endblock %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script nonce="{{ csp_nonce }}">window.SPARQ_DEBUG = {{ 'true' if config.DEBUG else 'false' }};window.SPARQ_TIMEZONE = '{{ company_timezone }}';</script>
+    <script nonce="{{ csp_nonce }}">
+    (function(){
+        var _fetch = window.fetch;
+        window.fetch = function(url, opts) {
+            opts = opts || {};
+            var method = (opts.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                var token = document.querySelector('meta[name="csrf-token"]');
+                if (token) {
+                    opts.headers = opts.headers || {};
+                    if (opts.headers instanceof Headers) {
+                        if (!opts.headers.has('X-CSRF-Token')) opts.headers.set('X-CSRF-Token', token.content);
+                    } else {
+                        if (!opts.headers['X-CSRF-Token']) opts.headers['X-CSRF-Token'] = token.content;
+                    }
+                }
+            }
+            return _fetch.call(this, url, opts);
+        };
+    })();
+    </script>
+</head>
+<body class="{% block app_class %}{% endblock %}" style="--workspace-color: {{ g.workspace_color|default('#E8431A') }}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+    <script nonce="{{ csp_nonce }}">if(localStorage.getItem('sparq-dark-mode')==='true')document.body.classList.add('dark');</script>
+
+    {% set use_shell = (request.endpoint != 'core_bp.login' and current_user.is_authenticated) %}
+
+    {# ── SHELL CHROME (primary + secondary nav) ── #}
+    {% if use_shell %}
+    <div class="shell">
+
+        {# Banners: MSA transparent mode #}
+        {% if session.get("msa_transparent_mode") %}
+        <div class="shell-banners">
+            {% if session.get("msa_transparent_mode") %}
+            <div class="msa-transparent-banner">
+                <i class="fas fa-eye me-1"></i>{{ _("You are logged in as an MSA in transparent mode.") }}
+                <form method="POST" action="{{ url_for('msa_bp.transparent_exit') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-light ms-3">
+                        <i class="fas fa-sign-out-alt me-1"></i>{{ _("Exit") }}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# Shell body: sidebar (full-height) + right column (header + content) #}
+        <div class="shell-body">
+            {# Unified sidebar — full height, layered beside the header #}
+            {% include "core/desktop/nav_secondary.html" with context %}
+
+            {# Right column: header bar + content pane #}
+            <div class="shell-right">
+                {# Header bar — sits above content, to the right of the sidebar #}
+                {% include "core/desktop/content_header.html" with context %}
+
+                {# Workspace color bar — bottom edge of the header #}
+                <div class="workspace-top-bar"></div>
+
+                {# Audit-access banner (Phase 6 §12.2) #}
+                {% include "core/desktop/partials/audit_access_banner.html" with context %}
+
+                {# Content pane #}
+                <main class="content-pane" id="main-content">
+    {% else %}
+    {# Non-shell pages: login, unauthenticated, etc. #}
+    <!-- Sidebar Overlay (for mobile) -->
+    <div class="sidebar-overlay"></div>
+    {% endif %}
+
+    {# ── FLASH MESSAGES (always shown) ── #}
+    <div class="flash-messages-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    {# ── PAGE CONTENT ── #}
+    {% block content %}{% endblock %}
+
+    {# ── CLOSE SHELL CHROME ── #}
+    {% if use_shell %}
+                </main>
+            </div>{# /.shell-right #}
+        </div>{# /.shell-body #}
+    </div>{# /.shell #}
+    {% endif %}
+
+    {# ── SAMPLE DATA MODAL (one-time, first login after Rule 2 signup) ── #}
+    {% if show_sample_data_modal %}
+    <div class="modal fade" id="sampleDataModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:360px;">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="text-center px-4 pt-4 pb-2">
+                    <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" style="height:40px;" class="mb-3">
+                    <h5 class="fw-semibold mb-1">{{ _("Welcome to your workspace") }}</h5>
+                    <p class="text-muted mb-0" style="font-size:.85rem;">{{ _("We've added sample data so you can explore how everything works before inviting your team.") }}</p>
+                </div>
+                <div class="px-4 pt-3 pb-2">
+                    <div class="d-flex align-items-start gap-2 rounded-3 px-3 py-2" style="background:var(--bg-secondary);font-size:.8rem;color:var(--text-muted);">
+                        <i class="fas fa-circle-info mt-1" style="font-size:.7rem;opacity:.6;"></i>
+                        <span>{{ _("Remove Sam Sparq from the Directory to clear all sample data.") }}</span>
+                    </div>
+                </div>
+                <div class="px-4 pt-3 pb-4">
+                    <button type="button" class="btn w-100 fw-medium" style="background:var(--workspace-color);color:#fff;border:none;"
+                        data-bs-dismiss="modal"
+                        hx-post="{{ url_for('core_bp.dismiss_sample_modal') }}"
+                        hx-swap="none">{{ _("Start exploring") }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script nonce="{{ csp_nonce }}" defer src="{{ url_for('integrations_bp.static', filename='js/integrations.js') }}"></script>
+    {% block scripts %}{% endblock %}
+    <script nonce="{{ csp_nonce }}">
+
+    // Auto-dismiss flash messages after 2 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.flash-messages-container .alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 2000);
+        });
+
+        // Auto-show sample data modal on first login
+        var sampleModal = document.getElementById('sampleDataModal');
+        if (sampleModal) {
+            new bootstrap.Modal(sampleModal).show();
+        }
+    });
+
+    // Preserve scroll position when loading older chat messages
+    document.body.addEventListener('htmx:beforeRequest', function(event) {
+        if (event.detail.target && event.detail.target.id === 'load-more-sentinel') {
+            var c = document.querySelector('.chat-messages-container');
+            if (c) c.dataset.scrollBefore = c.scrollHeight;
+        }
+    });
+    document.body.addEventListener('htmx:afterSettle', function(event) {
+        var c = document.querySelector('.chat-messages-container');
+        if (c && c.dataset.scrollBefore) {
+            c.scrollTop += c.scrollHeight - parseInt(c.dataset.scrollBefore);
+            delete c.dataset.scrollBefore;
+        }
+    });
+
+    // Allow HTMX to swap 422 responses (inline form validation errors)
+    document.body.addEventListener('htmx:beforeSwap', function(event) {
+        if (event.detail.xhr.status === 422) {
+            event.detail.shouldSwap = true;
+            event.detail.isError = false;
+        }
+    });
+
+    // Show toast notification on permission denied (403) instead of navigating away
+    document.body.addEventListener('htmx:responseError', function(event) {
+        if (event.detail.xhr.status === 403) {
+            var message = event.detail.xhr.responseText || 'Access denied';
+            var container = document.querySelector('.flash-messages-container');
+            if (container) {
+                var alert = document.createElement('div');
+                alert.className = 'alert alert-error alert-dismissible fade show';
+                alert.setAttribute('role', 'alert');
+                alert.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+                container.appendChild(alert);
+                setTimeout(function() {
+                    try { new bootstrap.Alert(alert).close(); } catch(e) {}
+                }, 3000);
+            }
+        }
+    });
+
+    // Clean up Bootstrap modals before HTMX swaps new content into modal-container
+    document.body.addEventListener('htmx:beforeSwap', function(event) {
+        if (event.detail.target && event.detail.target.id === 'modal-container') {
+            // Dispose of any existing Bootstrap modal instances
+            const existingModals = document.querySelectorAll('.modal');
+            existingModals.forEach(function(modalEl) {
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.dispose();
+                }
+            });
+            // Clean up any orphaned backdrops
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }
+    });
+
+    // Re-initialize Alpine.js on any HTMX-swapped content.
+    // Without this, x-data / x-model / x-init directives in HTMX responses are inert.
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        if (window.Alpine && event.detail.target) {
+            Alpine.initTree(event.detail.target);
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modals = document.querySelectorAll('.modal.show');
+            modals.forEach(modal => modal.remove());
+            // Clean up modal backdrop
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+            // Also close mobile sidebar on Escape
+            closeMobileSidebar();
+        }
+    });
+
+    // Mobile sidebar toggle
+    function closeMobileSidebar() {
+        const sidebar = document.querySelector('.side-nav');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar) sidebar.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    function openMobileSidebar() {
+        const sidebar = document.querySelector('.side-nav');
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (sidebar) sidebar.classList.add('active');
+        if (overlay) overlay.classList.add('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggler = document.querySelector('.mobile-menu-toggle');
+        const sidebar = document.querySelector('.side-nav');
+        const overlay = document.querySelector('.sidebar-overlay');
+
+        if (toggler) {
+            toggler.addEventListener('click', function() {
+                if (sidebar && sidebar.classList.contains('active')) {
+                    closeMobileSidebar();
+                } else {
+                    openMobileSidebar();
+                }
+            });
+        }
+
+        // Close sidebar when clicking overlay
+        if (overlay) {
+            overlay.addEventListener('click', closeMobileSidebar);
+        }
+
+        // Close sidebar when clicking a nav link (on mobile)
+        if (sidebar) {
+            sidebar.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        closeMobileSidebar();
+                    }
+                });
+            });
+        }
+    });
+    </script>
+
+    <!-- Version footer: shown only outside the shell (login pages, etc.) -->
+    {% if not current_user.is_authenticated %}
+    <div class="version-footer text-center text-muted small py-2 desktop-only">
+        Powered by <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a> {{ sparq_display_version }}
+        {% if system_info %}
+        &middot; <a href="#" data-bs-toggle="modal" data-bs-target="#systemInfoModal" id="system-info-link" class="text-muted text-decoration-none">Info</a>
+        &middot; <span id="page-load-time" class="text-muted"></span>
+        {% endif %}
+    </div>
+    {% else %}
+    {# Version info is shown in the secondary nav footer for authenticated users #}
+    <span id="page-load-time" style="display:none"></span>
+    {% endif %}
+
+    {% if system_info %}
+    <!-- System Info Modal (admin only) -->
+    <div class="modal fade" id="systemInfoModal" tabindex="-1" aria-labelledby="systemInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title" id="systemInfoModalLabel"><i class="fas fa-microchip me-2"></i>System Info</h6>
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 0.82rem;">
+                        <tbody>
+                            <tr><td class="text-muted ps-3" style="width:130px">Workspace</td><td>{{ system_info.workspace }}</td></tr>
+                            <tr><td class="text-muted ps-3">User</td><td>{{ system_info.user }}</td></tr>
+                            <tr><td class="text-muted ps-3">Request ID</td><td><code class="text-xs">{{ system_info.request_id }}</code></td></tr>
+                            <tr><td class="text-muted ps-3">Render time</td><td>{{ system_info.render_time }}</td></tr>
+                            <tr><td class="text-muted ps-3">Page load</td><td id="page-load-time-modal"></td></tr>
+                            <tr><td class="text-muted ps-3">DB queries</td><td>{{ system_info.db_queries }}</td></tr>
+                            <tr><td class="text-muted ps-3">DB time</td><td>{{ system_info.db_time }}</td></tr>
+                            <tr><td class="text-muted ps-3">Server</td><td>{{ system_info.server }}</td></tr>
+                            <tr><td class="text-muted ps-3">Worker PID</td><td>{{ system_info.worker_pid }}</td></tr>
+                            <tr><td class="text-muted ps-3">sparQ version</td><td>{{ system_info.version }}</td></tr>
+                            <tr><td class="text-muted ps-3">Browser</td><td class="text-xs" style="word-break:break-all">{{ system_info.browser }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if system_info %}
+    <script nonce="{{ csp_nonce }}">
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            var entry = performance.getEntriesByType('navigation')[0];
+            if (!entry) return;
+            var ms = Math.round(entry.loadEventEnd - entry.startTime);
+            var secs = (ms / 1000).toFixed(2) + 's';
+            var el = document.getElementById('page-load-time');
+            var modal = document.getElementById('page-load-time-modal');
+            if (el) el.textContent = secs;
+            if (modal) modal.textContent = secs;
+            if (ms > 1500) {
+                var link = document.getElementById('system-info-link');
+                if (link) link.classList.add('info-slow');
+            }
+        }, 0);
+    });
+    </script>
+    {% endif %}
+
+    <!-- Mobile Bottom Navigation -->
+    {% if request.endpoint != 'core_bp.login' and current_user.is_authenticated %}
+    <nav class="mobile-bottom-nav mobile-only">
+        <div class="mobile-nav-btn" x-data="{ open: false }">
+            <button @click="open = !open" aria-label="Apps">
+                <i class="fas fa-th"></i>
+                <span>Apps</span>
+            </button>
+            <div class="bottom-nav-popup apps-popup" x-show="open" @click.outside="open = false" x-cloak>
+                {# Core App - sparQ #}
+                <a href="{{ url_for('dashboard_bp.index') }}" class="popup-item">
+                    <i class="fas fa-bolt"></i> sparQ
+                </a>
+                {# Standalone Apps from apps/ folder #}
+                {% for mod in g.installed_modules|sort(attribute='name') %}
+                    {% if mod.is_app and mod.enabled and (current_user.is_admin or not mod.admin_only) %}
+                    <a href="{{ mod.url or mod.main_route }}" class="popup-item">
+                        <i class="{{ mod.icon_class }}"></i> {{ mod.name }}
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- New Organization Warning Modal -->
+    {% if current_user.is_authenticated %}
+    <div class="modal fade" id="newOrganizationModal" tabindex="-1" aria-labelledby="newOrganizationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title" id="newOrganizationModalLabel"><i class="fas fa-building me-2"></i>{{ _("New Organization") }}</h6>
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small mb-0">{{ _("Each organization is completely separate. Data, people, and settings are not shared between organizations.") }}</p>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <a href="{{ url_for('core_bp.create_organization') }}" class="btn btn-sm btn-primary">{{ _("Continue") }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Create Workspace Modal -->
+    {% if current_user.is_authenticated %}
+    <div class="modal fade" id="createWorkspaceModal" tabindex="-1" aria-labelledby="createWorkspaceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('core_bp.create_workspace') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title" id="createWorkspaceModalLabel"><i class="fas fa-plus me-2"></i>{{ _("New Workspace") }}</h6>
+                        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" x-data="{ selectedColor: 'violet' }">
+                        <label for="workspace-name-input" class="form-label small">{{ _("Workspace name") }}</label>
+                        <input type="text" class="form-control" id="workspace-name-input" name="name" required maxlength="255" placeholder="Acme Corp" autofocus>
+                        <input type="hidden" name="color" :value="selectedColor">
+                        <label class="form-label small mt-3">{{ _("Color") }}</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            {% for name, hex in workspace_colors.items() %}
+                            <button type="button"
+                                    class="color-swatch"
+                                    :class="{ 'active': selectedColor === '{{ name }}' }"
+                                    style="background: {{ hex }}"
+                                    @click="selectedColor = '{{ name }}'"
+                                    title="{{ name|capitalize }}"></button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-sm btn-primary">{{ _("Create") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- PWA Service Worker Registration -->
+    <script nonce="{{ csp_nonce }}">
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(function(registration) {
+                    window.SPARQ_DEBUG && console.log('SW registered:', registration.scope);
+                })
+                .catch(function(err) {
+                    window.SPARQ_DEBUG && console.log('SW registration failed:', err);
+                });
+        });
+        navigator.serviceWorker.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'NOTIFICATION_NAVIGATE') {
+                window.location.replace(event.data.url);
+            }
+        });
+    }
+    </script>
+
+    <!-- Push Notification Registration (authenticated users only) -->
+    {% if current_user.is_authenticated %}
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/push-registration.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/badge-utils.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/mru-recents.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/pwa-install.js') }}"></script>
+
+    <!-- Notification Sound (Slack-like knock) -->
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/notification-sound.js') }}"></script>
+
+    <!-- Global Chat Badge (poll-based, no WebSocket — keeps Gunicorn threads free) -->
+    <script nonce="{{ csp_nonce }}">
+        window.INITIAL_CHAT_UNREAD_COUNT = {{ chat_unread_count|default(0) }};
+        window.CURRENT_USER_ID = {{ current_user.id }};
+    </script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('core_bp.static', filename='js/badge-poll.js') }}" defer></script>
+    {% endif %}
+
+    {# DM Popup — bottom-right persistent panel on all authenticated pages #}
+    {% if current_user.is_authenticated %}
+    {% include 'core/desktop/partials/_dm_popup.html' %}
+    {% endif %}
+
+    <div id="modals"></div>
+</body>
+</html>

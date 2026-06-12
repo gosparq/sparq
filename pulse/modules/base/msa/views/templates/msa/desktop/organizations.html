@@ -1,0 +1,99 @@
+{% extends "msa/desktop/_base.html" %}
+
+{% block title %}{{ _("Organizations") }} - MSA{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('msa_bp.dashboard') }}">{{ _("Dashboard") }}</a>
+<span class="sep">/</span>
+<span class="current">{{ _("Organizations") }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Create Organization -->
+<div class="msa-card msa-mb-20">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("New Organization") }}</span>
+    </div>
+    <div class="msa-card-body">
+        <form method="POST" action="{{ url_for('msa_bp.organization_create') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="msa-create-row">
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Name") }}</label>
+                    <input type="text" name="name" class="msa-input" placeholder="Acme Corp" required>
+                </div>
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Slug") }}</label>
+                    <input type="text" name="slug" class="msa-input" placeholder="acme"
+                           pattern="[a-z][a-z0-9-]{1,49}" required>
+                </div>
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Plan") }}</label>
+                    <input type="text" name="plan" class="msa-input" placeholder="free">
+                </div>
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Domain") }}</label>
+                    <input type="text" name="claimed_domain" class="msa-input" placeholder="acme.com">
+                </div>
+                <div>
+                    <button type="submit" class="msa-btn msa-btn-primary">
+                        <i class="fas fa-plus"></i> {{ _("Create") }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="msa-card">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("All Organizations") }}</span>
+        <span class="msa-text-dim" style="font-size:12px;">{{ organizations|length }} {{ _("total") }}</span>
+    </div>
+    <table class="msa-table">
+        <thead>
+            <tr>
+                <th>{{ _("Organization") }}</th>
+                <th>{{ _("Slug") }}</th>
+                <th>{{ _("Owner") }}</th>
+                <th>{{ _("Members") }}</th>
+                <th>{{ _("Workspaces") }}</th>
+                <th>{{ _("Domain") }}</th>
+                <th>{{ _("Plan") }}</th>
+                <th>{{ _("Status") }}</th>
+                <th>{{ _("Created") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for org in organizations %}
+            <tr>
+                <td><a href="{{ url_for('msa_bp.organization_detail', org_id=org.id) }}" style="font-weight:500;">{{ org.name }}</a></td>
+                <td class="mono dim">{{ org.slug }}</td>
+                <td style="font-size:12px;">{{ org.owner.email if org.owner else '—' }}</td>
+                <td>{{ member_counts.get(org.id, 0) }}</td>
+                <td>{{ workspace_counts.get(org.id, 0) }}</td>
+                <td class="mono dim">{{ org.claimed_domain or '—' }}</td>
+                <td><span class="msa-badge msa-badge-plan">{{ org.plan or 'free' }}</span></td>
+                <td>
+                    {% if org.is_active %}
+                    <span class="msa-badge msa-badge-active">{{ _("Active") }}</span>
+                    {% else %}
+                    <span class="msa-badge msa-badge-inactive">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </td>
+                <td class="dim">{{ org.created_at|format_datetime('%b %d, %Y') if org.created_at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9">
+                    <div class="msa-empty">
+                        <i class="fas fa-sitemap"></i>
+                        {{ _("No organizations yet.") }}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

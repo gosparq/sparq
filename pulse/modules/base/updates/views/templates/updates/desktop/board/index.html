@@ -1,0 +1,352 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Board") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" x-data="{ view: '{{ view }}' }">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Board") }}</h2>
+            <span class="text-muted text-sm">{{ _("Announcements, events, and more") }}</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {# View toggle #}
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn text-xs" :class="view === 'grid' ? 'btn-dark' : 'btn-outline-secondary'" @click="view = 'grid'">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button type="button" class="btn text-xs" :class="view === 'list' ? 'btn-dark' : 'btn-outline-secondary'" @click="view = 'list'">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+            {# New post dropdown #}
+            <div class="dropdown">
+                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-plus me-1"></i>{{ _("New Post") }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% for tmpl in templates %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}">
+                            {{ tmpl.name }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li><span class="dropdown-item text-muted">{{ _("No templates available") }}</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {# ── Two-column layout: filters | posts ── #}
+    <div class="d-flex gap-4 align-items-start">
+
+        {# ── Left: vertical filter pills ── #}
+        <div class="flex-shrink-0" style="min-width:130px; max-width:150px">
+            <div class="d-flex flex-column gap-1">
+                <a href="{{ url_for('sync_bp.board_index', view=view) }}"
+                   class="btn btn-sm text-start {% if not filter_template_id %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    {{ _("All") }}
+                </a>
+                {% for tmpl in templates %}
+                <a href="{{ url_for('sync_bp.board_index', template=tmpl.id, view=view) }}"
+                   class="btn btn-sm text-start {% if filter_template_id == tmpl.id %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                    {{ tmpl.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Right: posts ── #}
+        <div class="flex-grow-1 min-width-0">
+
+    {% if posts %}
+    {# ── Grid View ── #}
+    <div x-show="view === 'grid'" class="row g-3">
+        {% for post in posts %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100 sync-card">
+                <div class="card-body d-flex flex-column" style="padding:1rem 1.25rem;">
+                    {# Category badge + time #}
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge text-3xs badge-template">
+                            {{ post.template.name }}
+                        </span>
+                        <span class="text-muted text-2xs">{{ post.time_ago() }}</span>
+                    </div>
+
+                    {# Title from payload #}
+                    {% set title_val = post.payload.get('title', '') %}
+                    {% if title_val %}
+                    <h6 class="mb-1 fw-semibold" style="font-size:0.9rem">{{ title_val }}</h6>
+                    {% endif %}
+
+                    {# Body preview #}
+                    {% set body_val = post.payload.get('body', '') %}
+                    {% if body_val %}
+                    <p class="text-muted mb-2 flex-grow-1 text-sm sync-pre-wrap" style="display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden">{{ body_val }}</p>
+                    {% endif %}
+
+                    {# 10-4 acknowledgment grid #}
+                    {% if not post.is_anonymous and post.member_id %}
+                        {% if ack_map is defined and ack_map %}
+                            {% set ack_data = ack_map.get(post.id) %}
+                        {% else %}
+                            {% set ack_data = none %}
+                        {% endif %}
+                        {% if ack_data %}
+                            {% include "updates/desktop/partials/_post_ten_four.html" %}
+                        {% endif %}
+                    {% endif %}
+
+                    {# Footer: author + expiry + actions #}
+                    <div class="d-flex align-items-center justify-content-between mt-auto pt-2" style="border-top:1px solid var(--color-gray-100, #f3f4f6);">
+                        <div class="d-flex align-items-center gap-2">
+                            {% if post.member and post.member.user %}
+                            <span class="avatar-circle" style="width:22px;height:22px;font-size:0.55rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                                {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                            </span>
+                            <span class="text-sm">{{ post.member.user.first_name }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                            {% if post.days_until_expiry is not none and post.days_until_expiry <= 7 %}
+                            <span class="text-warning text-3xs" title="{{ _('Expires in %(days)s days', days=post.days_until_expiry) }}">
+                                <i class="fas fa-clock"></i> {{ post.days_until_expiry }}d
+                            </span>
+                            {% endif %}
+                            {% if current_user.is_admin or (current_member_id and post.member_id == current_member_id) %}
+                            <div class="dropdown">
+                                <button class="btn btn-link btn-sm text-muted p-0 text-xs" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <form method="POST" action="{{ url_for('sync_bp.board_refresh', post_id=post.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="dropdown-item"><i class="fas fa-redo me-1"></i>{{ _("Refresh (30 days)") }}</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form method="POST" action="{{ url_for('sync_bp.board_archive', post_id=post.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-archive me-1"></i>{{ _("Archive") }}</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── List View ── #}
+    <div x-show="view === 'list'" x-cloak>
+        {% for post in posts %}
+        <div class="card mb-2 sync-card">
+            <div class="card-body py-3 px-4">
+                <div class="d-flex align-items-start gap-3">
+                    {# Avatar #}
+                    <div class="flex-shrink-0">
+                        {% if post.member and post.member.user %}
+                        <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                            {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="avatar-circle text-sm" style="width:36px; height:36px; background:#6b7280">
+                            <i class="fas fa-user text-2xs"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {# Content #}
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                            {% if post.member and post.member.user %}
+                            <span class="fw-semibold text-base">{{ post.member.user.full_name }}</span>
+                            {% endif %}
+                            <span class="badge text-3xs badge-template">{{ post.template.name }}</span>
+                            <span class="text-muted ms-auto text-sm">{{ post.time_ago() }}</span>
+                            {% if post.days_until_expiry is not none and post.days_until_expiry <= 7 %}
+                            <span class="text-warning text-3xs"><i class="fas fa-clock"></i> {{ post.days_until_expiry }}d</span>
+                            {% endif %}
+                            {% if current_user.is_admin or (current_member_id and post.member_id == current_member_id) %}
+                            <div class="dropdown">
+                                <button class="btn btn-link btn-sm text-muted p-0 text-xs" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <form method="POST" action="{{ url_for('sync_bp.board_refresh', post_id=post.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="dropdown-item"><i class="fas fa-redo me-1"></i>{{ _("Refresh (30 days)") }}</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form method="POST" action="{{ url_for('sync_bp.board_archive', post_id=post.id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="dropdown-item text-danger"><i class="fas fa-archive me-1"></i>{{ _("Archive") }}</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {# Render payload fields #}
+                        {% for field in post.template.fields %}
+                            {% set val = post.payload.get(field.key) %}
+                            {% if val %}
+                                {% if field.type == 'title' %}
+                                <p class="fw-semibold mb-1 text-base">{{ val|urlize(target="_blank") }}</p>
+                                {% else %}
+                                <p class="mb-1 text-base sync-pre-wrap">{{ val|urlize(target="_blank") }}</p>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# 10-4 acknowledgment grid #}
+                        {% if not post.is_anonymous and post.member_id %}
+                            {% if ack_map is defined and ack_map %}
+                                {% set ack_data = ack_map.get(post.id) %}
+                            {% else %}
+                                {% set ack_data = none %}
+                            {% endif %}
+                            {% if ack_data %}
+                                {% include "updates/desktop/partials/_post_ten_four.html" %}
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-clipboard-list fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-3">{{ _("No posts on the board yet.") }}</p>
+            {% if templates %}
+            <a href="{{ url_for('sync_bp.post_new', template_id=templates[0].id) }}" class="btn btn-primary btn-sm">
+                {{ _("Create the first post") }}
+            </a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+        </div>{# end right column #}
+    </div>{# end two-column #}
+</div>
+
+{% if current_user.is_admin %}
+{# Create Board Template Modal #}
+<div class="modal fade" id="createBoardTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('core_bp.settings_templates_create') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="next" value="{{ url_for('sync_bp.board_index') }}">
+                <input type="hidden" name="post_type" value="board">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("New Board Category") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">{{ _("Name") }}</label>
+                            <input type="text" name="name" class="form-control" required placeholder="{{ _('e.g. Lost & Found') }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ _("Description") }}</label>
+                            <input type="text" name="description" class="form-control" placeholder="{{ _('Short description (optional)') }}">
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6>{{ _("Fields") }}</h6>
+                    <div id="boardFieldsContainer">
+                        <div class="row g-2 mb-2 field-row">
+                            <div class="col-3">
+                                <input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="{{ _('Key') }}" value="title">
+                            </div>
+                            <div class="col-3">
+                                <input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="{{ _('Label') }}" value="Title">
+                            </div>
+                            <div class="col-2">
+                                <select name="field_type[]" class="form-select form-select-sm">
+                                    <option value="title" selected>{{ _("Title") }}</option>
+                                    <option value="text">{{ _("Text") }}</option>
+                                    <option value="bullets">{{ _("Bullets") }}</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="{{ _('Placeholder') }}">
+                            </div>
+                            <div class="col-1">
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2 field-row">
+                            <div class="col-3">
+                                <input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="{{ _('Key') }}" value="body">
+                            </div>
+                            <div class="col-3">
+                                <input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="{{ _('Label') }}" value="Details">
+                            </div>
+                            <div class="col-2">
+                                <select name="field_type[]" class="form-select form-select-sm">
+                                    <option value="text" selected>{{ _("Text") }}</option>
+                                    <option value="title">{{ _("Title") }}</option>
+                                    <option value="bullets">{{ _("Bullets") }}</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="{{ _('Placeholder') }}">
+                            </div>
+                            <div class="col-1">
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addBoardFieldRow()">
+                        <i class="fas fa-plus"></i> {{ _("Add Field") }}
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-primary">{{ _("Create Category") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    if (new URLSearchParams(window.location.search).get('action') === 'new_category') {
+        new bootstrap.Modal(document.getElementById('createBoardTemplateModal')).show();
+        var url = new URL(window.location); url.searchParams.delete('action'); history.replaceState(null, '', url);
+    }
+});
+function addBoardFieldRow() {
+    var container = document.getElementById('boardFieldsContainer');
+    var row = document.createElement('div');
+    row.className = 'row g-2 mb-2 field-row';
+    row.innerHTML = '<div class="col-3"><input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="Key"></div><div class="col-3"><input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="Label"></div><div class="col-2"><select name="field_type[]" class="form-select form-select-sm"><option value="text">Text</option><option value="title">Title</option><option value="bullets">Bullets</option></select></div><div class="col-3"><input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="Placeholder"></div><div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.field-row\').remove()"><i class="fas fa-times"></i></button></div>';
+    container.appendChild(row);
+}
+</script>
+{% endif %}
+{% endblock %}

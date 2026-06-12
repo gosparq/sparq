@@ -1,0 +1,31 @@
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">{{ _("Notes") }}</h6>
+        <button type="button"
+                class="btn btn-sm btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#noteModal"
+                hx-get="{{ url_for('people_bp.person_note_modal', employee_id=employee.id) }}"
+                hx-target="#noteModal .modal-content"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("Add") }}
+        </button>
+    </div>
+
+    <div id="notes-list">
+        {% include 'people/desktop/people/_notes_list.html' %}
+    </div>
+</div>
+
+<!-- Note Modal -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

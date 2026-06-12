@@ -1,0 +1,161 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ _("Interviews") }}{% endblock %}
+
+{% block module_content %}
+<div class="row g-3">
+    <!-- Upcoming Interviews -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>{{ _("Upcoming Interviews") }}
+                    {% if upcoming %}
+                    <span class="badge bg-primary ms-1">{{ upcoming|length }}</span>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body p-3">
+                {% if upcoming %}
+                <div class="d-flex flex-column gap-2">
+                    {% for interview in upcoming %}
+                    <div class="card mb-0">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="fas {{ interview.type_icon }} text-muted me-2"></i>
+                                        <strong>{{ interview.interview_type.value }}</strong>
+                                        <span class="badge bg-info ms-2">{{ interview.status.value }}</span>
+                                    </div>
+                                    <h6 class="mb-1">
+                                        <a href="{{ url_for('people_bp.hiring_application_detail', application_id=interview.application_id) }}" class="text-decoration-none">
+                                            {{ interview.application.candidate.full_name }}
+                                        </a>
+                                        <small class="text-muted">for</small>
+                                        <a href="{{ url_for('people_bp.hiring_job_detail', job_id=interview.application.job_posting.id) }}" class="text-decoration-none">
+                                            {{ interview.application.job_posting.title }}
+                                        </a>
+                                    </h6>
+                                    <div class="small text-muted">
+                                        <i class="far fa-clock me-1"></i>
+                                        {{ interview.scheduled_at|format_datetime('%a, %b %d at %I:%M %p') }}
+                                        <span class="mx-1">&middot;</span>
+                                        {{ interview.duration_minutes }} min
+                                        {% if interview.interviewer %}
+                                        <span class="mx-1">&middot;</span>
+                                        <i class="far fa-user me-1"></i>{{ interview.interviewer.full_name }}
+                                        {% endif %}
+                                    </div>
+                                    {% if interview.location %}
+                                    <div class="small text-muted mt-1">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ interview.location }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('people_bp.hiring_interview_complete', interview_id=interview.id) }}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-check me-1"></i>{{ _("Complete") }}
+                                    </a>
+                                    <form action="{{ url_for('people_bp.hiring_interview_cancel', interview_id=interview.id) }}" method="post" class="d-inline"
+                                          data-confirm="{{ _('Cancel this interview?') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-check fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">{{ _("No upcoming interviews") }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent/Completed Interviews -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>{{ _("Recent") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if recent %}
+                <div class="list-group list-group-flush">
+                    {% for interview in recent %}
+                    <div class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="small">
+                                    <i class="fas {{ interview.type_icon }} text-muted me-1"></i>
+                                    <a href="{{ url_for('people_bp.hiring_application_detail', application_id=interview.application_id) }}" class="text-decoration-none">
+                                        {{ interview.application.candidate.full_name }}
+                                    </a>
+                                </div>
+                                <div class="small text-muted">
+                                    {{ interview.scheduled_at|format_datetime('%b %d') }}
+                                </div>
+                            </div>
+                            <div>
+                                {% if interview.status == InterviewStatus.COMPLETED %}
+                                <span class="badge bg-success">{{ _("Completed") }}</span>
+                                {% elif interview.status == InterviewStatus.CANCELLED %}
+                                <span class="badge bg-secondary">{{ _("Cancelled") }}</span>
+                                {% elif interview.status == InterviewStatus.NO_SHOW %}
+                                <span class="badge bg-warning text-dark">{{ _("No Show") }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if interview.recommendation %}
+                        <div class="small mt-1">
+                            {% if interview.recommendation.name in ['STRONG_HIRE', 'HIRE'] %}
+                            <span class="text-success">
+                                <i class="fas fa-thumbs-up me-1"></i>{{ interview.recommendation.value }}
+                            </span>
+                            {% elif interview.recommendation.name in ['STRONG_NO_HIRE', 'NO_HIRE'] %}
+                            <span class="text-danger">
+                                <i class="fas fa-thumbs-down me-1"></i>{{ interview.recommendation.value }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">
+                                <i class="fas fa-minus me-1"></i>{{ interview.recommendation.value }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <p class="text-muted small mb-0">{{ _("No recent interviews") }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock module_content %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

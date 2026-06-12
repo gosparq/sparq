@@ -1,0 +1,47 @@
+{% extends "resources/mobile/layout.html" %}
+{% block title %}{{ subcategory.name }}{% endblock %}
+
+{% block module_content %}
+<!-- Breadcrumb -->
+<div class="mobile-breadcrumb">
+    <a href="{{ url_for('kb_bp.index') }}">{{ _("KB") }}</a>
+    <span class="separator">/</span>
+    <a href="{{ url_for('kb_bp.category', category_slug=category.slug) }}">{{ category.name }}</a>
+    <span class="separator">/</span>
+    <span>{{ subcategory.name }}</span>
+</div>
+
+<!-- Subcategory Header -->
+<h5 class="mb-1">{{ subcategory.name }}</h5>
+{% if subcategory.description %}
+<p class="text-muted small mb-3">{{ subcategory.description }}</p>
+{% else %}
+<div class="mb-3"></div>
+{% endif %}
+
+<!-- Articles -->
+{% if articles %}
+{% for article in articles %}
+<a href="{{ url_for('kb_bp.article', category_slug=category.slug, subcategory_slug=subcategory.slug, article_slug=article.slug) }}" class="resource-card">
+    <div class="resource-card-icon category">
+        <i class="fas fa-file-alt"></i>
+    </div>
+    <div class="resource-card-content">
+        <div class="resource-card-title">{{ article.title }}</div>
+        {% if article.excerpt %}
+        <div class="resource-card-meta">{{ article.excerpt|truncate(60) }}</div>
+        {% endif %}
+    </div>
+    <div class="resource-card-action">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</a>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-folder-open"></i>
+    <h5>{{ _("No articles yet") }}</h5>
+    <p>{{ _("No articles in this subcategory yet.") }}</p>
+</div>
+{% endif %}
+{% endblock %}

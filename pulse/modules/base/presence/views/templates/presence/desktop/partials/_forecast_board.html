@@ -1,0 +1,95 @@
+<style>
+.fc-board-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.fc-board-table th,
+.fc-board-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--color-gray-100); }
+.fc-board-table th { font-size: 0.7rem; font-weight: 600; color: var(--color-gray-500); text-align: center; white-space: nowrap; }
+.fc-board-table th.fc-col-today { color: var(--color-primary); }
+.fc-board-table td.fc-col-today { background: color-mix(in srgb, var(--color-primary) 4%, transparent); }
+.fc-board-table td.fc-name-cell { font-size: 0.8125rem; white-space: nowrap; }
+.fc-board-table tbody tr:last-child td { border-bottom: none; }
+.fc-badge-default { opacity: 0.5; }
+</style>
+
+<div class="mt-4 pt-3" style="border-top: 1px solid var(--color-gray-200);">
+    <div class="d-flex align-items-center mb-3 gap-2">
+        <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">
+            <i class="fas fa-calendar-week me-2" style="color:var(--color-gray-400);"></i>{{ _("Availability Forecast") }}
+        </span>
+        <span class="text-muted text-xs">
+            {{ forecast_dates[0].strftime("%-m/%-d") }}–{{ forecast_dates[-1].strftime("%-m/%-d") }}
+        </span>
+    </div>
+
+    {% set any_data = namespace(found=false) %}
+    {% for item in members %}
+        {% if forecasts.get(item.member.id) or (team_schedules is defined and team_schedules.get(item.member.id)) %}
+            {% set any_data.found = true %}
+        {% endif %}
+    {% endfor %}
+
+    {% if any_data.found %}
+    <div class="table-responsive">
+        <table class="fc-board-table">
+            <thead>
+                <tr>
+                    <th style="text-align:left;min-width:130px;"></th>
+                    {% for d in forecast_dates %}
+                    <th class="{% if today is defined and d == today %}fc-col-today{% endif %}" style="min-width:70px;">
+                        {{ d.strftime("%a") }}<br>
+                        <span style="font-weight:400;">{{ d.strftime("%-m/%-d") }}</span>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in members %}
+                <tr>
+                    <td class="fc-name-cell">{{ item.member.user.full_name if item.member.user else '?' }}</td>
+                    {% set member_fc = forecasts.get(item.member.id, {}) %}
+                    {% for d in forecast_dates %}
+                    {% set fc = member_fc.get(d) %}
+                    <td class="text-center {% if today is defined and d == today %}fc-col-today{% endif %}">
+                        {% if fc %}
+                        {% if fc.status == 'in' %}{% set label = _('In') %}
+                        {% elif fc.status == 'remote' %}{% set label = _('Remote') %}
+                        {% elif fc.status == 'out' %}{% set label = _('Out') %}
+                        {% elif fc.status == 'pto' %}{% set label = _('Time Off') %}
+                        {% else %}{% set label = fc.status %}{% endif %}
+                        <span class="fc-badge" data-status="{{ fc.status }}">
+                            {% if fc.available_from and fc.available_until %}
+                            <span class="fc-badge-time">{{ fc.available_from.strftime('%-I%p').lower() }}–{{ fc.available_until.strftime('%-I%p').lower() }}</span>
+                            {% endif %}
+                            {{ label }}
+                        </span>
+                        {% if fc.note %}
+                        <div class="text-muted fst-italic mt-1 text-2xs">{{ fc.note }}</div>
+                        {% endif %}
+                        {% elif team_schedules is defined and team_schedules.get(item.member.id, {}).get(d.weekday()) %}
+                        {% set sched = team_schedules[item.member.id][d.weekday()] %}
+                        {% if sched.default_status == 'in' %}{% set slabel = _('In') %}
+                        {% elif sched.default_status == 'remote' %}{% set slabel = _('Remote') %}
+                        {% else %}{% set slabel = '' %}{% endif %}
+                        {% if slabel %}
+                        <span class="fc-badge fc-badge-default" data-status="{{ sched.default_status }}">
+                            {% if sched.start_time and sched.end_time %}
+                            <span class="fc-badge-time">{{ sched.start_time.strftime('%-I%p').lower() }}–{{ sched.end_time.strftime('%-I%p').lower() }}</span>
+                            {% endif %}
+                            {{ slabel }}
+                        </span>
+                        {% else %}
+                        <span class="text-sm" style="color:var(--color-gray-200)">—</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-sm" style="color:var(--color-gray-200)">—</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0 text-sm">{{ _("No availability set for this week") }}</p>
+    {% endif %}
+</div>

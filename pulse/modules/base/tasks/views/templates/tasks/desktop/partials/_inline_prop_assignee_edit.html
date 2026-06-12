@@ -1,0 +1,25 @@
+<div id="prop-assignee" class="py-2 border-bottom">
+    <form hx-post="{{ url_for('tasks_bp.inline_save_prop', item_id=item.id, prop='assignee') }}"
+          hx-target="#prop-assignee"
+          hx-swap="outerHTML"
+          hx-disabled-elt="button[type=submit]"
+          class="d-flex flex-column gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="text-muted text-sm">{% if item.is_blocker %}{{ _("Blocked By") }}{% else %}{{ _("Assigned To") }}{% endif %}</label>
+        <select name="assignee_id" class="form-select form-select-sm">
+            <option value="">{{ _("Unassigned") }}</option>
+            {% for m in members %}
+            <option value="{{ m.id }}" {% if m.id == item.assignee_id %}selected{% endif %}>
+                {{ m.user.first_name }} {{ m.user.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save") }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for('tasks_bp.inline_display_prop', item_id=item.id, prop='assignee') }}"
+                    hx-target="#prop-assignee"
+                    hx-swap="outerHTML">{{ _("Cancel") }}</button>
+        </div>
+    </form>
+</div>

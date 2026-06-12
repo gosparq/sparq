@@ -1,0 +1,182 @@
+<!-- Clock Entry Edit - Tabbed Correction Modal -->
+<div class="modal fade show modal-active-backdrop" id="editClockEntryModal" tabindex="-1"
+     x-data="{ activeTab: '{{ 'out' if in_punch and in_pending and out_punch and not out_pending else 'in' }}' }">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clock me-2"></i>{{ _("Clock Punch Entry") }}
+                </h5>
+                <button type="button" class="btn-close"
+                        hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">{{ _("This time entry was created from a clock punch. To change a time, submit a correction request for admin review.") }}</p>
+
+                <!-- Tab bar -->
+                <div class="btn-group btn-group-sm w-100 mb-3" role="group">
+                    {% if in_punch %}
+                    <button type="button" class="btn btn-sm"
+                            :class="activeTab === 'in' ? 'btn-outline-secondary active' : 'btn-outline-secondary'"
+                            @click="activeTab = 'in'">
+                        <span class="badge bg-success me-1">{{ _("IN") }}</span>
+                        {{ in_punch.punch_time|format_datetime("%I:%M %p") }}
+                        {% if in_pending %}<i class="fas fa-hourglass-half ms-1 text-warning"></i>{% endif %}
+                    </button>
+                    {% endif %}
+                    {% if out_punch %}
+                    <button type="button" class="btn btn-sm"
+                            :class="activeTab === 'out' ? 'btn-outline-secondary active' : 'btn-outline-secondary'"
+                            @click="activeTab = 'out'">
+                        <span class="badge bg-danger me-1">{{ _("OUT") }}</span>
+                        {{ out_punch.punch_time|format_datetime("%I:%M %p") }}
+                        {% if out_pending %}<i class="fas fa-hourglass-half ms-1 text-warning"></i>{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Clock IN tab content -->
+                {% if in_punch %}
+                <div x-show="activeTab === 'in'" x-cloak>
+                    {% if in_pending %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-hourglass-half me-2"></i>{{ _("A correction request is already pending for this punch.") }}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                                hx-target="#modals" hx-swap="innerHTML">
+                            {{ _("Cancel") }}
+                        </button>
+                    </div>
+                    {% else %}
+                    <form hx-post="{{ url_for('presence_bp.submit_punch_edit_request', punch_id=in_punch.id) }}"
+                          hx-target="#modals" hx-swap="innerHTML">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="mb-3">
+                            <label for="in_request_new_time" class="form-label">{{ _("New Time") }}</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="in_request_new_time"
+                                   name="new_time"
+                                   required>
+                            <div class="form-text">{{ _("Date will remain") }} {{ in_punch_local.strftime('%b %d, %Y') }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="in_request_reason" class="form-label">{{ _("Reason for Correction") }}</label>
+                            <textarea class="form-control"
+                                      id="in_request_reason"
+                                      name="reason"
+                                      rows="2"
+                                      placeholder="{{ _('e.g., Forgot to clock in on time') }}"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                                    hx-target="#modals" hx-swap="innerHTML">
+                                {{ _("Cancel") }}
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i>{{ _("Submit Request") }}
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Clock OUT tab content -->
+                {% if out_punch %}
+                <div x-show="activeTab === 'out'" x-cloak>
+                    {% if out_pending %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-hourglass-half me-2"></i>{{ _("A correction request is already pending for this punch.") }}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                                hx-target="#modals" hx-swap="innerHTML">
+                            {{ _("Cancel") }}
+                        </button>
+                    </div>
+                    {% else %}
+                    <form hx-post="{{ url_for('presence_bp.submit_punch_edit_request', punch_id=out_punch.id) }}"
+                          hx-target="#modals" hx-swap="innerHTML">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="mb-3">
+                            <label for="out_request_new_time" class="form-label">{{ _("New Time") }}</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="out_request_new_time"
+                                   name="new_time"
+                                   required>
+                            <div class="form-text">{{ _("Date will remain") }} {{ out_punch_local.strftime('%b %d, %Y') }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="out_request_reason" class="form-label">{{ _("Reason for Correction") }}</label>
+                            <textarea class="form-control"
+                                      id="out_request_reason"
+                                      name="reason"
+                                      rows="2"
+                                      placeholder="{{ _('e.g., Forgot to clock out on time') }}"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                                    hx-target="#modals" hx-swap="innerHTML">
+                                {{ _("Cancel") }}
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i>{{ _("Submit Request") }}
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+{% if in_punch and not in_pending %}
+flatpickr("#in_request_new_time", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    altInput: true,
+    altFormat: "h:i K",
+    time_24hr: false,
+    minuteIncrement: 1,
+    defaultDate: "{{ in_punch_local.strftime('%H:%M') }}"
+});
+{% endif %}
+{% if out_punch and not out_pending %}
+flatpickr("#out_request_new_time", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    altInput: true,
+    altFormat: "h:i K",
+    time_24hr: false,
+    minuteIncrement: 1,
+    defaultDate: "{{ out_punch_local.strftime('%H:%M') }}"
+});
+{% endif %}
+
+// Convert UTC times in pending request display
+document.querySelectorAll('#editClockEntryModal .local-time').forEach(function(el) {
+    var utc = el.dataset.utc;
+    if (utc && typeof companyTimezone !== 'undefined') {
+        var date = new Date(utc);
+        el.textContent = date.toLocaleTimeString('en-US', {
+            timeZone: companyTimezone,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    }
+});
+</script>

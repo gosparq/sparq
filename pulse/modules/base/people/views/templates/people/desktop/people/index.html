@@ -1,0 +1,409 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("People") }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <!-- Header with actions -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="content-heading">{{ _("People") }}</h2>
+                {% if current_user.is_admin %}
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-primary"
+                            data-bs-toggle="modal" data-bs-target="#inviteModal">
+                        <i class="fas fa-envelope me-1"></i>{{ _("Invite") }}
+                        {% if pending_invite_count %}
+                        <span class="badge bg-primary ms-1">{{ pending_invite_count }}</span>
+                        {% endif %}
+                    </button>
+                    <a href="{{ url_for('people_bp.new_person') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>{{ _("Add Person") }}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row mb-4">
+                <div class="col">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ _("Total") }}</div>
+                            <div class="d-flex align-items-baseline">
+                                <h3 class="mb-0 me-2">{{ total_count }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ _("Active") }}</div>
+                            <div class="d-flex align-items-baseline">
+                                <h3 class="mb-0 me-2">{{ active_count }}</h3>
+                                <span class="badge bg-success">{{ _("Active") }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ _("On Leave") }}</div>
+                            <div class="d-flex align-items-baseline">
+                                <h3 class="mb-0 me-2">{{ on_leave_count }}</h3>
+                                <span class="badge bg-warning text-dark">{{ _("Leave") }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ _("Terminated") }}</div>
+                            <div class="d-flex align-items-baseline">
+                                <h3 class="mb-0 me-2">{{ terminated_count }}</h3>
+                                <span class="badge bg-danger">{{ _("Term") }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ _("Contractors") }}</div>
+                            <div class="d-flex align-items-baseline">
+                                <h3 class="mb-0 me-2">{{ contractor_count }}</h3>
+                                <span class="badge bg-info">{{ _("Contract") }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <form action="{{ url_for('people_bp.people') }}" method="GET" class="d-flex">
+                    <div class="input-group" style="width: 300px;">
+                        <input type="text" class="form-control" name="search"
+                               placeholder="{{ _('Search people...') }}"
+                               value="{{ search or '' }}">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    {% if status_filter %}
+                    <input type="hidden" name="status" value="{{ status_filter }}">
+                    {% endif %}
+                </form>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('people_bp.people', search=search) }}"
+                       class="btn btn-sm btn-outline-secondary {% if not status_filter %}active{% endif %}">
+                        {{ _("All") }}
+                    </a>
+                    <a href="{{ url_for('people_bp.people', status='ACTIVE', search=search) }}"
+                       class="btn btn-sm btn-outline-secondary {% if status_filter == 'ACTIVE' %}active{% endif %}">
+                        {{ _("Active") }}
+                    </a>
+                    <a href="{{ url_for('people_bp.people', status='ON_LEAVE', search=search) }}"
+                       class="btn btn-sm btn-outline-secondary {% if status_filter == 'ON_LEAVE' %}active{% endif %}">
+                        {{ _("On Leave") }}
+                    </a>
+                    <a href="{{ url_for('people_bp.people', status='TERMINATED', search=search) }}"
+                       class="btn btn-sm btn-outline-secondary {% if status_filter == 'TERMINATED' %}active{% endif %}">
+                        {{ _("Terminated") }}
+                    </a>
+                    <a href="{{ url_for('people_bp.people', status='CONTRACTOR', search=search) }}"
+                       class="btn btn-sm btn-outline-secondary {% if status_filter == 'CONTRACTOR' %}active{% endif %}">
+                        {{ _("Contractors") }}
+                    </a>
+                </div>
+            </div>
+
+            {% if users %}
+            <!-- Desktop Table View -->
+            <div class="table-responsive desktop-only">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{{ _("Name") }}</th>
+                            <th>{{ _("Email") }}</th>
+                            <th>{{ _("Position") }}</th>
+                            <th>{{ _("Department") }}</th>
+                            <th>{{ _("Bio / Working Style") }}</th>
+                            <th>{{ _("Status") }}</th>
+                            {% if current_user.is_admin %}
+                            <th>{{ _("PIN") }}</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr class="cursor-pointer"
+                            data-href="{{ url_for('people_bp.person_detail', employee_id=user.member_id) }}">
+                            <td>
+                                <div class="fw-bold">{{ user.first_name }} {{ user.last_name }}</div>
+                                {% set fs = user.flow_status %}
+                                {% if fs == 'flow' %}
+                                <span class="badge text-3xs" style="background:var(--color-focus); color:white">
+                                    <i class="fas fa-brain me-1"></i>{{ _("Focusing") }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.position or '-' }}</td>
+                            <td>{{ user.department or '-' }}</td>
+                            <td>
+                                {% if user.bio %}
+                                <div class="text-truncate small" style="max-width:200px;" title="{{ user.bio }}">
+                                    {{ user.bio | truncate(50) }}
+                                </div>
+                                {% endif %}
+                                {% if user.working_style %}
+                                <div class="text-muted text-2xs">
+                                    <i class="fas fa-laptop me-1"></i>{{ user.working_style | truncate(40) }}
+                                </div>
+                                {% endif %}
+                                {% if not user.bio and not user.working_style %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.status.value == 'Active' %}
+                                <span class="badge bg-success">{{ _("Active") }}</span>
+                                {% elif user.status.value == 'On Leave' %}
+                                <span class="badge bg-warning text-dark">{{ _("On Leave") }}</span>
+                                {% elif user.status.value == 'Terminated' %}
+                                <span class="badge bg-danger">{{ _("Terminated") }}</span>
+                                {% elif user.status.value == 'Contractor' %}
+                                <span class="badge bg-info">{{ _("Contractor") }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ user.status.value }}</span>
+                                {% endif %}
+                            </td>
+                            {% if current_user.is_admin %}
+                            <td>
+                                {% if user.clock_pin %}
+                                <code>{{ user.clock_pin }}</code>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="mobile-only person-cards">
+                {% for user in users %}
+                <div class="person-card"
+                     data-href="{{ url_for('people_bp.person_detail', employee_id=user.member_id) }}">
+                    <div class="person-card-header">
+                        <div class="person-card-avatar">
+                            {{ user.first_name[0] }}{{ user.last_name[0] }}
+                        </div>
+                        <div class="person-card-info">
+                            <div class="person-card-name">{{ user.first_name }} {{ user.last_name }}</div>
+                            <div class="person-card-position">{{ user.position or '-' }}</div>
+                        </div>
+                        <i class="fas fa-chevron-right person-card-arrow"></i>
+                    </div>
+                    <div class="person-card-meta">
+                        <span><i class="fas fa-building me-1"></i>{{ user.department or '-' }}</span>
+                        <span>
+                            {% if user.status.value == 'Active' %}
+                            <span class="badge bg-success">{{ _("Active") }}</span>
+                            {% elif user.status.value == 'On Leave' %}
+                            <span class="badge bg-warning text-dark">{{ _("On Leave") }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ user.status.value }}</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if user.bio %}
+                    <div class="small text-muted px-2 pb-2">{{ user.bio | truncate(80) }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">{{ _("No people found") }}</h5>
+                {% if search or status_filter %}
+                <p class="text-muted">{{ _("Try adjusting your search or filter criteria") }}</p>
+                <a href="{{ url_for('people_bp.people') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>{{ _("Clear Filters") }}
+                </a>
+                {% elif current_user.is_admin %}
+                <p class="text-muted">{{ _("Get started by adding your first employee") }}</p>
+                <a href="{{ url_for('people_bp.new_person') }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i>{{ _("Add Person") }}
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+</div>
+{% if current_user.is_admin %}
+<!-- Invite Modal -->
+<div class="modal fade" id="inviteModal" tabindex="-1" aria-labelledby="inviteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+            <div class="modal-header">
+                <h5 class="modal-title" id="inviteModalLabel">
+                    <i class="fas fa-envelope me-2"></i>{{ _("Invite to Team") }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="send-invite-tab" data-bs-toggle="tab"
+                                data-bs-target="#send-invite-pane" type="button" role="tab"
+                                aria-controls="send-invite-pane" aria-selected="true">
+                            {{ _("Send Invite") }}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pending-invite-tab" data-bs-toggle="tab"
+                                data-bs-target="#pending-invite-pane" type="button" role="tab"
+                                aria-controls="pending-invite-pane" aria-selected="false">
+                            {{ _("Pending") }}
+                            {% if pending_invite_count %}
+                            <span class="badge bg-secondary ms-1">{{ pending_invite_count }}</span>
+                            {% endif %}
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Send Invite Tab -->
+                    <div class="tab-pane fade show active" id="send-invite-pane" role="tabpanel" aria-labelledby="send-invite-tab">
+                        <form method="POST" action="{{ url_for('people_bp.send_invite') }}"
+                              x-data="{ scope: 'current', allWorkspaces: false }">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <p class="text-muted small mb-3">
+                                {{ _("Enter the email address of the person you'd like to invite. They'll receive an email with a link to join your organization.") }}
+                            </p>
+                            <div class="mb-3">
+                                <label for="invite_email" class="form-label">{{ _("Email Address") }}</label>
+                                <input type="email" class="form-control" id="invite_email" name="email"
+                                       required placeholder="{{ _('name@example.com') }}">
+                            </div>
+
+                            {% if is_organization_admin and organization_workspaces %}
+                            <div class="mb-3">
+                                <label class="form-label">{{ _("Add to") }}</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scope"
+                                           id="scope-current" value="current"
+                                           x-model="scope" checked>
+                                    <label class="form-check-label" for="scope-current">
+                                        {{ _("Current workspace only") }}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scope"
+                                           id="scope-select" value="select"
+                                           x-model="scope">
+                                    <label class="form-check-label" for="scope-select">
+                                        {{ _("Specific workspaces") }}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scope"
+                                           id="scope-all" value="all"
+                                           x-model="scope">
+                                    <label class="form-check-label" for="scope-all">
+                                        {{ _("All workspaces") }}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scope"
+                                           id="scope-org" value="org_only"
+                                           x-model="scope">
+                                    <label class="form-check-label" for="scope-org">
+                                        {{ _("Organization only (no workspace)") }}
+                                    </label>
+                                </div>
+
+                                <div class="mt-2 ps-3" x-show="scope === 'select'" x-cloak>
+                                    <label class="form-label small text-muted">
+                                        {{ _("Select workspaces") }}
+                                    </label>
+                                    {% for ts in organization_workspaces %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="workspace_ids" value="{{ ts.id }}"
+                                               id="ts-{{ ts.id }}">
+                                        <label class="form-check-label" for="ts-{{ ts.id }}">
+                                            {{ ts.name }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-bs-dismiss="modal">
+                                    {{ _("Cancel") }}
+                                </button>
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-paper-plane me-1"></i>{{ _("Send Invite") }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Pending Invites Tab -->
+                    <div class="tab-pane fade" id="pending-invite-pane" role="tabpanel" aria-labelledby="pending-invite-tab">
+                        <div id="invite-pending-list">
+                            {% include "people/desktop/people/_invite_pending.html" %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-href]').forEach(function(el) {
+        el.addEventListener('click', function() {
+            window.location.href = this.dataset.href;
+        });
+    });
+
+    var inviteEmail = new URLSearchParams(window.location.search).get('invite_email');
+    if (inviteEmail && inviteEmail.includes('@')) {
+        var emailInput = document.getElementById('invite_email');
+        if (emailInput) {
+            emailInput.value = inviteEmail;
+            new bootstrap.Modal(document.getElementById('inviteModal')).show();
+        }
+        var url = new URL(window.location);
+        url.searchParams.delete('invite_email');
+        history.replaceState(null, '', url);
+    }
+});
+</script>
+{% endblock %}

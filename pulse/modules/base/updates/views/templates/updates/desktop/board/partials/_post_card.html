@@ -1,0 +1,76 @@
+<div class="board-post-card card {% if post.is_pinned %}pinned{% endif %}">
+    {% if post.image_url %}
+    <a href="{{ url_for('sync_bp.board_detail', post_id=post.id) }}">
+        <img src="{{ post.image_url }}" class="board-post-image card-img-top" alt="{{ post.title }}">
+    </a>
+    {% endif %}
+    <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+            <div class="flex-grow-1">
+                {% if post.is_pinned %}
+                <span class="pin-badge mb-2 d-inline-block">
+                    <i class="fas fa-thumbtack me-1"></i>{{ _("Pinned") }}
+                </span>
+                {% endif %}
+                <h5 class="card-title mb-2">
+                    <a href="{{ url_for('sync_bp.board_detail', post_id=post.id) }}" class="text-decoration-none text-dark">
+                        {{ post.title }}
+                    </a>
+                </h5>
+                <p class="card-text text-muted">{{ post.content_preview(250) }}</p>
+            </div>
+            {% if post.can_edit(current_user) %}
+            <div class="dropdown ms-2">
+                <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('sync_bp.board_edit', post_id=post.id) }}">
+                            <i class="fas fa-edit me-2"></i>{{ _("Edit") }}
+                        </a>
+                    </li>
+                    {% if current_user.is_admin %}
+                    <li>
+                        <form action="{{ url_for('sync_bp.board_pin', post_id=post.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="dropdown-item">
+                                <i class="fas fa-thumbtack me-2"></i>
+                                {% if post.is_pinned %}{{ _("Unpin") }}{% else %}{{ _("Pin") }}{% endif %}
+                            </button>
+                        </form>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form action="{{ url_for('sync_bp.board_delete', post_id=post.id) }}" method="POST"
+                              data-confirm="{{ _('Delete this post?') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="dropdown-item text-danger">
+                                <i class="fas fa-trash me-2"></i>{{ _("Delete") }}
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        <div class="board-post-meta mt-3 d-flex align-items-center">
+            <span class="me-3">
+                <i class="fas fa-user me-1"></i>
+                {{ post.created_by.first_name if post.created_by else _("Unknown") }}
+            </span>
+            <span>
+                <i class="fas fa-clock me-1"></i>
+                {{ post.time_ago() }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+</script>

@@ -1,0 +1,183 @@
+{# -----------------------------------------------------------------------------
+   sparQ - Soft Delete Macros
+
+   Jinja macros for rendering soft-deleted items with visual indicators.
+
+   Usage:
+       {% from "core/desktop/macros/_soft_delete.html" import deleted_badge, deleted_row_class %}
+
+       <tr class="{{ deleted_row_class(contact) }}">
+           <td>{{ contact.name }} {{ deleted_badge(contact) }}</td>
+       </tr>
+
+   Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+----------------------------------------------------------------------------- #}
+
+{#
+   Deleted badge - Pink pill indicator for deleted items
+
+   Args:
+       item: Model instance with is_deleted property
+       show_date: If True, shows deletion date (default: False)
+
+   Example:
+       {{ deleted_badge(contact) }}
+       {{ deleted_badge(contact, show_date=True) }}
+#}
+{% macro deleted_badge(item, show_date=False) %}
+    {% if item.is_deleted %}
+        <span class="deleted-indicator" title="Deleted{{ ' on ' ~ item.deleted_at|format_datetime('%Y-%m-%d %H:%M') if item.deleted_at else '' }}{{ ' by ' ~ item.deleted_by_name if item.deleted_by_name else '' }}">
+            <i class="fas fa-trash-alt"></i>
+            {% if show_date and item.deleted_at %}
+                {{ item.deleted_at|format_datetime('%b %d') }}
+            {% else %}
+                {{ _("Deleted") }}
+            {% endif %}
+        </span>
+    {% endif %}
+{% endmacro %}
+
+
+{#
+   Deleted row class - Returns CSS class for table rows
+
+   Args:
+       item: Model instance with is_deleted property
+
+   Example:
+       <tr class="{{ deleted_row_class(contact) }}">
+#}
+{% macro deleted_row_class(item) %}
+    {%- if item.is_deleted %}deleted-row{% endif -%}
+{% endmacro %}
+
+
+{#
+   Display name with status - Name with strikethrough if deleted
+
+   Args:
+       item: Model instance with is_deleted property
+       name: The name text to display
+       show_badge: If True, shows deleted badge after name (default: True)
+
+   Example:
+       {{ display_name_with_status(contact, contact.name) }}
+#}
+{% macro display_name_with_status(item, name, show_badge=True) %}
+    {% if item.is_deleted %}
+        <span class="deleted-name">{{ name }}</span>
+        {% if show_badge %}{{ deleted_badge(item) }}{% endif %}
+    {% else %}
+        {{ name }}
+    {% endif %}
+{% endmacro %}
+
+
+{#
+   Render delete/restore actions - Action buttons for delete operations
+
+   Args:
+       item: Model instance with is_deleted and can_hard_delete properties
+       delete_url: URL for soft delete action
+       restore_url: URL for restore action (optional)
+       hard_delete_url: URL for hard delete action (optional)
+       confirm_message: Confirmation message for delete (optional)
+
+   Example:
+       {{ render_delete_actions(
+           contact,
+           delete_url=url_for('contacts.delete', id=contact.id),
+           restore_url=url_for('contacts.restore', id=contact.id)
+       ) }}
+#}
+{% macro render_delete_actions(item, delete_url, restore_url=None, hard_delete_url=None, confirm_message=None) %}
+    {% if item.is_deleted %}
+        {# Restore button for deleted items #}
+        {% if restore_url %}
+            <button type="button"
+                    class="btn btn-sm btn-outline-success btn-restore"
+                    hx-post="{{ restore_url }}"
+                    hx-confirm="{{ _('Restore this item?') }}"
+                    title="{{ _('Restore') }}">
+                <i class="fas fa-undo"></i>
+            </button>
+        {% endif %}
+
+        {# Hard delete button (if allowed) #}
+        {% if hard_delete_url and item.can_hard_delete %}
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    hx-delete="{{ hard_delete_url }}"
+                    hx-confirm="{{ confirm_message or _('Permanently delete this item? This cannot be undone.') }}"
+                    title="{{ _('Delete Permanently') }}">
+                <i class="fas fa-times"></i>
+            </button>
+        {% endif %}
+    {% else %}
+        {# Soft delete button for active items #}
+        <button type="button"
+                class="btn btn-sm btn-outline-danger"
+                hx-delete="{{ delete_url }}"
+                hx-confirm="{{ confirm_message or _('Delete this item?') }}"
+                title="{{ _('Delete') }}">
+            <i class="fas fa-trash-alt"></i>
+        </button>
+    {% endif %}
+{% endmacro %}
+
+
+{#
+   Deleted filter tabs - Tab buttons to filter by deletion status
+
+   Args:
+       active_filter: Current filter value ('active', 'deleted', 'all')
+       base_url: Base URL to append filter parameter
+       counts: Dict with counts {'active': n, 'deleted': n, 'all': n} (optional)
+
+   Example:
+       {{ deleted_filter_tabs('active', url_for('contacts.index'), {'active': 10, 'deleted': 2, 'all': 12}) }}
+#}
+{% macro deleted_filter_tabs(active_filter='active', base_url='', counts=None) %}
+    <div class="btn-group btn-group-sm" role="group">
+        <a href="{{ base_url }}?filter=active"
+           class="btn btn-outline-secondary {{ 'active' if active_filter == 'active' }}">
+            {{ _("Active") }}
+            {% if counts and counts.active is defined %}
+                <span class="badge bg-secondary ms-1">{{ counts.active }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ base_url }}?filter=deleted"
+           class="btn btn-outline-secondary {{ 'active' if active_filter == 'deleted' }}">
+            {{ _("Deleted") }}
+            {% if counts and counts.deleted is defined %}
+                <span class="badge bg-secondary ms-1">{{ counts.deleted }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ base_url }}?filter=all"
+           class="btn btn-outline-secondary {{ 'active' if active_filter == 'all' }}">
+            {{ _("All") }}
+            {% if counts and counts.all is defined %}
+                <span class="badge bg-secondary ms-1">{{ counts.all }}</span>
+            {% endif %}
+        </a>
+    </div>
+{% endmacro %}
+
+
+{#
+   Parent deleted badge - Indicator when a parent entity is deleted
+
+   Args:
+       parent: Parent model instance with is_deleted property
+       label: Label to show (default: "Contact")
+
+   Example:
+       {{ parent_deleted_badge(quote.contact, "Contact") }}
+#}
+{% macro parent_deleted_badge(parent, label="Contact") %}
+    {% if parent and parent.is_deleted %}
+        <span class="parent-deleted-indicator" title="{{ label }} {{ _('was deleted') }}{{ ' on ' ~ parent.deleted_at|format_datetime('%Y-%m-%d') if parent.deleted_at else '' }}{{ ' by ' ~ parent.deleted_by_name if parent.deleted_by_name else '' }}">
+            <i class="fas fa-user-slash"></i> {{ label }} {{ _("deleted") }}
+        </span>
+    {% endif %}
+{% endmacro %}

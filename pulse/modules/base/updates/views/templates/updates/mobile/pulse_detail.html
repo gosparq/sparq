@@ -1,0 +1,107 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% block title %}{{ member.user.full_name if member.user else _("Unknown") }} — {{ _("Momentum") }}{% endblock %}
+
+{% block module_content %}
+<div class="pulse-mobile-page">
+    {# ── Back Link ── #}
+    <div style="margin-bottom:0.75rem;">
+        <a href="{{ url_for('updates_bp.pulse', period=period) }}" class="pulse-mobile-back">
+            <i class="fas fa-arrow-left"></i> {{ _("Team Pulse") }}
+        </a>
+    </div>
+
+    {# ── Header ── #}
+    <div class="pulse-mobile-header">
+        <div class="d-flex align-items-center gap-2">
+            {% if member.user %}
+            {% set av_color = member.user.avatar_color|default('#6b7280') %}
+            <span class="avatar-circle pulse-mobile-detail-avatar pulse-avatar" data-color="{{ av_color }}">
+                {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+            </span>
+            {% endif %}
+            <div>
+                <h2 class="pulse-mobile-title" style="margin-bottom:0;">{{ member.user.full_name if member.user else _("Unknown") }}</h2>
+                <span class="text-muted" style="font-size:0.8125rem;">
+                    {% if period == 'daily' %}
+                        {{ _("Today's nudge history") }}
+                    {% else %}
+                        {{ _("Rolling 7 business days") }}
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="?period=daily"
+               class="btn {% if period == 'daily' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ _("Daily") }}
+            </a>
+            <a href="?period=weekly"
+               class="btn {% if period == 'weekly' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ _("Weekly") }}
+            </a>
+        </div>
+    </div>
+
+    {# ── Summary Stats ── #}
+    <div class="pulse-mobile-summary">
+        <div class="pulse-mobile-stat">
+            <div class="pulse-mobile-stat-label">{{ _("Overall") }}</div>
+            <div class="pulse-mobile-stat-value">
+                {% if overall_pct is not none %}{{ overall_pct }}%{% else %}&mdash;{% endif %}
+            </div>
+        </div>
+        {% for grp in template_groups %}
+        <div class="pulse-mobile-stat">
+            <div class="pulse-mobile-stat-label">{{ _(grp.label) }}</div>
+            <div class="pulse-mobile-stat-value">
+                {% set t_stats = detail_templates[grp.id] if grp.id in detail_templates else none %}
+                {% if t_stats is not none and t_stats.pct is not none %}
+                    {{ t_stats.pct }}%
+                    <span class="pulse-mobile-stat-fraction">{{ t_stats.completed }}/{{ t_stats.total }}</span>
+                {% else %}&mdash;{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Nudge History ── #}
+    {% if rows %}
+    {% for row in rows %}
+    <div class="pulse-mobile-history-card">
+        <div class="pulse-mobile-history-top">
+            <span class="pulse-mobile-history-date">{{ row.nudged_at|format_datetime('%b %d') }}</span>
+            <span class="pulse-mobile-history-time">{{ row.nudged_at|format_datetime('%I:%M %p') }}</span>
+        </div>
+        <div class="pulse-mobile-history-template">{{ row.template_name }}</div>
+        <div class="pulse-mobile-history-bottom">
+            <span class="pulse-type-badge">{{ _(row.template_label) }}</span>
+            {% if row.status == 'completed' %}
+            <span class="pulse-result-completed"><i class="fas fa-check"></i> {{ _("Completed") }}</span>
+            {% elif row.status == 'expired' %}
+            <span class="pulse-result-missed"><i class="fas fa-clock"></i> {{ _("Missed") }}</span>
+            {% elif row.status == 'superseded' %}
+            <span class="pulse-result-superseded"><i class="fas fa-forward"></i> {{ _("Missed") }}</span>
+            {% else %}
+            <span class="pulse-result-pending"><i class="fas fa-hourglass-half"></i> {{ _("Pending") }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="text-center py-5" style="color:var(--color-gray-400);">
+        <i class="fas fa-inbox fa-2x mb-3 d-block" style="opacity:0.5;"></i>
+        <p class="mb-0 text-base">{{ _("No nudge history for this period.") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    document.querySelectorAll('.pulse-avatar[data-color]').forEach(function(el) {
+        el.style.setProperty('--avatar-bg', el.dataset.color);
+    });
+})();
+</script>
+{% endblock %}

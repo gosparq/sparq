@@ -1,0 +1,433 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Home") }}{% endblock %}
+
+{% block app_class %}dashboard-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('dashboard_bp.static', filename='css/dashboard.css') }}">
+{% if pulse_enabled %}<link rel="stylesheet" href="{{ url_for('updates_bp.static', filename='css/connect.css') }}">{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+<div class="content-card" x-data="{
+    activeTab: (window.location.hash.slice(1) || 'dash'),
+    init() { this.$watch('activeTab', t => { window.location.hash = t }) }
+}">
+
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="dash-greeting">{{ greeting }}, {{ current_user.first_name }}</h1>
+        <span class="text-muted dash-date">{{ today_display }}</span>
+    </div>
+
+    {# ── Tab Nav ── #}
+    <nav class="dash-tab-nav mb-3" aria-label="{{ _('Dashboard sections') }}">
+        <button class="dash-tab-btn" :class="{ active: activeTab === 'dash' }" @click="activeTab = 'dash'">{{ _("DASH") }}</button>
+        <button class="dash-tab-btn" :class="{ active: activeTab === 'bluf' }" @click="activeTab = 'bluf'">{{ _("BLUF") }}</button>
+        <button class="dash-tab-btn" :class="{ active: activeTab === 'pulse' }" @click="activeTab = 'pulse'">{{ _("PULSE") }}</button>
+        <button class="dash-tab-btn" :class="{ active: activeTab === 'happening' }" @click="activeTab = 'happening'">{{ _("ACTIVITIES") }}</button>
+    </nav>
+
+    {# ── DASH Tab ── #}
+    <div class="dash-tab-content" x-show="activeTab === 'dash'" x-cloak>
+
+    {# ── Banner Row: BLUF + Pulse ── #}
+    <div class="dash-banner-row">
+
+        <div class="dash-banner dash-banner-bluf dash-banner-clickable" @click="activeTab = 'bluf'" role="button" tabindex="0" @keydown.enter="activeTab = 'bluf'">
+            <div class="dash-banner-head">
+                <span class="dash-banner-eyebrow">BLUF &middot; {{ _("BOTTOM LINE UP FRONT") }}</span>
+                <span class="dash-banner-time">{{ _("This Week") }}</span>
+            </div>
+            <p class="dash-banner-text">
+                <strong>{{ blocked_count }} {{ _("blocked") }}</strong>
+                &nbsp;&middot;&nbsp;
+                <strong>{{ bluf_slipped }} {{ _("slipped this week") }}</strong>
+                &nbsp;&middot;&nbsp;
+                <strong>{{ bluf_shipped }} {{ _("shipped") }}</strong>
+                {% if bluf_decisions %}
+                &nbsp;&middot;&nbsp;
+                <strong>{{ bluf_decisions }} {{ _("decision") if bluf_decisions == 1 else _("decisions") }} {{ _("waiting on you") }}</strong>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="dash-banner dash-banner-rag-{{ pulse_rag }} dash-banner-clickable" @click="activeTab = 'pulse'" role="button" tabindex="0" @keydown.enter="activeTab = 'pulse'">
+            <div class="dash-banner-head">
+                <span class="dash-banner-eyebrow">{{ _("PULSE") }}</span>
+            </div>
+            <div class="dash-banner-pulse-row">
+                <span class="dash-banner-pulse-label">{{ pulse_label }}{% if pulse_pct is not none %} &middot; {{ pulse_pct }}%{% endif %}</span>
+            </div>
+        </div>
+
+    </div>
+
+    {# ── GitHub Orphan Banner ── #}
+    {% if github_orphan_count %}
+    <div class="alert alert-warning d-flex align-items-center justify-content-between py-2 mb-3 text-base"
+         x-data="{ dismissed: false }" x-show="!dismissed">
+        <span>
+            <i class="fa-brands fa-github me-2"></i>
+            <strong>{{ github_orphan_count }}</strong>
+            {{ _("unowned GitHub issue") if github_orphan_count == 1 else _("unowned GitHub issues") }}
+            {{ _("have no linked Task.") }}
+            <a href="{{ url_for('github_bp.issues_unowned') }}" class="alert-link ms-1">{{ _("Review") }} &rarr;</a>
+        </span>
+        <button type="button" class="btn-close btn-close-sm ms-3" @click="dismissed = true" aria-label="{{ _('Dismiss') }}"></button>
+    </div>
+    {% endif %}
+
+    {# ── Body Row: My Items · Team Status · What's Happening ── #}
+    <div class="dash-body-row">
+
+        {# ═══ My Items ═══ #}
+        <div class="dash-col-items">
+            <div class="dash-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="dash-card-title">
+                        {{ _("MY ITEMS") }}
+                        {% if my_blocker_count %}
+                        <span class="text-muted dash-count">({{ my_blocker_count }})</span>
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('tasks_bp.index') }}" class="dash-card-action">{{ _("View all") }}</a>
+                </div>
+                {% if my_items %}
+                <div class="dash-action-list">
+                    {% for entry in my_items %}
+                    {% if entry.type == 'nudge' %}
+                    <a href="{{ url_for('sync_bp.post_new', template_id=entry.template_id) }}" class="dash-action-item dash-link-item">
+                        <span class="dash-item-avatar dash-item-avatar-nudge">
+                            <i class="fas fa-bell"></i>
+                        </span>
+                        <div class="dash-item-body">
+                            <div class="dash-action-title">{{ _("Pending") }} {{ entry.template_name }} {{ _("status update") }}</div>
+                            <div class="dash-action-meta">{{ _("System nudge") }} &middot; {{ entry.nudge_time|format_datetime('%-I:%M%p')|lower }}</div>
+                        </div>
+                    </a>
+                    {% elif entry.type == 'blocker' %}
+                    {% set tier_colors = {1: 'var(--color-danger)', 2: '#d97706', 3: '#16a34a'} %}
+                    {% set tier_labels = {1: _('Now'), 2: _('Later'), 3: _('Whenever')} %}
+                    <a href="{{ url_for('tasks_bp.detail', item_id=entry.item_id) }}" class="dash-action-item dash-link-item">
+                        {% if entry.person_first_name %}
+                        <span class="dash-item-avatar" style="--avatar-bg: {{ entry.person_avatar_color|default('#6b7280') }};">
+                            {{ entry.person_first_name[0]|upper }}{{ entry.person_last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="dash-item-avatar dash-item-avatar-blocker">
+                            <i class="fas fa-hand"></i>
+                        </span>
+                        {% endif %}
+                        <div class="dash-item-body">
+                            <div class="dash-action-title">{{ entry.title | truncate(60) }}</div>
+                            {% if entry.context_note %}
+                            <div class="dash-action-note">{{ entry.context_note | truncate(80) }}</div>
+                            {% endif %}
+                            <div class="dash-action-meta">
+                                {% if entry.person_first_name %}{{ entry.person_first_name }} &middot; {% endif %}
+                                <span class="dash-tier-badge" style="color: {{ tier_colors.get(entry.urgency_tier, '#6b7280') }};">{{ tier_labels.get(entry.urgency_tier, '') }}</span>
+                                &middot; {{ entry.time_ago_str }}
+                            </div>
+                        </div>
+                    </a>
+                    {% elif entry.type == 'project_post' %}
+                    <a href="{{ url_for('projects_bp.channel_thread', project_id=entry.project_id, post_id=entry.post_id) }}" class="dash-action-item dash-link-item">
+                        <span class="dash-item-avatar dash-item-avatar-project" style="{% if entry.project_color %}--avatar-bg: {{ entry.project_color }};{% endif %}">
+                            {% if entry.project_emoji %}{{ entry.project_emoji }}{% else %}<i class="fas fa-folder"></i>{% endif %}
+                        </span>
+                        <div class="dash-item-body">
+                            <div class="dash-action-title">{{ entry.title | truncate(60) }}</div>
+                            {% if entry.subtitle %}
+                            <div class="dash-action-note">{{ entry.subtitle | truncate(80) }}</div>
+                            {% endif %}
+                            <div class="dash-action-meta">
+                                {% if entry.person_first_name %}{{ entry.person_first_name }} &middot; {% endif %}{{ entry.project_name }} &middot; {{ entry.time_ago_str }}
+                            </div>
+                        </div>
+                    </a>
+                    {% elif entry.type == 'mention' %}
+                    <a href="{{ entry.post_url }}" class="dash-action-item dash-link-item">
+                        {% if entry.person_first_name %}
+                        <span class="dash-item-avatar" style="--avatar-bg: {{ entry.person_avatar_color|default('#6b7280') }};">
+                            {{ entry.person_first_name[0]|upper }}{{ entry.person_last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="dash-item-avatar dash-item-avatar-mention">
+                            <i class="fas fa-at"></i>
+                        </span>
+                        {% endif %}
+                        <div class="dash-item-body">
+                            <div class="dash-action-title">{{ entry.title | truncate(70) }}</div>
+                            {% if entry.subtitle %}
+                            <div class="dash-action-note">{{ entry.subtitle | truncate(60) }}</div>
+                            {% endif %}
+                            <div class="dash-action-meta">
+                                {% if entry.person_first_name %}{{ entry.person_first_name }} &middot; {% endif %}{% if entry.project_name %}{{ entry.project_name }} &middot; {% endif %}{{ entry.time_ago_str }}
+                            </div>
+                        </div>
+                    </a>
+                    {% elif entry.type == 'review' %}
+                    <a href="{{ url_for('tasks_bp.detail', item_id=entry.item_id) }}" class="dash-action-item dash-link-item">
+                        {% if entry.person_first_name %}
+                        <span class="dash-item-avatar" style="--avatar-bg: #8b5cf6;">
+                            {{ entry.person_first_name[0]|upper }}{{ entry.person_last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="dash-item-avatar" style="--avatar-bg: #8b5cf6;">
+                            <i class="fas fa-clipboard-check"></i>
+                        </span>
+                        {% endif %}
+                        <div class="dash-item-body">
+                            <div class="dash-action-title">{{ entry.title | truncate(60) }}</div>
+                            <div class="dash-action-meta">
+                                {% if entry.person_first_name %}{{ entry.person_first_name }} &middot; {% endif %}{{ _("Needs review") }}{% if entry.project_name %} {{ _("in") }} {% if entry.project_emoji %}{{ entry.project_emoji }} {% endif %}{{ entry.project_name }}{% endif %} &middot; {{ entry.time_ago_str }}
+                            </div>
+                        </div>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-check-circle fa-lg mb-1 opacity-50 text-success"></i>
+                    <p class="mb-0 small">{{ _("Nothing needs your attention") }}</p>
+                </div>
+                {% endif %}
+                {% if expired_nudges %}
+                <div class="dash-expired-divider"></div>
+                <div class="dash-section-label">{{ _("Expired") }}</div>
+                <div class="dash-action-list">
+                    {% for entry in expired_nudges %}
+                    <a href="{{ url_for('updates_bp.pulse_detail', member_id=current_member_id, period='daily') }}" class="dash-action-item dash-link-item dash-expired-item">
+                        <span class="dash-item-avatar dash-item-avatar-expired">
+                            <i class="fas fa-clock"></i>
+                        </span>
+                        <div class="dash-item-body">
+                            <div class="dash-action-title">{{ _("Missed") }} {{ entry.template_name }} {{ _("status update") }}</div>
+                            <div class="dash-action-meta">{{ entry.nudge_time|format_datetime('%-I:%M%p')|lower }}</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ═══ Team Status ═══ #}
+        <div class="dash-col-status">
+            <div class="dash-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="dash-card-title">{{ _("TEAM STATUS") }}</span>
+                    {% if team_status %}
+                    {% set clocked_in_count = team_status | selectattr('is_clocked_in') | list | length %}
+                    {% set focus_ns = namespace(count=0) %}
+                    {% for ts in team_status %}{% if ts.is_clocked_in and ts.flow_status in ('flow', 'focus') %}{% set focus_ns.count = focus_ns.count + 1 %}{% endif %}{% endfor %}
+                    <span class="dash-team-summary">
+                        {{ clocked_in_count }} {{ _("in") }}{% if focus_ns.count %}, {{ focus_ns.count }} {{ _("focusing") }}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if team_status %}
+                <div class="dash-member-list">
+                    {% for ts in team_status %}
+                    <a href="{% if ts.is_blocked %}{% if ts.blocked_item_ids | length == 1 %}{{ url_for('tasks_bp.detail', item_id=ts.blocked_item_ids[0]) }}{% else %}{{ url_for('tasks_bp.blockers') }}{% endif %}{% elif ts.is_blocking %}{% if ts.blocking_item_ids | length == 1 %}{{ url_for('tasks_bp.detail', item_id=ts.blocking_item_ids[0]) }}{% else %}{{ url_for('tasks_bp.blockers') }}{% endif %}{% else %}{{ url_for('tasks_bp.board', member=ts.member_id) }}{% endif %}" class="dash-member-row dash-link-item{% if not ts.is_clocked_in %} dash-member-out{% endif %}">
+                        <span class="dash-member-avatar" style="--avatar-bg: {{ ts.avatar_color|default('#6b7280') }};">
+                            {{ ts.first_name[0]|upper }}{{ ts.last_name[0]|upper }}
+                        </span>
+                        <span class="dash-member-name">
+                            {{ ts.first_name }} {{ ts.last_name }}
+                        </span>
+                        <span class="dash-member-status">
+                            {% if ts.is_blocked %}
+                            <span class="dash-status-dot dash-dot-blocked"></span>
+                            <span class="dash-status-label">{{ _("Blocked") }}</span>
+                            {% elif ts.is_blocking %}
+                            <span class="dash-status-dot dash-dot-blocked"></span>
+                            <span class="dash-status-label">{{ _("Blocking") }}{% if ts.blocking_names %} {{ ts.blocking_names | join(", ") }}{% endif %}</span>
+                            {% elif not ts.is_clocked_in %}
+                            <span class="dash-status-dot dash-dot-out"></span>
+                            <span class="dash-status-label">{{ _("Out") }}</span>
+                            {% elif ts.flow_status in ('flow', 'focus') %}
+                            <span class="dash-status-dot dash-dot-focus"></span>
+                            <span class="dash-status-label">{{ _("Focus") }}</span>
+                            {% else %}
+                            <span class="dash-status-dot dash-dot-available"></span>
+                            <span class="dash-status-label">{{ _("Available") }}</span>
+                            {% endif %}
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-users fa-lg mb-1 opacity-50"></i>
+                    <p class="mb-0 small">{{ _("No team data available") }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ═══ What's Happening ═══ #}
+        {% set ns = namespace(current_day='') %}
+        {% set items_meta = [] %}
+        {% for entry in whats_happening_items[:20] %}
+        {% set _d = entry.created_at | format_datetime('%m/%d') if entry.created_at else '' %}
+        {% if items_meta.append({'day': _d, 'mid': entry.item.member_id or 0}) %}{% endif %}
+        {% endfor %}
+        <div class="dash-col-happening">
+            <div class="dash-card" x-data="{
+                filterMember: 0,
+                mids: [{% for m in items_meta %}{{ m.mid }}{% if not loop.last %},{% endif %}{% endfor %}],
+                days: [{% for m in items_meta %}'{{ m.day }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                isFirstOfDay(idx, day, fm) {
+                    for (var i = 0; i < idx; i++) {
+                        if (fm === 0 || this.mids[i] === fm) { if (this.days[i] === day) return false; }
+                    }
+                    return true;
+                }
+            }">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="dash-card-title">{{ _("ACTIVITIES") }}</span>
+                </div>
+                <div class="dash-pill-filter">
+                    <button class="dash-pill" :class="{ active: filterMember === 0 }" @click="filterMember = 0">{{ _("All") }}</button>
+                    {% for ts in team_status %}
+                    <button class="dash-pill" :class="{ active: filterMember === {{ ts.member_id }} }" @click="filterMember = {{ ts.member_id }}">
+                        {{ ts.first_name }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <div class="dash-happening-feed">
+                    {% for entry in whats_happening_items[:20] %}
+                    {% set day = entry.created_at | format_datetime('%m/%d') if entry.created_at else '' %}
+                    {% set is_new_day = day and day != ns.current_day %}
+                    {% if is_new_day %}{% set ns.current_day = day %}{% endif %}
+
+                    {% if entry.type == 'post' %}
+                    {% set post = entry.item %}
+                    {% set _blocker = (post.template_name == "I'm blocked") %}
+                    <div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}"
+                         x-data="{ memberId: {{ post.member_id or 0 }} }"
+                         x-show="filterMember === 0 || memberId === filterMember"
+                         :class="{ 'happening-row-day-start': isFirstOfDay({{ loop.index0 }}, '{{ day }}', filterMember) }">
+                    <span class="happening-date-col" x-text="isFirstOfDay({{ loop.index0 }}, '{{ day }}', filterMember) ? '{{ day }}' : ''">{% if is_new_day %}{{ day }}{% endif %}</span>
+                    <a href="{{ url_for('sync_bp.post_permalink', post_id=post.id) }}" class="activity-item activity-item-link happening-item">
+                        {% if post.post_type == 'win' %}
+                        <div class="activity-icon activity-icon-win"><i class="fas fa-trophy"></i></div>
+                        {% elif _blocker %}
+                        <div class="activity-icon activity-icon-blocked"><i class="fas fa-hand"></i></div>
+                        {% elif post.template_name == 'Heads up' %}
+                        <div class="activity-icon activity-icon-headsup"><i class="fas fa-bullhorn"></i></div>
+                        {% elif post.post_type == 'board' %}
+                        <div class="activity-icon activity-icon-board"><i class="fas fa-clipboard-list"></i></div>
+                        {% else %}
+                        <div class="activity-icon activity-icon-update"><i class="fas fa-bullhorn"></i></div>
+                        {% endif %}
+                        <div class="activity-body">
+                            <div class="activity-meta">
+                                {% if post.post_type == 'win' %}
+                                <span class="badge activity-badge activity-badge-win">{{ _("Win") }}</span>
+                                {% elif _blocker %}
+                                <span class="badge activity-badge activity-badge-blocked">{{ post.template_name }}</span>
+                                {% elif post.template_name == 'Heads up' %}
+                                <span class="badge activity-badge activity-badge-headsup">{{ post.template_name }}</span>
+                                {% elif post.post_type == 'board' %}
+                                <span class="badge activity-badge activity-badge-board">{{ post.template_name or _("Board") }}</span>
+                                {% elif post.template_name %}
+                                <span class="badge activity-badge activity-badge-update">{{ post.template_name }}</span>
+                                {% endif %}
+                                <span class="text-muted activity-meta-text">
+                                    {{ post.member_first_name or _('Team') }}
+                                    · {{ post.created_at|format_datetime('%-I:%M%p')|lower if post.created_at else '' }}
+                                </span>
+                            </div>
+                            <div class="activity-text">{{ post.preview_text() | strip_gh_tokens | truncate(100) }}</div>
+                        </div>
+                    </a>
+                    </div>
+
+                    {% elif entry.type == 'activity' %}
+                    {% set activity = entry.item %}
+                    <div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}"
+                         x-data="{ memberId: {{ activity.member_id or 0 }} }"
+                         x-show="filterMember === 0 || memberId === filterMember"
+                         :class="{ 'happening-row-day-start': isFirstOfDay({{ loop.index0 }}, '{{ day }}', filterMember) }">
+                    <span class="happening-date-col" x-text="isFirstOfDay({{ loop.index0 }}, '{{ day }}', filterMember) ? '{{ day }}' : ''">{% if is_new_day %}{{ day }}{% endif %}</span>
+                    {% if activity.url %}<a href="{{ activity.url }}" class="activity-item activity-item-link happening-item">{% else %}<div class="activity-item happening-item">{% endif %}
+                        {% if activity.color == 'danger' %}
+                        <div class="activity-icon activity-icon-blocked">
+                        {% elif activity.color == 'success' %}
+                        <div class="activity-icon activity-icon-success">
+                        {% elif activity.color == 'warning' %}
+                        <div class="activity-icon activity-icon-win">
+                        {% elif activity.color == 'primary' or activity.color == 'info' %}
+                        <div class="activity-icon activity-icon-update">
+                        {% else %}
+                        <div class="activity-icon activity-icon-default">
+                        {% endif %}
+                            <i class="fas {{ activity.icon|default('fa-circle') }}"></i>
+                        </div>
+                        <div class="activity-body">
+                            <div class="activity-meta">
+                                <span class="activity-text">{{ activity.title | strip_gh_tokens }}</span>
+                                <span class="text-muted activity-meta-text">
+                                    {% if activity.member_first_name %}{{ activity.member_first_name }}{% endif %}
+                                    · {{ activity.created_at|format_datetime('%-I:%M%p')|lower if activity.created_at else '' }}
+                                </span>
+                            </div>
+                            {% if activity.description %}
+                            {% set clean_desc = activity.description | strip_gh_tokens %}
+                            {% if clean_desc %}
+                            <div class="activity-text">{{ clean_desc | truncate(100) }}</div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    {% if activity.url %}</a>{% else %}</div>{% endif %}
+                    </div>
+
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if not whats_happening_items %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-stream fa-lg mb-2 opacity-50"></i>
+                        <p class="mb-0 small">{{ _("No activity yet") }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if whats_happening_items %}
+                <div class="dash-happening-footer">
+                    <span class="dash-happening-footer-link cursor-pointer" @click="activeTab = 'happening'">{{ _("View all") }} ›</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    </div>{# ── /DASH Tab ── #}
+
+    {# ── BLUF Tab ── #}
+    <div x-show="activeTab === 'bluf'" x-cloak>
+        {% include "dashboard/desktop/partials/_bluf_tab.html" %}
+    </div>
+
+    {# ── WHAT'S HAPPENING Tab ── #}
+    <div x-show="activeTab === 'happening'" x-cloak>
+        {% include "dashboard/desktop/partials/_happening_tab.html" %}
+    </div>
+
+    {# ── PULSE Tab ── #}
+    <div x-show="activeTab === 'pulse'" x-cloak>
+        <div id="pulse-content">
+            {% with pulse_period_url = url_for('dashboard_bp.pulse_tab') %}{% include "dashboard/desktop/partials/_pulse_tab.html" %}{% endwith %}
+        </div>
+    </div>
+
+</div>
+</div>
+{% endblock %}
+

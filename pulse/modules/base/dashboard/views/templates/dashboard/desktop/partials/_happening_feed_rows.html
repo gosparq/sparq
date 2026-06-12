@@ -1,0 +1,115 @@
+{# Infinite-scroll batch for the What's Happening feed.
+   Rendered by dashboard_bp.happening_feed and swapped in via HTMX.
+   Indices start at `offset` so Alpine's isFirstOfDay() spans all loaded batches.
+   The hidden x-init div at the top fires appendMeta() before the new rows are
+   Alpine-initialized, so isFirstOfDay() sees the full accumulated items list. #}
+
+{# First pass: collect metadata for this batch #}
+{% set new_meta = [] %}
+{% for entry in batch_items %}
+{% set _day = entry.created_at | format_datetime('%m/%d') if entry.created_at else '' %}
+{% set _mid = entry.item.member_id or 0 %}
+{% if new_meta.append({'day': _day, 'mid': _mid}) %}{% endif %}
+{% endfor %}
+
+{# Notify Alpine's appendMeta before row elements are initialized #}
+<div class="d-none" data-meta='{{ new_meta | tojson }}' x-init="appendMeta(JSON.parse($el.dataset.meta))"></div>
+
+{# Second pass: render rows #}
+{% set ns = namespace(current_day='') %}
+{% for entry in batch_items %}
+{% set day = entry.created_at | format_datetime('%m/%d') if entry.created_at else '' %}
+{% set mid = entry.item.member_id or 0 %}
+{% set is_new_day = day and day != ns.current_day %}
+{% if is_new_day %}{% set ns.current_day = day %}{% endif %}
+
+{% if entry.type == 'post' %}
+{% set post = entry.item %}
+{% set _blocker = (post.template_name == "I'm blocked") %}
+<div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}"
+     x-show="filterMember === 0 || filterMember === {{ mid }}"
+     :class="{ 'happening-row-day-start': isFirstOfDay({{ offset + loop.index0 }}, '{{ day }}', filterMember) }">
+    <span class="happening-date-col"
+          x-text="isFirstOfDay({{ offset + loop.index0 }}, '{{ day }}', filterMember) ? '{{ day }}' : ''">{% if is_new_day %}{{ day }}{% endif %}</span>
+    <a href="{{ url_for('sync_bp.post_permalink', post_id=post.id) }}" class="activity-item activity-item-link happening-item">
+        {% if post.post_type == 'win' %}
+        <div class="activity-icon activity-icon-win"><i class="fas fa-trophy"></i></div>
+        {% elif _blocker %}
+        <div class="activity-icon activity-icon-blocked"><i class="fas fa-hand"></i></div>
+        {% elif post.template_name == 'Heads up' %}
+        <div class="activity-icon activity-icon-headsup"><i class="fas fa-bullhorn"></i></div>
+        {% elif post.post_type == 'board' %}
+        <div class="activity-icon activity-icon-board"><i class="fas fa-clipboard-list"></i></div>
+        {% else %}
+        <div class="activity-icon activity-icon-update"><i class="fas fa-bullhorn"></i></div>
+        {% endif %}
+        <div class="activity-body">
+            <div class="activity-meta">
+                {% if post.post_type == 'win' %}
+                <span class="badge activity-badge activity-badge-win">Win</span>
+                {% elif _blocker %}
+                <span class="badge activity-badge activity-badge-blocked">{{ post.template_name }}</span>
+                {% elif post.template_name == 'Heads up' %}
+                <span class="badge activity-badge activity-badge-headsup">{{ post.template_name }}</span>
+                {% elif post.post_type == 'board' %}
+                <span class="badge activity-badge activity-badge-board">{{ post.template_name or "Board" }}</span>
+                {% elif post.template_name %}
+                <span class="badge activity-badge activity-badge-update">{{ post.template_name }}</span>
+                {% endif %}
+                <span class="text-muted activity-meta-text">
+                    {{ post.member_first_name or 'Team' }}
+                    · {{ post.created_at|format_datetime('%-I:%M%p')|lower if post.created_at else '' }}
+                </span>
+            </div>
+            <div class="activity-text">{{ post.preview_text() | truncate(100) }}</div>
+        </div>
+    </a>
+</div>
+
+{% elif entry.type == 'activity' %}
+{% set activity = entry.item %}
+<div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}"
+     x-show="filterMember === 0 || filterMember === {{ mid }}"
+     :class="{ 'happening-row-day-start': isFirstOfDay({{ offset + loop.index0 }}, '{{ day }}', filterMember) }">
+    <span class="happening-date-col"
+          x-text="isFirstOfDay({{ offset + loop.index0 }}, '{{ day }}', filterMember) ? '{{ day }}' : ''">{% if is_new_day %}{{ day }}{% endif %}</span>
+    <{% if activity.url %}a href="{{ activity.url }}" class="activity-item activity-item-link happening-item"{% else %}div class="activity-item happening-item"{% endif %}>
+        {% if activity.color == 'danger' %}
+        <div class="activity-icon activity-icon-blocked">
+        {% elif activity.color == 'success' %}
+        <div class="activity-icon activity-icon-success">
+        {% elif activity.color == 'warning' %}
+        <div class="activity-icon activity-icon-win">
+        {% elif activity.color == 'primary' or activity.color == 'info' %}
+        <div class="activity-icon activity-icon-update">
+        {% else %}
+        <div class="activity-icon activity-icon-default">
+        {% endif %}
+            <i class="fas {{ activity.icon|default('fa-circle') }}"></i>
+        </div>
+        <div class="activity-body">
+            <div class="activity-meta">
+                <span class="activity-text">{{ activity.title }}</span>
+                <span class="text-muted activity-meta-text">
+                    {% if activity.member_first_name %}{{ activity.member_first_name }}{% endif %}
+                    · {{ activity.created_at|format_datetime('%-I:%M%p')|lower if activity.created_at else '' }}
+                </span>
+            </div>
+            {% if activity.description %}
+            <div class="activity-text">{{ activity.description | truncate(100) }}</div>
+            {% endif %}
+        </div>
+    </{% if activity.url %}a{% else %}div{% endif %}>
+</div>
+
+{% endif %}
+{% endfor %}
+
+{% if has_more %}
+<div id="happening-sentinel"
+     hx-get="{{ url_for('dashboard_bp.happening_feed', offset=next_offset) }}"
+     hx-trigger="intersect once"
+     hx-target="this"
+     hx-swap="outerHTML">
+</div>
+{% endif %}

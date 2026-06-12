@@ -1,0 +1,484 @@
+{# DM Popup — bottom-right persistent chat widget #}
+{# Two views: thread list (default) and active conversation #}
+
+{% if current_user.is_authenticated %}
+<div x-data="dmPopup()" x-init="init()">
+    {# ── Collapsed: FAB button ── #}
+    <button class="dm-fab" @click="toggle()" x-show="!expanded" x-transition>
+        <i class="fas fa-comment-dots" style="font-size:1.1rem;"></i>
+        <span class="dm-fab-badge" x-show="unreadCount > 0" x-text="unreadCount < 100 ? unreadCount : '99+'" x-cloak></span>
+    </button>
+
+    {# ── Expanded: chat panel ── #}
+    <div class="dm-panel" x-show="expanded" x-cloak x-transition.opacity.duration.150ms>
+        {# Header #}
+        <div class="dm-panel-header">
+            <div class="d-flex align-items-center gap-2">
+                <button class="dm-panel-btn" x-show="activeThread" @click="backToList()" x-cloak>
+                    <i class="fas fa-arrow-left text-2xs"></i>
+                </button>
+                <span class="fw-semibold text-base" x-text="activeThread ? activeName : '{{ _("Messages") }}'"></span>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <button class="dm-panel-btn" @click="expanded = false">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        {# Thread List View #}
+        <div class="dm-panel-body" x-show="!activeThread">
+            <div id="dm-popup-list">
+                <div class="text-center py-4 text-muted text-sm">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </div>
+        </div>
+
+        {# Conversation View #}
+        <div class="dm-panel-body dm-panel-conversation" x-show="activeThread" x-cloak>
+            <div id="dm-popup-messages" style="flex:1;overflow-y:auto;padding:0.75rem;"></div>
+            <div class="dm-panel-compose">
+                <form @submit.prevent="sendMessage()" class="d-flex gap-2">
+                    <input type="text" x-model="messageText" x-ref="msgInput"
+                           class="form-control form-control-sm text-sm"
+                           placeholder="{{ _('Type a message…') }}" style="border-radius:1rem"
+                           @keydown.enter.prevent="sendMessage()">
+                    <button type="submit" class="btn btn-sm btn-primary" style="border-radius:1rem;padding:0.25rem 0.75rem;"
+                            :disabled="!messageText.trim()">
+                        <i class="fas fa-paper-plane text-3xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dm-fab {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1050;
+    display: flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px; border-radius: 50%; border: none;
+    background: var(--color-primary); color: white; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.dm-fab:hover { transform: scale(1.05); box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+
+.dm-fab-badge {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 18px; height: 18px; border-radius: 999px;
+    background: var(--color-error, var(--color-danger)); color: white;
+    font-size: 0.6rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px; line-height: 1;
+}
+
+.dm-panel {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1050;
+    width: 340px; height: 460px;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+
+.dm-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--color-gray-200);
+    flex-shrink: 0;
+    background: var(--color-white);
+}
+
+.dm-panel-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 0.375rem;
+    border: none; background: none; color: var(--color-gray-400);
+    cursor: pointer; text-decoration: none; transition: background 0.1s;
+}
+.dm-panel-btn:hover { background: var(--color-gray-100); color: var(--color-gray-600); }
+
+.dm-panel-body {
+    flex: 1; overflow-y: auto;
+}
+
+.dm-panel-conversation {
+    display: flex; flex-direction: column; overflow: hidden;
+}
+
+.dm-panel-compose {
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--color-gray-100);
+    background: var(--color-white);
+}
+
+/* Thread list items */
+.dm-popup-thread {
+    display: flex; align-items: center; gap: 0.625rem;
+    padding: 0.5rem 0.75rem; cursor: pointer;
+    transition: background 0.1s; border-bottom: 1px solid var(--color-gray-50);
+}
+.dm-popup-thread:hover { background: var(--color-gray-50); }
+
+.dm-popup-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; color: white; flex-shrink: 0; font-weight: 600;
+}
+
+.dm-popup-thread-info { flex: 1; min-width: 0; }
+.dm-popup-thread-name {
+    font-size: 0.8125rem; font-weight: 500; color: var(--color-gray-800);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dm-popup-thread-preview {
+    font-size: 0.75rem; color: var(--color-gray-400);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dm-popup-unread {
+    min-width: 18px; height: 18px; border-radius: 999px;
+    background: var(--color-primary); color: white;
+    font-size: 0.6rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px; flex-shrink: 0;
+}
+
+/* Message bubbles */
+.dm-popup-msg { padding: 0.25rem 0; }
+.dm-popup-msg-author {
+    font-size: 0.6875rem; font-weight: 600; color: var(--color-gray-500);
+    margin-bottom: 0.125rem;
+}
+.dm-popup-msg-bubble {
+    display: inline-block; max-width: 85%;
+    padding: 0.375rem 0.625rem; border-radius: 0.75rem;
+    font-size: 0.8125rem; line-height: 1.4; word-wrap: break-word;
+}
+.dm-popup-msg--mine .dm-popup-msg-bubble {
+    background: var(--color-primary); color: white;
+    border-bottom-right-radius: 0.25rem;
+    margin-left: auto;
+}
+.dm-popup-msg--theirs .dm-popup-msg-bubble {
+    background: var(--color-gray-100); color: var(--color-gray-800);
+    border-bottom-left-radius: 0.25rem;
+}
+.dm-popup-msg--mine { text-align: right; }
+.dm-popup-msg-time {
+    font-size: 0.6rem; color: var(--color-gray-400); margin-top: 0.125rem;
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+window._sparqyI18n = {
+    contextCleared: '{{ _("Context cleared") }}',
+    actionProposal: '{{ _("Action proposal") }}',
+    emptyState: '{{ _("Send a message to sparQy!") }}'
+};
+function dmPopup() {
+    return {
+        expanded: false,
+        unreadCount: {{ header_dm_unread_count|default(0) }},
+        activeThread: null,
+        activeName: '',
+        activeMemberId: null,
+        messageText: '',
+        isSparqy: false,
+        currentMemberId: {{ current_member_id|default(0) }},
+        init() {
+            var self = this;
+            // Clean up old shared localStorage key (pre per-user scoping)
+            try { localStorage.removeItem('sparq_agent_messages'); } catch(e) {}
+            // Listen for thread selection from the fetch-loaded list
+            document.addEventListener('dm-popup-open-thread', function(e) {
+                if (e.detail.sparqy) {
+                    self.openThread({ sparqy: true }, e.detail.name);
+                } else {
+                    self.openThread(e.detail.memberId, e.detail.name, e.detail.threadId);
+                }
+            });
+            // Listen for real-time DM updates (dispatched by chat-socket.js on chat
+            // pages, or by this popup's own lazy socket on non-chat pages).
+            document.addEventListener('dm-popup-new-message', function(e) {
+                var data = e.detail;
+                if (!data) return;
+                var isFromMe = data.sender_id === window.CURRENT_USER_ID;
+                var isViewing = self.expanded && self.activeThread && data.thread_id === self.activeThread;
+                // Only bump the badge for messages from others that the user isn't already reading.
+                if (!isFromMe && !isViewing) {
+                    self.unreadCount++;
+                }
+                if (isViewing) {
+                    self.loadMessages();
+                }
+            });
+            // Tear the socket down on backgrounded tabs; restore when visible + expanded.
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    self._disconnectSocket();
+                } else if (self.expanded) {
+                    self._connectSocket();
+                }
+            });
+            // Listen for sparQy agent messages to refresh popup when viewing sparQy
+            document.addEventListener('dm-popup-sparqy-message', function() {
+                if (self.expanded && self.isSparqy) {
+                    self.loadSparqyMessages();
+                }
+            });
+            // Sync the FAB badge from the server-authoritative badge-poll results
+            // (30s cadence on non-chat pages). Keeps the count correct even when the
+            // popup is closed and no socket is listening.
+            document.addEventListener('chat-unread-sync', function(e) {
+                if (e.detail && typeof e.detail.dm_count === 'number') {
+                    self.unreadCount = e.detail.dm_count;
+                }
+            });
+        },
+
+        _connectSocket() {
+            if (this._socket || this._connecting) return;
+            // On chat pages, chat-socket.js owns the /sync connection and dispatches
+            // dm-popup-new-message for us — no need for a second socket.
+            if (window.location.pathname.indexOf('/sync/chat') === 0) return;
+            var self = this;
+            var bind = function() {
+                if (self._socket || typeof io !== 'function') return;
+                self._socket = io('/sync', { transports: ['websocket'], upgrade: false });
+                self._socket.on('new_dm', function(data) {
+                    document.dispatchEvent(new CustomEvent('dm-popup-new-message', { detail: data }));
+                });
+                self._socket.on('agent_message', function(data) {
+                    var userId = window.CURRENT_USER_ID;
+                    if (userId && data.author_id !== userId && data.target_user_id !== userId) return;
+                    var key = userId ? 'sparq_agent_messages_' + userId : null;
+                    if (key) {
+                        try {
+                            if (data.clear_storage) {
+                                localStorage.removeItem(key);
+                            }
+                            var stored = localStorage.getItem(key);
+                            var msgs = stored ? JSON.parse(stored) : [];
+                            msgs.push({
+                                temp_id: data.temp_id,
+                                html: data.html,
+                                content: data.content,
+                                is_ai: data.is_ai,
+                                author_id: data.author_id,
+                                timestamp: new Date().toISOString()
+                            });
+                            localStorage.setItem(key, JSON.stringify(msgs));
+                        } catch (e) {}
+                    }
+                    document.dispatchEvent(new CustomEvent('dm-popup-sparqy-message'));
+                });
+            };
+            if (typeof io === 'function') { bind(); return; }
+            // Socket.IO client isn't loaded on non-chat pages — inject it now.
+            this._connecting = true;
+            var s = document.createElement('script');
+            s.src = '{{ url_for("sync_bp.static", filename="js/vendor/socket.io.min.js") }}';
+            s.onload = function() { self._connecting = false; bind(); };
+            s.onerror = function() { self._connecting = false; };
+            document.head.appendChild(s);
+        },
+
+        _disconnectSocket() {
+            if (this._socket) {
+                this._socket.disconnect();
+                this._socket = null;
+            }
+        },
+
+        toggle() {
+            this.expanded = !this.expanded;
+            if (this.expanded) {
+                this._connectSocket();
+                if (!this.activeThread) this.loadThreadList();
+            } else {
+                this._disconnectSocket();
+            }
+        },
+
+        loadThreadList() {
+            fetch('/sync/chat/dms?popup=1', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                var el = document.getElementById('dm-popup-list');
+                if (el) el.innerHTML = html;
+            });
+        },
+
+        backToList() {
+            this.activeThread = null;
+            this.activeName = '';
+            this.activeMemberId = null;
+            this.isSparqy = false;
+            this.$nextTick(function() {
+                this.loadThreadList();
+            }.bind(this));
+        },
+
+        openThread(memberId, name, threadId) {
+            if (memberId && memberId.sparqy) {
+                this.activeMemberId = 'sparqy';
+                this.activeName = name || 'sparQy';
+                this.activeThread = 'sparqy';
+                this.isSparqy = true;
+                this.loadSparqyMessages();
+                return;
+            }
+            this.isSparqy = false;
+            this.activeMemberId = memberId;
+            this.activeName = name;
+            this.activeThread = threadId || true;
+            this.loadMessages();
+        },
+
+        loadMessages() {
+            var self = this;
+            fetch('/sync/chat/dms/' + this.activeMemberId + '?popup=1', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                var el = document.getElementById('dm-popup-messages');
+                if (el) {
+                    el.innerHTML = html;
+                    el.scrollTop = el.scrollHeight;
+                }
+            });
+        },
+
+        loadSparqyMessages() {
+            var el = document.getElementById('dm-popup-messages');
+            if (!el) return;
+            el.innerHTML = '';
+            try {
+                var userId = window.CURRENT_USER_ID;
+                var key = userId ? 'sparq_agent_messages_' + userId : null;
+                var stored = key ? localStorage.getItem(key) : null;
+                var messages = stored ? JSON.parse(stored) : [];
+                if (messages.length === 0) {
+                    var emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'text-center text-muted py-4';
+                    emptyDiv.style.fontSize = '0.8125rem';
+                    emptyDiv.textContent = window._sparqyI18n.emptyState;
+                    el.appendChild(emptyDiv);
+                    return;
+                }
+                messages.forEach(function(msg) {
+                    var isMine = !msg.is_ai && msg.author_id === userId;
+                    var div = document.createElement('div');
+                    div.className = 'dm-popup-msg ' + (isMine ? 'dm-popup-msg--mine' : 'dm-popup-msg--theirs');
+                    var text = msg.content || '';
+                    var isWarning = text.startsWith('AI_WARNING::');
+                    var isClear = text.startsWith('AI_CONTEXT_CLEAR::');
+                    if (text.startsWith('AI_MESSAGE::')) text = text.substring(12);
+                    else if (isWarning) text = text.substring(12);
+                    else if (isClear) text = window._sparqyI18n.contextCleared;
+                    else if (text.startsWith('AI_PROPOSAL::')) text = window._sparqyI18n.actionProposal;
+                    var time = '';
+                    if (msg.timestamp) {
+                        try { time = new Date(msg.timestamp).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}); } catch(e) { time = msg.timestamp; }
+                    }
+                    if (!isMine) {
+                        div.innerHTML = '<div class="dm-popup-msg-author">sparQy</div>';
+                    }
+                    if (isWarning) {
+                        div.innerHTML += '<div class="alert alert-warning mb-0 d-flex align-items-center text-sm" role="alert" style="padding:0.5rem 0.75rem"><i class="fas fa-exclamation-triangle me-2"></i><span></span></div>';
+                        div.querySelector('.alert span').textContent = text;
+                    } else if (isClear) {
+                        div.innerHTML += '<div class="dm-popup-msg-bubble" style="font-style:italic;color:var(--color-gray-400);"><i class="fas fa-broom me-1"></i><span></span></div>';
+                        div.querySelector('.dm-popup-msg-bubble span').textContent = text;
+                    } else {
+                        div.innerHTML += '<div class="dm-popup-msg-bubble"><span></span></div>';
+                        div.querySelector('.dm-popup-msg-bubble span').textContent = text;
+                    }
+                    div.innerHTML += '<div class="dm-popup-msg-time">' + time + '</div>';
+                    el.appendChild(div);
+                });
+                el.scrollTop = el.scrollHeight;
+            } catch (e) {
+                var emptyDiv = document.createElement('div');
+                emptyDiv.className = 'text-center text-muted py-4';
+                emptyDiv.style.fontSize = '0.8125rem';
+                emptyDiv.textContent = window._sparqyI18n.emptyState;
+                el.appendChild(emptyDiv);
+            }
+        },
+
+        _ensureThreadId() {
+            // If we already have a numeric thread ID, resolve immediately
+            var self = this;
+            if (typeof this.activeThread === 'number' && this.activeThread > 0) {
+                return Promise.resolve(this.activeThread);
+            }
+            // Otherwise fetch the full thread view to get/create the thread ID
+            return fetch('/sync/chat/dms/' + this.activeMemberId, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                var match = html.match(/dm-form-(\d+)/);
+                if (match) {
+                    self.activeThread = parseInt(match[1]);
+                    return self.activeThread;
+                }
+                return Promise.reject('Could not resolve thread');
+            });
+        },
+
+        sendMessage() {
+            if (!this.messageText.trim()) return;
+            var self = this;
+            var content = this.messageText.trim();
+            this.messageText = '';
+
+            if (this.isSparqy) {
+                // Optimistic: show user message immediately
+                var el = document.getElementById('dm-popup-messages');
+                if (el) {
+                    var msgDiv = document.createElement('div');
+                    msgDiv.className = 'dm-popup-msg dm-popup-msg--mine';
+                    msgDiv.innerHTML = '<div class="dm-popup-msg-bubble"><span></span></div>' +
+                        '<div class="dm-popup-msg-time">' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + '</div>';
+                    msgDiv.querySelector('.dm-popup-msg-bubble span').textContent = content;
+                    el.appendChild(msgDiv);
+                    el.scrollTop = el.scrollHeight;
+                }
+                var fd = new FormData();
+                fd.append('content', content);
+                fd.append('csrf_token', document.querySelector('meta[name=csrf-token]').content);
+                fetch('/sync/chat/dms/sparqy/messages', {
+                    method: 'POST', body: fd
+                }).then(function() {
+                    if (self.$refs.msgInput) self.$refs.msgInput.focus();
+                });
+                return;
+            }
+
+            if (!this.activeMemberId) return;
+            this._ensureThreadId().then(function(threadId) {
+                var fd = new FormData();
+                fd.append('content', content);
+                fd.append('csrf_token', document.querySelector('meta[name=csrf-token]').content);
+                return fetch('/sync/chat/dms/' + threadId + '/messages', {
+                    method: 'POST', body: fd
+                });
+            })
+            .then(function() {
+                self.loadMessages();
+                if (self.$refs.msgInput) self.$refs.msgInput.focus();
+            });
+        }
+    };
+}
+</script>
+{% endif %}

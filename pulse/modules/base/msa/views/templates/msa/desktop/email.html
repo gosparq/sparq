@@ -1,0 +1,114 @@
+{% extends "msa/desktop/_base.html" %}
+
+{% block title %}{{ _("Email Configuration") }} - MSA{% endblock %}
+
+{% block head %}
+<script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('msa_bp.dashboard') }}">{{ _("Dashboard") }}</a>
+<span class="sep">/</span>
+<span class="current">{{ _("Email") }}</span>
+{% endblock %}
+
+{% block content %}
+{% if has_env_overrides %}
+<div class="msa-flash msa-flash-info">
+    <i class="fas fa-lock"></i>
+    {{ _("Some settings are managed via environment variables and cannot be changed here.") }}
+</div>
+{% endif %}
+
+<!-- Status bar -->
+<div class="msa-email-status">
+    <div class="msa-email-status-item">
+        <span class="msa-email-status-label">{{ _("Provider") }}</span>
+        <span class="msa-email-status-value">{{ provider_display.get(active_provider, ("None", ""))[0] }}</span>
+    </div>
+    <div class="msa-email-status-sep"></div>
+    <div class="msa-email-status-item">
+        <span class="msa-email-status-label">{{ _("Status") }}</span>
+        <span id="email-verified-badge"
+              class="msa-badge {{ 'msa-badge-active' if settings.email_verified else 'msa-badge-inactive' }}">
+            {{ _("Verified") if settings.email_verified else _("Not Verified") }}
+        </span>
+    </div>
+    {% if settings.email_from %}
+    <div class="msa-email-status-sep"></div>
+    <div class="msa-email-status-item">
+        <span class="msa-email-status-label">{{ _("From") }}</span>
+        <span class="msa-email-status-value msa-email-status-mono">{{ settings.email_from }}</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Provider + Form -->
+<div class="msa-email-grid" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+    <!-- Left: Provider list -->
+    <div class="msa-email-providers" x-data>
+        <div class="msa-email-providers-label">{{ _("Provider") }}</div>
+        {% for p in providers %}
+        {% set display = provider_display.get(p.value, (p.value, 'fas fa-envelope')) %}
+        <a href="#"
+           class="msa-email-provider-item {% if p.value == active_provider %}active{% endif %}"
+           hx-get="{{ url_for('msa_bp.email_provider_form', provider=p.value) }}"
+           hx-target="#provider-form-area"
+           hx-swap="innerHTML"
+           @click.prevent="$el.closest('.msa-email-providers').querySelectorAll('.msa-email-provider-item').forEach(t=>t.classList.remove('active'));$el.classList.add('active')">
+            <i class="{{ display[1] }}"></i>
+            {{ display[0] }}
+            {% if p.value == active_provider and settings.email_password %}
+            <span class="msa-badge msa-badge-active msa-email-active-badge">{{ _("Active") }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Right: Config form -->
+    <div class="msa-card" id="provider-form-area">
+        <div class="msa-card-header">
+            <span class="msa-card-title">
+                <i class="{{ provider_display.get(provider, ('', 'fas fa-envelope'))[1] }} msa-email-header-icon"></i>
+                {{ provider_display.get(provider, ("", ""))[0] }} {{ _("Configuration") }}
+            </span>
+        </div>
+        <div class="msa-card-body">
+            {% include "msa/desktop/partials/_email_provider_form.html" %}
+        </div>
+    </div>
+</div>
+
+<!-- Test Connection -->
+<div class="msa-card" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("Test Connection") }}</span>
+        <span id="test-verified-badge"
+              class="msa-badge {{ 'msa-badge-active' if settings.email_verified else 'msa-badge-plan' }}">
+            {{ _("Verified") if settings.email_verified else _("Not Tested") }}
+        </span>
+    </div>
+    <div class="msa-card-body">
+        <div class="msa-email-test-row">
+            <button type="button" class="msa-btn msa-btn-secondary"
+                    hx-post="{{ url_for('msa_bp.email_test_connection') }}"
+                    hx-target="#test-result"
+                    hx-swap="innerHTML">
+                <i class="fas fa-plug"></i> {{ _("Test Connection") }}
+            </button>
+            <div class="msa-email-test-sep"></div>
+            <input type="email" name="test_email" class="msa-input msa-email-test-input"
+                   placeholder="{{ _('recipient@example.com') }}">
+            <button type="button" class="msa-btn msa-btn-primary"
+                    hx-post="{{ url_for('msa_bp.email_send_test') }}"
+                    hx-target="#test-result"
+                    hx-swap="innerHTML"
+                    hx-include="[name=test_email]">
+                <i class="fas fa-paper-plane"></i> {{ _("Send Test Email") }}
+            </button>
+        </div>
+        <div id="test-result" class="msa-email-test-result"></div>
+    </div>
+</div>
+{% endblock %}

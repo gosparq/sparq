@@ -1,0 +1,174 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ _("Pipeline") }}{% endblock %}
+
+{% block module_content %}
+<div x-data="{ view: localStorage.getItem('hiring_overall_pipeline_view') || 'board' }"
+     x-init="$watch('view', v => localStorage.setItem('hiring_overall_pipeline_view', v))">
+
+    <!-- Header Row -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="text-muted small">
+            {{ all_applications|length }} {{ _("total applications") }}
+        </div>
+        <div class="btn-group hiring-view-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    :class="{ active: view === 'board' }" @click="view = 'board'"
+                    title="{{ _('Board View') }}">
+                <i class="fas fa-columns"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    :class="{ active: view === 'list' }" @click="view = 'list'"
+                    title="{{ _('List View') }}">
+                <i class="fas fa-list"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Board View -->
+    <div x-show="view === 'board'" x-cloak>
+        {% set show_job = true %}
+        {% include "people/desktop/hiring/partials/_pipeline_kanban.html" %}
+    </div>
+
+    <!-- List View -->
+    <div x-show="view === 'list'" x-cloak>
+        {% if all_applications %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ _("Candidate") }}</th>
+                        <th>{{ _("Job") }}</th>
+                        <th>{{ _("Status") }}</th>
+                        <th>{{ _("Rating") }}</th>
+                        <th>{{ _("Applied") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in all_applications %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('people_bp.hiring_application_detail', application_id=app.id) }}" class="text-decoration-none fw-medium">
+                                {{ app.candidate.full_name }}
+                            </a>
+                            {% if app.candidate.current_title %}
+                            <br><small class="text-muted">{{ app.candidate.current_title }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('people_bp.hiring_job_detail', job_id=app.job_posting.id) }}" class="text-decoration-none small">
+                                {{ app.job_posting.title }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if app.status.name == 'NEW' %}
+                            <span class="badge bg-info">{{ app.status.value }}</span>
+                            {% elif app.status.name == 'SCREENING' %}
+                            <span class="badge bg-warning text-dark">{{ app.status.value }}</span>
+                            {% elif app.status.name == 'INTERVIEWING' %}
+                            <span class="badge bg-primary">{{ app.status.value }}</span>
+                            {% elif app.status.name == 'OFFER' %}
+                            <span class="badge bg-success">{{ app.status.value }}</span>
+                            {% elif app.status.name == 'HIRED' %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>{{ app.status.value }}</span>
+                            {% elif app.status.name == 'REJECTED' %}
+                            <span class="badge bg-secondary">{{ app.status.value }}</span>
+                            {% elif app.status.name == 'WITHDRAWN' %}
+                            <span class="badge bg-secondary">{{ app.status.value }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if app.rating %}
+                            <span class="text-warning">{{ '★' * app.rating }}{{ '☆' * (5 - app.rating) }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ app.applied_at|format_datetime('%b %d, %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-columns fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">{{ _("No applications yet") }}</h5>
+                <p class="text-muted mb-0">{{ _("Applications will appear here as candidates apply to jobs") }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock module_content %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    // SortableJS for pipeline kanban board
+    document.querySelectorAll('[data-board="pipeline"]').forEach(function(column) {
+        new Sortable(column, {
+            group: 'pipeline',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            filter: '.hiring-kanban-empty',
+            onEnd: function(evt) {
+                var card = evt.item;
+                var applicationId = card.dataset.applicationId;
+                var newStatus = evt.to.dataset.status;
+                var oldStatus = evt.from.dataset.status;
+
+                if (newStatus === oldStatus) return;
+
+                // Remove empty placeholder if present
+                var emptyEl = evt.to.querySelector('.hiring-kanban-empty');
+                if (emptyEl) emptyEl.remove();
+
+                var formData = new FormData();
+                formData.append('status', newStatus);
+                formData.append('csrf_token', '{{ csrf_token }}');
+
+                fetch('/people/hiring/applications/' + applicationId + '/status', {
+                    method: 'POST',
+                    headers: { 'HX-Request': 'true' },
+                    body: formData
+                }).then(function(response) {
+                    if (!response.ok) {
+                        evt.from.appendChild(card);
+                        var alert = document.createElement('div');
+                        alert.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 end-0 m-3';
+                        alert.style.zIndex = '9999';
+                        alert.innerHTML = '<strong>Error:</strong> Could not update status' +
+                            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                        document.body.appendChild(alert);
+                        setTimeout(function() { alert.remove(); }, 4000);
+                    }
+                    updateKanbanCounts('pipeline');
+                });
+            }
+        });
+    });
+});
+
+function updateKanbanCounts(board) {
+    document.querySelectorAll('[data-board="' + board + '"]').forEach(function(col) {
+        var count = col.querySelectorAll('.hiring-kanban-card').length;
+        var countEl = col.closest('.hiring-kanban-column').querySelector('[data-count]');
+        if (countEl) countEl.textContent = count;
+
+        var emptyEl = col.querySelector('.hiring-kanban-empty');
+        if (count === 0 && !emptyEl) {
+            var empty = document.createElement('div');
+            empty.className = 'hiring-kanban-empty';
+            empty.textContent = 'None';
+            col.appendChild(empty);
+        } else if (count > 0 && emptyEl) {
+            emptyEl.remove();
+        }
+    });
+}
+</script>
+{% endblock %}

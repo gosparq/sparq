@@ -1,0 +1,130 @@
+{% extends "projects/desktop/layout.html" %}
+
+{% block title %}{{ _("New Project") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" style="max-width:560px;">
+    <div class="mb-3">
+        <a href="{{ url_for('projects_bp.index') }}" class="text-muted text-decoration-none text-base">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back") }}
+        </a>
+    </div>
+
+    <h2 class="content-heading mb-3">{{ _("New Project") }}</h2>
+
+    <form method="POST" action="{{ url_for('projects_bp.create') }}"
+          x-data="{
+              projectName: '',
+              channelName: '',
+              channelEdited: false,
+              channelAvailable: null,
+              checkTimeout: null,
+              suggestChannel(name) {
+                  const slug = name.toLowerCase()
+                      .replace(/[^a-z0-9\s]/g, '')
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .join('-')
+                      .substring(0, 20);
+                  return slug || 'project';
+              },
+              checkAvailability() {
+                  clearTimeout(this.checkTimeout);
+                  if (!this.channelName) { this.channelAvailable = null; return; }
+                  this.checkTimeout = setTimeout(() => {
+                      fetch('{{ url_for('projects_bp.check_channel_name') }}?name=' + encodeURIComponent(this.channelName))
+                          .then(r => r.json())
+                          .then(d => {
+                              this.channelName = d.slug || this.channelName;
+                              this.channelAvailable = d.available;
+                          });
+                  }, 300);
+              }
+          }">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        {# Name #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Name") }} <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control form-control-sm" required maxlength="200"
+                   placeholder="{{ _('e.g. Q3 Campaign Launch') }}"
+                   x-model="projectName"
+                   @input="if(!channelEdited) { channelName = suggestChannel(projectName); checkAvailability(); }">
+        </div>
+
+        {# Description #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Description") }} <span class="text-muted">({{ _("optional") }})</span></label>
+            <textarea name="description" class="form-control form-control-sm" rows="2" maxlength="500"
+                      placeholder="{{ _('What is this project about?') }}"></textarea>
+        </div>
+
+        {# Owner #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Owner") }}</label>
+            <select name="owner_id" class="form-select form-select-sm">
+                {% for m in members %}
+                <option value="{{ m.id }}" {% if m.id == member.id %}selected{% endif %}>{{ m.user.first_name }} {{ m.user.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {# Color #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Color") }} <span class="text-muted">({{ _("optional") }})</span></label>
+            <div class="d-flex gap-2" x-data="{ selectedColor: '' }">
+                {% set colors = ['var(--color-danger)', '#d97706', '#16a34a', '#2563eb', 'var(--color-focus)', '#ec4899'] %}
+                {% for c in colors %}
+                <label class="project-color-swatch" :class="{ 'project-color-swatch--active': selectedColor === '{{ c }}' }">
+                    <input type="radio" name="color" value="{{ c }}" class="d-none"
+                           x-model="selectedColor">
+                    <span style="background:{{ c }};"></span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Private project checkbox #}
+        <div class="mb-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_private" id="isPrivateCheck">
+                <label class="form-check-label text-base" for="isPrivateCheck">
+                    <i class="fas fa-lock me-1 text-xs" style="color:var(--color-gray-400)"></i>{{ _("Private project") }}
+                </label>
+                <div class="text-muted text-sm" style="margin-left:1.5rem">{{ _("Only visible to you. Channel will also be private.") }}</div>
+            </div>
+        </div>
+
+        {# Channel name #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Channel name") }}</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text" style="color:var(--color-gray-400);">#</span>
+                <input type="text" name="channel_name" class="form-control form-control-sm" maxlength="50"
+                       placeholder="{{ _('auto-generated from project name') }}"
+                       x-model="channelName"
+                       @input="channelEdited = true; checkAvailability()"
+                       @blur="if(!channelName) { channelEdited = false; channelName = suggestChannel(projectName); checkAvailability(); }"
+                       :class="{ 'is-invalid': channelAvailable === false, 'is-valid': channelAvailable === true && channelName }">
+            </div>
+            <div x-show="channelAvailable === false" class="text-danger text-sm" style="margin-top:0.25rem">
+                {{ _("Channel name already taken. Please choose another.") }}
+            </div>
+            <div x-show="channelAvailable === true && channelName" class="text-success text-sm" style="margin-top:0.25rem">
+                <span x-text="'#' + channelName"></span> {{ _("is available") }}
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-sm btn-primary"
+                    :disabled="channelAvailable === false">
+                <i class="fas fa-folder-open me-1"></i>{{ _("Create Project") }}
+            </button>
+            <a href="{{ url_for('projects_bp.index') }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

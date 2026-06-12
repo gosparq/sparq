@@ -1,0 +1,31 @@
+{# Partial: goals list for HTMX swap #}
+<div id="plan-goals">
+    {% if goals %}
+    {% for goal in goals[:6] %}
+    <div class="plan-goal-edit-item d-flex align-items-center gap-2">
+        <i class="fas fa-grip-vertical text-3xs" style="color:var(--color-gray-300); cursor:grab"></i>
+        <span class="text-base" style="flex:1">{{ goal.text }}</span>
+        <button hx-post="{{ url_for('tasks_bp.plan_goal_delete', plan_id=plan.id, goal_id=goal.id) }}"
+                hx-target="#plan-goals"
+                hx-swap="outerHTML"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                class="btn btn-sm p-0 text-2xs sync-text-subtle" title="{{ _('Remove') }}">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="text-muted py-2 text-sm">{{ _("No goals yet. Add up to 6 intentions for this week.") }}</div>
+    {% endif %}
+
+    {% if goals|length < 6 %}
+    <form hx-post="{{ url_for('tasks_bp.plan_goal_add', plan_id=plan.id) }}"
+          hx-target="#plan-goals"
+          hx-swap="outerHTML"
+          class="d-flex gap-2 mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="text" name="text" class="form-control form-control-sm text-sm" placeholder="{{ _('Add a goal...') }}" required maxlength="500">
+        <button type="submit" class="btn btn-sm btn-primary flex-shrink-0">{{ _("Add") }}</button>
+    </form>
+    {% endif %}
+</div>

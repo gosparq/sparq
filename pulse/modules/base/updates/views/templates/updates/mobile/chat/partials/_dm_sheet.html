@@ -1,0 +1,28 @@
+{# Mobile DM bottom sheet — member list loaded via HTMX into the chat FAB sheet #}
+{% for member in members %}
+{% if member.user and member.user.is_active %}
+{% set thread_info = thread_map.get(member.id) %}
+{% set unread = thread_info[1] if thread_info else 0 %}
+<a href="{{ url_for('sync_bp.chat_index', dm=member.id, dn=member.user.full_name, dc=member.user.avatar_color|default('#6b7280')) }}"
+   class="d-flex align-items-center gap-3 text-decoration-none"
+   style="padding:0.75rem 1.25rem;min-height:52px;{% if unread > 0 %}background:var(--color-primary-lightest);{% endif %}">
+    <div class="avatar-circle" style="width:36px;height:36px;font-size:0.75rem;background:{{ member.user.avatar_color|default('var(--color-gray-500)') }};flex-shrink:0;">
+        {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+    </div>
+    <div style="flex:1;min-width:0;">
+        <div style="font-weight:500;font-size:0.9375rem;color:var(--color-gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ member.user.full_name }}</div>
+        {% if unread > 0 %}
+        <div style="font-size:0.75rem;color:var(--color-primary);font-weight:500;">{{ unread }} {{ _("unread") }}</div>
+        {% endif %}
+    </div>
+    {% if unread > 0 %}
+    <span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:999px;background:var(--color-primary);color:white;font-size:0.6875rem;font-weight:600;padding:0 6px;flex-shrink:0;">{{ unread }}</span>
+    {% endif %}
+</a>
+{% endif %}
+{% else %}
+<div class="text-center py-5" style="color:var(--color-gray-400);">
+    <i class="fas fa-comments fa-2x mb-2 d-block opacity-50"></i>
+    <p class="text-base" style="margin:0">{{ _("No one else in your organization yet") }}</p>
+</div>
+{% endfor %}

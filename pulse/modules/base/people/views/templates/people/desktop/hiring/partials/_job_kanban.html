@@ -1,0 +1,35 @@
+{# Job Kanban Board - 4 columns: Draft, Open, On Hold, Closed #}
+{% set job_columns = [
+    (JobStatus.DRAFT, "Draft", "warning"),
+    (JobStatus.OPEN, "Open", "success"),
+    (JobStatus.ON_HOLD, "On Hold", "info"),
+    (JobStatus.CLOSED, "Closed", "secondary"),
+] %}
+
+<div class="hiring-kanban" id="jobs-kanban">
+    {% for status, label, color in job_columns %}
+    <div class="hiring-kanban-column" data-status="{{ status.name }}" style="--column-color: var(--bs-{{ color }})">
+        <div class="hiring-kanban-column-header">
+            <span>{{ _(label) }}</span>
+            <span class="hiring-kanban-count" data-count>{{ jobs_by_status[status]|length }}</span>
+        </div>
+        <div class="hiring-kanban-column-body" data-board="jobs" data-status="{{ status.name }}">
+            {% for job in jobs_by_status[status] %}
+            <div class="hiring-kanban-card" data-job-id="{{ job.id }}">
+                <a href="{{ url_for('people_bp.hiring_job_detail', job_id=job.id) }}">{{ job.title }}</a>
+                <div class="text-muted mt-1" style="font-size: 0.78rem;">
+                    {% if job.department %}
+                    <i class="fas fa-building me-1"></i>{{ job.department }}
+                    {% endif %}
+                    <span class="float-end">
+                        <i class="fas fa-users me-1"></i>{{ job.candidate_count }}
+                    </span>
+                </div>
+            </div>
+            {% else %}
+            <div class="hiring-kanban-empty">{{ _("No jobs") }}</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

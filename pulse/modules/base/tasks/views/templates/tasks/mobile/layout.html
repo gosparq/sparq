@@ -1,0 +1,16 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}tasks-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/tasks.css') }}">
+<link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/blockers-mobile.css') }}">
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}
+
+{% block content %}
+<div class="mobile-page-container" style="padding:1rem;">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}

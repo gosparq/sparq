@@ -1,0 +1,15 @@
+{# Secondary Nav — unified sidebar, always visible #}
+{# Replaced contextual per-section branches with a single 4-section view. #}
+<nav class="secondary-nav" aria-label="Section navigation">
+    <div class="secondary-nav-scroll">
+        {% include 'core/desktop/nav_sections_all.html' with context %}
+    </div>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('core_bp.settings') }}" class="sec-nav-footer-settings {% if request.path.startswith('/settings') or request.path in ('/sync/settings', '/presence/timesheets/settings', '/tasks/settings') %}active{% endif %}">
+        <i class="fas fa-gear"></i> {{ _("Settings") }}
+    </a>
+    {% endif %}
+    <div class="sec-nav-footer">
+        <span>sparQ {{ sparq_display_version }}{% if system_info %} &middot; <a href="#" data-bs-toggle="modal" data-bs-target="#systemInfoModal" id="system-info-link">Info</a>{% endif %}</span>
+    </div>
+</nav>

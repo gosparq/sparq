@@ -1,0 +1,111 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Accept Invite") }}{% endblock %}
+
+{#
+  Invite copy variants (§9.3):
+    - org-only: "You've been invited to {org}."
+    - single workspace: "You've been invited to {org}. You'll start by joining the {team} workspace."
+    - multiple workspaces: "You've been invited to {org}. You'll start by joining {count} workspaces."
+    - all workspaces: "You've been invited to {org}. You'll have access to all workspaces."
+
+  `invite.organization_name` / `invite.home_workspace_name` may be resolved by
+  the controller and passed down; fall back to generic copy when not available.
+#}
+
+{% set target_count = target_workspace_ids|length if target_workspace_ids is defined else 0 %}
+{% set is_org_only = invite.is_organization_only %}
+{% set is_all_workspaces = invite.invite_all_workspaces %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        {% if new_user %}
+        <h2>{{ _("Accept Invite") }}</h2>
+        <p class="text-muted small mb-2 text-center">
+            {% if is_org_only %}
+                {{ _("You've been invited to the organization. Set up your account to get started.") }}
+            {% elif is_all_workspaces %}
+                {{ _("You've been invited to the organization — you'll have access to all workspaces. Set up your account to get started.") }}
+            {% elif target_count > 1 %}
+                {{ _("You've been invited to join %(count)d workspaces. Set up your account to get started.")|format(count=target_count) }}
+            {% else %}
+                {{ _("You've been invited to join the team. Set up your account to get started.") }}
+            {% endif %}
+        </p>
+
+        <form method="POST" action="{{ url_for('people_bp.accept_invite', token=token) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label for="first_name" class="form-label">{{ _("First Name") }}</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name"
+                           required autofocus>
+                </div>
+                <div class="col-6">
+                    <label for="last_name" class="form-label">{{ _("Last Name") }}</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name"
+                           required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">{{ _("Password") }}</label>
+                <input type="password" class="form-control" id="password" name="password"
+                       required minlength="8">
+            </div>
+
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">{{ _("Confirm Password") }}</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                       required minlength="8">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">
+                {% if is_org_only %}{{ _("Create Account & Join Organization") }}
+                {% else %}{{ _("Create Account & Join") }}{% endif %}
+            </button>
+        </form>
+
+        <div class="mt-3 text-center">
+            <small class="text-muted">{{ _("Already have an account?") }} <a href="/login">{{ _("Log in") }}</a></small>
+        </div>
+
+        {% else %}
+        <h2>{{ _("Accept Invite") }}</h2>
+        <p class="text-muted small mb-2 text-center">
+            {% if is_org_only %}
+                {{ _("You've been invited to the organization. Click below to accept.") }}
+            {% elif is_all_workspaces %}
+                {{ _("You've been invited — you'll have access to all workspaces. Click below to accept.") }}
+            {% elif target_count > 1 %}
+                {{ _("You've been invited to join %(count)d workspaces. Click below to accept.")|format(count=target_count) }}
+            {% else %}
+                {{ _("You already have a sparQ account. Click below to join this team.") }}
+            {% endif %}
+        </p>
+
+        <form method="POST" action="{{ url_for('people_bp.accept_invite', token=token) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-primary w-100">
+                {% if is_org_only %}{{ _("Join Organization") }}
+                {% else %}{{ _("Join Team") }}{% endif %}
+            </button>
+        </form>
+
+        <div class="mt-3 text-center">
+            <small class="text-muted"><a href="/login">{{ _("Back to login") }}</a></small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">Powered by <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a></small>
+{% endblock %}

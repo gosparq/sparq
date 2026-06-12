@@ -1,0 +1,109 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{% if category %}{{ _("Edit Category") }}{% else %}{{ _("New Category") }}{% endif %}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{% if category %}{{ _("Edit Category") }}{% else %}{{ _("New Category") }}{% endif %}</h2>
+        <a href="{{ url_for('knowledge_blueprint.categories_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> {{ _("Back") }}
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <!-- Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">{{ _("Name") }} <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name"
+                           value="{{ category.name if category else '' }}" required>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-3">
+                    <label for="description" class="form-label">{{ _("Description") }}</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ category.description if category else '' }}</textarea>
+                </div>
+
+                <!-- Icon Class -->
+                <div class="mb-3">
+                    <label for="icon_class" class="form-label">{{ _("Icon Class") }}</label>
+                    <input type="text" class="form-control" id="icon_class" name="icon_class"
+                           value="{{ category.icon_class if category else 'fa-solid fa-folder' }}"
+                           placeholder="fa-solid fa-folder">
+                    <p class="text-muted small mt-1">
+                        {{ _("Font Awesome class, e.g.") }} <code>fa-solid fa-book</code>, <code>fa-solid fa-question-circle</code>
+                    </p>
+                </div>
+
+                {% if category %}
+                <!-- Active Status -->
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                               {% if category.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">{{ _("Active") }}</label>
+                    </div>
+                </div>
+                {% endif %}
+
+                <hr>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% if category %}{{ _("Update") }}{% else %}{{ _("Create") }}{% endif %}
+                    </button>
+                    <a href="{{ url_for('knowledge_blueprint.categories_list') }}" class="btn btn-sm btn-outline-secondary">
+                        {{ _("Cancel") }}
+                    </a>
+                </div>
+            </form>
+
+            {% if category %}
+            <hr>
+            <form action="{{ url_for('knowledge_blueprint.category_delete', category_id=category.id) }}" method="post"
+                  data-confirm="{{ _('Are you sure? This will also delete all subcategories.') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i> {{ _("Delete Category") }}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="col-md-6">
+            <!-- Icon Preview -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Preview") }}</h6>
+                </div>
+                <div class="card-body text-center">
+                    <i id="iconPreview" class="{{ category.icon_class if category else 'fa-solid fa-folder' }} fa-4x text-muted mb-3"></i>
+                    <h5 id="namePreview">{{ category.name if category else _('Category Name') }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+// Live preview
+document.getElementById('name').addEventListener('input', function() {
+    document.getElementById('namePreview').textContent = this.value || '{{ _("Category Name") }}';
+});
+document.getElementById('icon_class').addEventListener('input', function() {
+    var preview = document.getElementById('iconPreview');
+    preview.className = (this.value || 'fa-solid fa-folder') + ' fa-4x text-muted mb-3';
+});
+
+document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,576 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Templates") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-file-lines"></i>{% endblock %}
+{% block page_title_display %}{{ _("Templates") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Manage post templates for Updates and Wins.") }}</p>{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+    <i class="fas fa-plus"></i> {{ _("New Template") }}
+</button>
+{% endblock %}
+
+{% block settings_content %}
+
+{% set type_labels = {"update": "Updates", "win": "Wins"} %}
+{% set type_order = ["update", "win"] %}
+
+{% for post_type in type_order %}
+{% if post_type in grouped_templates %}
+<div class="settings-section">
+    <div class="settings-section-title">{{ _(type_labels.get(post_type, post_type|title)) }}</div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 30%">{{ _("Name") }}</th>
+                    <th style="width: 25%">{{ _("Description") }}</th>
+                    <th style="width: 15%" class="text-center">{{ _("Fields") }}</th>
+                    <th style="width: 10%" class="text-center">{{ _("Status") }}</th>
+                    <th style="width: 20%" class="text-end">{{ _("Actions") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in grouped_templates[post_type] %}
+                <tr>
+                    <td>
+                        <strong>{{ t.name }}</strong>
+                        {% if t.workspace_id is none %}
+                        <span class="badge bg-secondary ms-1 text-3xs">{{ _("Built-in") }}</span>
+                        {% endif %}
+                        {% if t.anonymous %}
+                        <span class="badge bg-warning text-dark ms-1 text-3xs">{{ _("Anonymous") }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted" style="font-size: 0.85rem">{{ t.description or "—" }}</td>
+                    <td class="text-center">{{ t.fields|length }}</td>
+                    <td class="text-center">
+                        {% if t.is_active %}
+                        <span class="badge bg-success">{{ _("Active") }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ _("Inactive") }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-primary btn-sm edit-template-btn" title="{{ _('Edit') }}"
+                                data-id="{{ t.id }}"
+                                data-name="{{ t.name }}"
+                                data-description="{{ t.description or '' }}"
+                                data-post-type="{{ t.post_type }}"
+                                data-anonymous="{{ 'true' if t.anonymous else 'false' }}"
+                                data-nudge-enabled="{{ 'true' if t.nudge_enabled else 'false' }}"
+                                data-nudge-time="{{ t.nudge_time or '17:00' }}"
+                                data-nudge-scope='{{ t.nudge_scope|tojson }}'
+                                data-schedule-type="{{ t.schedule_type or '' }}"
+                                data-interval-minutes="{{ t.interval_minutes or '' }}"
+                                data-grace-minutes="{{ t.grace_minutes or '30' }}"
+                                data-fields='{{ t.fields|tojson }}'>
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('core_bp.settings_templates_toggle', template_id=t.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ _('Toggle') }}">
+                                <i class="fas fa-{{ 'eye-slash' if t.is_active else 'eye' }}"></i>
+                            </button>
+                        </form>
+                        {% if t.workspace_id is not none %}
+                        <form method="POST" action="{{ url_for('core_bp.settings_templates_delete', template_id=t.id) }}" class="d-inline delete-template-form" data-confirm="{{ _('Delete this template?') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm" title="{{ _('Delete') }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{# Create Template Modal #}
+<div class="modal fade" id="createTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('core_bp.settings_templates_create') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("New Template") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-8">
+                            <label class="form-label">{{ _("Name") }}</label>
+                            <input type="text" name="name" class="form-control" required placeholder="{{ _('e.g. Weekly standup') }}">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">{{ _("Type") }}</label>
+                            <select name="post_type" class="form-select">
+                                <option value="update">{{ _("Update") }}</option>
+                                <option value="win">{{ _("Win") }}</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ _("Description") }}</label>
+                            <input type="text" name="description" class="form-control" placeholder="{{ _('Short description (optional)') }}">
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6>{{ _("Fields") }}</h6>
+                    <p class="text-muted small mb-2">{{ _("Define the questions team members will answer.") }}</p>
+                    <div class="d-flex gap-2 mb-1 fields-col-headers">
+                        <span class="small text-muted flex-grow-1">{{ _("Question") }}</span>
+                        <span class="small text-muted" style="width:140px;">{{ _("Answer type") }}</span>
+                        <span class="small text-muted" style="width:100px;"></span>
+                    </div>
+                    <div id="createFieldsContainer">
+                        <div class="text-muted small text-center py-3 fields-empty-state">
+                            <i class="fas fa-layer-group me-1"></i> {{ _("No fields yet. Add your first field below.") }}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm add-field-btn" data-target="createFieldsContainer">
+                        <i class="fas fa-plus"></i> {{ _("Add Field") }}
+                    </button>
+
+                    <hr>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="anonymous" class="form-check-input" id="createAnonymousCheck">
+                                <label class="form-check-label" for="createAnonymousCheck">{{ _("Anonymous posts") }}</label>
+                            </div>
+                        </div>
+                        <input type="hidden" name="nudge_enabled" class="nudge-enabled-input" value="">
+                        <div class="col-6">
+                            <label class="form-label">{{ _("Schedule type") }}</label>
+                            <select name="schedule_type" class="form-select schedule-type-select" data-prefix="create">
+                                <option value="">{{ _("None") }}</option>
+                                <option value="daily">{{ _("Daily") }}</option>
+                                <option value="periodic">{{ _("Periodic") }}</option>
+                            </select>
+                        </div>
+                        <div class="col-6" id="createNudgeTimeField" style="display: none;">
+                            <label class="form-label">{{ _("Nudge time") }}</label>
+                            <input type="time" name="nudge_time" class="form-control" value="17:00">
+                        </div>
+                        <div class="col-6 schedule-grace-field" id="createGraceField" style="display: none;">
+                            <label class="form-label">{{ _("Grace period (minutes)") }}</label>
+                            <input type="number" name="grace_minutes" class="form-control" value="30" min="0">
+                        </div>
+                        <div class="col-6 schedule-interval-field" id="createIntervalField" style="display: none;">
+                            <label class="form-label">{{ _("Interval (minutes)") }}</label>
+                            <input type="number" name="interval_minutes" class="form-control" value="120" min="1">
+                        </div>
+                    </div>
+                    <div id="createActiveWindow" style="display: none;">
+                        <div class="col-12"><hr class="my-2"></div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">{{ _("Active window") }}</label>
+                                <p class="text-muted small mb-2 schedule-desc-daily" style="display:none;">{{ _("Nudges will only fire on selected days (in each user's local time).") }}</p>
+                                <p class="text-muted small mb-2 schedule-desc-periodic" style="display:none;">{{ _("Nudges will only fire within these hours and on selected days (in each user's local time).") }}</p>
+                            </div>
+                            <div class="col-6 schedule-time-range" style="display:none;">
+                                <label class="form-label">{{ _("Start time") }}</label>
+                                <input type="time" name="nudge_scope_start" class="form-control" value="08:00">
+                            </div>
+                            <div class="col-6 schedule-time-range" style="display:none;">
+                                <label class="form-label">{{ _("End time") }}</label>
+                                <input type="time" name="nudge_scope_end" class="form-control" value="18:00">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ _("Active days") }}</label>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    {% set day_names = [_("Mon"), _("Tue"), _("Wed"), _("Thu"), _("Fri"), _("Sat"), _("Sun")] %}
+                                    {% for i in range(7) %}
+                                    <div class="form-check form-check-inline">
+                                        <input type="checkbox" name="nudge_scope_days" value="{{ i }}" class="form-check-input" id="createDay{{ i }}"
+                                            {{ 'checked' if i < 5 else '' }}>
+                                        <label class="form-check-label" for="createDay{{ i }}">{{ day_names[i] }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Create Template") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Edit Template Modal #}
+<div class="modal fade" id="editTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" id="editTemplateForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Edit Template") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-8">
+                            <label class="form-label">{{ _("Name") }}</label>
+                            <input type="text" name="name" id="editName" class="form-control" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">{{ _("Type") }}</label>
+                            <input type="text" id="editPostType" class="form-control" disabled>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{{ _("Description") }}</label>
+                            <input type="text" name="description" id="editDescription" class="form-control" placeholder="{{ _('Short description (optional)') }}">
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6>{{ _("Fields") }}</h6>
+                    <p class="text-muted small mb-2">{{ _("Define the questions team members will answer.") }}</p>
+                    <div class="d-flex gap-2 mb-1 fields-col-headers">
+                        <span class="small text-muted flex-grow-1">{{ _("Question") }}</span>
+                        <span class="small text-muted" style="width:140px;">{{ _("Answer type") }}</span>
+                        <span class="small text-muted" style="width:100px;"></span>
+                    </div>
+                    <div id="editFieldsContainer">
+                        <div class="text-muted small text-center py-3 fields-empty-state">
+                            <i class="fas fa-layer-group me-1"></i> {{ _("No fields yet. Add your first field below.") }}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm add-field-btn" data-target="editFieldsContainer">
+                        <i class="fas fa-plus"></i> {{ _("Add Field") }}
+                    </button>
+
+                    <hr>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="anonymous" class="form-check-input" id="editAnonymousCheck">
+                                <label class="form-check-label" for="editAnonymousCheck">{{ _("Anonymous posts") }}</label>
+                            </div>
+                        </div>
+                        <input type="hidden" name="nudge_enabled" id="editNudgeEnabled" class="nudge-enabled-input" value="">
+                        <div class="col-6">
+                            <label class="form-label">{{ _("Schedule type") }}</label>
+                            <select name="schedule_type" id="editScheduleType" class="form-select schedule-type-select" data-prefix="edit">
+                                <option value="">{{ _("None") }}</option>
+                                <option value="daily">{{ _("Daily") }}</option>
+                                <option value="periodic">{{ _("Periodic") }}</option>
+                            </select>
+                        </div>
+                        <div class="col-6" id="editNudgeTimeField" style="display: none;">
+                            <label class="form-label">{{ _("Nudge time") }}</label>
+                            <input type="time" name="nudge_time" id="editNudgeTime" class="form-control" value="17:00">
+                        </div>
+                        <div class="col-6 schedule-grace-field" id="editGraceField" style="display: none;">
+                            <label class="form-label">{{ _("Grace period (minutes)") }}</label>
+                            <input type="number" name="grace_minutes" id="editGraceMinutes" class="form-control" value="30" min="0">
+                        </div>
+                        <div class="col-6 schedule-interval-field" id="editIntervalField" style="display: none;">
+                            <label class="form-label">{{ _("Interval (minutes)") }}</label>
+                            <input type="number" name="interval_minutes" id="editIntervalMinutes" class="form-control" value="120" min="1">
+                        </div>
+                    </div>
+                    <div id="editActiveWindow" style="display: none;">
+                        <div class="col-12"><hr class="my-2"></div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">{{ _("Active window") }}</label>
+                                <p class="text-muted small mb-2 schedule-desc-daily" style="display:none;">{{ _("Nudges will only fire on selected days (in each user's local time).") }}</p>
+                                <p class="text-muted small mb-2 schedule-desc-periodic" style="display:none;">{{ _("Nudges will only fire within these hours and on selected days (in each user's local time).") }}</p>
+                            </div>
+                            <div class="col-6 schedule-time-range" style="display:none;">
+                                <label class="form-label">{{ _("Start time") }}</label>
+                                <input type="time" name="nudge_scope_start" id="editScopeStart" class="form-control" value="08:00">
+                            </div>
+                            <div class="col-6 schedule-time-range" style="display:none;">
+                                <label class="form-label">{{ _("End time") }}</label>
+                                <input type="time" name="nudge_scope_end" id="editScopeEnd" class="form-control" value="18:00">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ _("Active days") }}</label>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    {% set day_names = [_("Mon"), _("Tue"), _("Wed"), _("Thu"), _("Fri"), _("Sat"), _("Sun")] %}
+                                    {% for i in range(7) %}
+                                    <div class="form-check form-check-inline">
+                                        <input type="checkbox" name="nudge_scope_days" value="{{ i }}" class="form-check-input" id="editDay{{ i }}">
+                                        <label class="form-check-label" for="editDay{{ i }}">{{ day_names[i] }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save Changes") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+const typeLabels = {update: 'Update', win: 'Win'};
+const i18n = {
+    paragraph: {{ _("Paragraph")|tojson }},
+    short_answer: {{ _("Short answer")|tojson }},
+    checklist: {{ _("Checklist")|tojson }},
+    bullet_list: {{ _("Bullet list")|tojson }},
+    rating: {{ _("1–5 Rating")|tojson }},
+    multiple_choice: {{ _("Multiple choice")|tojson }},
+    title_paragraph: {{ _("Multi-line text area")|tojson }},
+    title_short: {{ _("Single-line text input")|tojson }},
+    title_checklist: {{ _("Items linked to projects & action items")|tojson }},
+    title_bullets: {{ _("Simple add/remove list")|tojson }},
+    title_rating: {{ _("1 to 5 radio buttons")|tojson }},
+    title_choice: {{ _("Pick one from predefined options")|tojson }},
+    req: {{ _("Req")|tojson }},
+    remove_field: {{ _("Remove field")|tojson }},
+    choices_label: {{ _("Choices (comma-separated)")|tojson }},
+    choices_placeholder: {{ _("e.g. on_track, off_track, blocked")|tojson }},
+    placeholder_label: {{ _("Placeholder")|tojson }},
+    hint_text: {{ _("Hint text")|tojson }},
+    pre_filled: {{ _("Pre-filled")|tojson }},
+    field_placeholder: {{ _("e.g. What are you working on today?")|tojson }},
+    placeholder_placeholder: {{ _("e.g. Share what you're focused on...")|tojson }},
+    no_fields: {{ _("No fields yet. Add your first field below.")|tojson }}
+};
+
+function escAttr(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function sel(data, type) {
+    return data && data.type === type ? ' selected' : '';
+}
+
+function slugifyLabel(label) {
+    return label.toLowerCase().trim()
+        .replace(/[^a-z0-9\s_]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .substring(0, 50) || 'field';
+}
+
+function uniqueKey(container, baseKey) {
+    var existing = Array.from(container.querySelectorAll('.field-key-input')).map(function(i) { return i.value; });
+    var key = baseKey;
+    var n = 2;
+    while (existing.indexOf(key) !== -1) {
+        key = baseKey + '_' + n;
+        n++;
+    }
+    return key;
+}
+
+function updateEmptyState(container) {
+    var emptyState = container.querySelector('.fields-empty-state');
+    var hasRows = container.querySelectorAll('.field-row').length > 0;
+    if (emptyState) emptyState.style.display = hasRows ? 'none' : '';
+}
+
+function reindexRequired(container) {
+    container.querySelectorAll('.field-row').forEach(function(row, i) {
+        var cb = row.querySelector('input[name="field_required[]"]');
+        if (cb) cb.value = String(i);
+    });
+}
+
+var typesWithPlaceholder = {text: true, title: true, structured_list: true, bullets: true};
+var typesWithOptions = {choice: true};
+var typesWithExtra = {text: true, title: true, structured_list: true, bullets: true, choice: true};
+
+function addFieldRow(container, data) {
+    var isExisting = data && data.key;
+    var idx = container.querySelectorAll('.field-row').length;
+    var mode = (data && data.placeholder_mode) ? data.placeholder_mode : 'hint';
+    var fieldType = (data && data.type) ? data.type : 'text';
+    var optionsStr = (data && data.options) ? data.options.join(', ') : '';
+    var hasPlaceholder = data && data.placeholder;
+    var showExtra = typesWithOptions[fieldType] || typesWithPlaceholder[fieldType];
+
+    var row = document.createElement('div');
+    row.className = 'field-row pb-2 mb-2';
+    row.style.borderBottom = '1px solid var(--border, #e9ecef)';
+    row.innerHTML =
+        '<input type="hidden" name="field_key[]" class="field-key-input" value="' + (isExisting ? escAttr(data.key) : '') + '">' +
+        '<div class="d-flex gap-2 align-items-center mb-0">' +
+            '<input type="text" name="field_label[]" class="form-control form-control-sm field-label-input" placeholder="' + escAttr(i18n.field_placeholder) + '" value="' + (data ? escAttr(data.label) : '') + '">' +
+            '<select name="field_type[]" class="form-select form-select-sm field-type-select" style="width:auto;">' +
+                '<option value="text"' + sel(data, 'text') + ' title="' + escAttr(i18n.title_paragraph) + '">' + escAttr(i18n.paragraph) + '</option>' +
+                '<option value="title"' + sel(data, 'title') + ' title="' + escAttr(i18n.title_short) + '">' + escAttr(i18n.short_answer) + '</option>' +
+                '<option value="structured_list"' + sel(data, 'structured_list') + ' title="' + escAttr(i18n.title_checklist) + '">' + escAttr(i18n.checklist) + '</option>' +
+                '<option value="bullets"' + sel(data, 'bullets') + ' title="' + escAttr(i18n.title_bullets) + '">' + escAttr(i18n.bullet_list) + '</option>' +
+                '<option value="scale"' + sel(data, 'scale') + ' title="' + escAttr(i18n.title_rating) + '">' + escAttr(i18n.rating) + '</option>' +
+                '<option value="choice"' + sel(data, 'choice') + ' title="' + escAttr(i18n.title_choice) + '">' + escAttr(i18n.multiple_choice) + '</option>' +
+            '</select>' +
+            '<div class="form-check mb-0 flex-shrink-0" style="min-width:fit-content;">' +
+                '<input type="checkbox" name="field_required[]" value="' + idx + '" class="form-check-input"' + (data && data.required ? ' checked' : '') + '>' +
+                '<label class="form-check-label small text-muted">' + escAttr(i18n.req) + '</label>' +
+            '</div>' +
+            '<button type="button" class="btn btn-sm text-muted remove-field-btn flex-shrink-0" title="' + escAttr(i18n.remove_field) + '" style="padding:0.15rem 0.35rem;">' +
+                '<i class="fas fa-times"></i>' +
+            '</button>' +
+        '</div>' +
+        '<div class="field-extra mt-1"' + (showExtra ? '' : ' style="display:none"') + '>' +
+            '<div class="field-options-row mb-1"' + (typesWithOptions[fieldType] ? '' : ' style="display:none"') + '>' +
+                '<label class="form-label small text-muted mb-1">' + escAttr(i18n.choices_label) + '</label>' +
+                '<input type="text" name="field_options[]" class="form-control form-control-sm" placeholder="' + escAttr(i18n.choices_placeholder) + '" value="' + escAttr(optionsStr) + '">' +
+            '</div>' +
+            '<div class="field-placeholder-row"' + (typesWithPlaceholder[fieldType] ? '' : ' style="display:none"') + '>' +
+                '<label class="form-label small text-muted mb-1">' + escAttr(i18n.placeholder_label) + '</label>' +
+                '<div class="d-flex gap-2 align-items-center">' +
+                    '<select name="field_placeholder_mode[]" class="form-select form-select-sm" style="width:auto;">' +
+                        '<option value="hint"' + (mode === 'hint' ? ' selected' : '') + '>' + escAttr(i18n.hint_text) + '</option>' +
+                        '<option value="prefill"' + (mode === 'prefill' ? ' selected' : '') + '>' + escAttr(i18n.pre_filled) + '</option>' +
+                    '</select>' +
+                    '<input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="' + escAttr(i18n.placeholder_placeholder) + '" value="' + (data ? escAttr(data.placeholder || '') : '') + '">' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    container.appendChild(row);
+    updateEmptyState(container);
+}
+
+function toggleScheduleFields(select) {
+    var prefix = select.dataset.prefix;
+    var val = select.value;
+    var hasSchedule = val !== '';
+    var nudgeTimeField = document.getElementById(prefix + 'NudgeTimeField');
+    var graceField = document.getElementById(prefix + 'GraceField');
+    var intervalField = document.getElementById(prefix + 'IntervalField');
+    var activeWindow = document.getElementById(prefix + 'ActiveWindow');
+    var nudgeInput = select.closest('form').querySelector('.nudge-enabled-input');
+    nudgeTimeField.style.display = val === 'daily' ? '' : 'none';
+    graceField.style.display = val === 'daily' ? '' : 'none';
+    intervalField.style.display = val === 'periodic' ? '' : 'none';
+    if (activeWindow) {
+        activeWindow.style.display = hasSchedule ? '' : 'none';
+        activeWindow.querySelectorAll('.schedule-time-range').forEach(function(el) {
+            el.style.display = val === 'periodic' ? '' : 'none';
+        });
+        activeWindow.querySelectorAll('.schedule-desc-daily').forEach(function(el) {
+            el.style.display = val === 'daily' ? '' : 'none';
+        });
+        activeWindow.querySelectorAll('.schedule-desc-periodic').forEach(function(el) {
+            el.style.display = val === 'periodic' ? '' : 'none';
+        });
+    }
+    if (nudgeInput) nudgeInput.value = hasSchedule ? 'on' : '';
+}
+
+document.querySelectorAll('.schedule-type-select').forEach(function(sel) {
+    sel.addEventListener('change', function() { toggleScheduleFields(this); });
+    toggleScheduleFields(sel);
+});
+
+// Add Field buttons
+document.querySelectorAll('.add-field-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var container = document.getElementById(this.dataset.target);
+        addFieldRow(container);
+    });
+});
+
+// Event delegation for field containers
+['createFieldsContainer', 'editFieldsContainer'].forEach(function(id) {
+    var container = document.getElementById(id);
+    if (!container) return;
+
+    container.addEventListener('click', function(e) {
+        var removeBtn = e.target.closest('.remove-field-btn');
+        if (removeBtn) {
+            removeBtn.closest('.field-row').remove();
+            updateEmptyState(container);
+            reindexRequired(container);
+        }
+    });
+
+    container.addEventListener('focusout', function(e) {
+        if (!e.target.classList.contains('field-label-input')) return;
+        var row = e.target.closest('.field-row');
+        var keyInput = row.querySelector('.field-key-input');
+        if (keyInput && !keyInput.value) {
+            var label = e.target.value.trim();
+            if (label) {
+                keyInput.value = uniqueKey(container, slugifyLabel(label));
+            }
+        }
+    });
+
+    container.addEventListener('change', function(e) {
+        if (!e.target.classList.contains('field-type-select')) return;
+        var val = e.target.value;
+        var fieldRow = e.target.closest('.field-row');
+        var placeholderRow = fieldRow.querySelector('.field-placeholder-row');
+        var optionsRow = fieldRow.querySelector('.field-options-row');
+        var extra = fieldRow.querySelector('.field-extra');
+        if (placeholderRow) placeholderRow.style.display = typesWithPlaceholder[val] ? '' : 'none';
+        if (optionsRow) optionsRow.style.display = typesWithOptions[val] ? '' : 'none';
+        if (extra) extra.style.display = typesWithExtra[val] ? '' : 'none';
+    });
+});
+
+// Delete template confirmation
+document.querySelectorAll('.delete-template-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        if (!confirm(this.dataset.confirm)) {
+            e.preventDefault();
+        }
+    });
+});
+
+// Edit template button
+document.querySelectorAll('.edit-template-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        var id = this.dataset.id;
+        var fields = JSON.parse(this.dataset.fields);
+
+        document.getElementById('editTemplateForm').action = '/settings/templates/' + id + '/edit';
+        document.getElementById('editName').value = this.dataset.name;
+        document.getElementById('editPostType').value = typeLabels[this.dataset.postType] || this.dataset.postType;
+        document.getElementById('editDescription').value = this.dataset.description;
+        document.getElementById('editAnonymousCheck').checked = this.dataset.anonymous === 'true';
+        document.getElementById('editNudgeTime').value = this.dataset.nudgeTime || '17:00';
+
+        var scheduleType = document.getElementById('editScheduleType');
+        scheduleType.value = this.dataset.scheduleType || '';
+        toggleScheduleFields(scheduleType);
+        document.getElementById('editGraceMinutes').value = this.dataset.graceMinutes || '30';
+        document.getElementById('editIntervalMinutes').value = this.dataset.intervalMinutes || '120';
+
+        var scope = JSON.parse(this.dataset.nudgeScope || 'null');
+        document.getElementById('editScopeStart').value = scope ? scope.start : '08:00';
+        document.getElementById('editScopeEnd').value = scope ? scope.end : '18:00';
+        var activeDays = scope ? scope.days : [0, 1, 2, 3, 4];
+        for (var d = 0; d < 7; d++) {
+            document.getElementById('editDay' + d).checked = activeDays.indexOf(d) !== -1;
+        }
+
+        var container = document.getElementById('editFieldsContainer');
+        container.innerHTML = '<div class="text-muted small text-center py-3 fields-empty-state" style="display:none"><i class="fas fa-layer-group me-1"></i> ' + escAttr(i18n.no_fields) + '</div>';
+        fields.forEach(function(f) { addFieldRow(container, f); });
+        updateEmptyState(container);
+
+        new bootstrap.Modal(document.getElementById('editTemplateModal')).show();
+    });
+});
+</script>
+
+{% endblock %}

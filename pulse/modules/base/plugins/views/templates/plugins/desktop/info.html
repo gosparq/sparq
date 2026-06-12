@@ -1,0 +1,103 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ plugin.name }} - {{ _("Plugin Info") }}{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+            <!-- Back Button -->
+            <div class="mb-3">
+                <a href="{{ url_for('plugins_bp.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i> {{ _("Back to Plugins") }}
+                </a>
+            </div>
+
+            <!-- Plugin Header -->
+            <div class="d-flex align-items-center mb-4">
+                <div class="plugin-icon-lg me-4" style="color: {{ plugin.color|default('#6c757d') }}">
+                    <i class="{{ plugin.icon_class|default('fas fa-puzzle-piece') }} fa-3x"></i>
+                </div>
+                <div>
+                    <h2 class="mb-1">{{ plugin.name }}</h2>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted">v{{ plugin.version }}</span>
+                        {% if plugin.enabled %}
+                        <span class="badge bg-success">{{ _("Enabled") }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ _("Disabled") }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Description -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>{{ _("About") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0">{{ plugin.long_description|default(plugin.description) }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Features / Usage -->
+                    {% if plugin.enabled %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-link me-2"></i>{{ _("Quick Access") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if plugin.main_route %}
+                            <a href="{{ plugin.main_route }}" class="btn btn-primary">
+                                <i class="{{ plugin.icon_class|default('fas fa-external-link-alt') }} me-2"></i>
+                                {{ _("Open") }} {{ plugin.name }}
+                            </a>
+                            {% else %}
+                            <p class="text-muted mb-0">{{ _("This plugin enhances existing features and doesn't have a dedicated page.") }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Plugin Details -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>{{ _("Details") }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="mb-0">
+                                <dt class="text-muted small">{{ _("Version") }}</dt>
+                                <dd>{{ plugin.version }}</dd>
+
+                                <dt class="text-muted small">{{ _("Slug") }}</dt>
+                                <dd><code>{{ plugin.slug }}</code></dd>
+
+                                {% if plugin.depends %}
+                                <dt class="text-muted small">{{ _("Dependencies") }}</dt>
+                                <dd>
+                                    {% for dep in plugin.depends %}
+                                    <span class="badge bg-light text-dark me-1">{{ dep }}</span>
+                                    {% endfor %}
+                                </dd>
+                                {% endif %}
+
+                                <dt class="text-muted small">{{ _("Status") }}</dt>
+                                <dd>
+                                    {% if plugin.enabled %}
+                                    <span class="text-success"><i class="fas fa-check-circle me-1"></i>{{ _("Active") }}</span>
+                                    {% else %}
+                                    <span class="text-secondary"><i class="fas fa-pause-circle me-1"></i>{{ _("Inactive") }}</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+</div>
+{% endblock %}

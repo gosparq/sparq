@@ -1,0 +1,327 @@
+{# Dashboard Main Navigation - Cross-module sidebar #}
+{# Uses centralized nav_sections from system/nav/sections.py #}
+
+{# Determine section order and visibility from sidebar_config #}
+{% set base_section_order = sidebar_config.sections if sidebar_config and sidebar_config.sections else default_section_order %}
+{# Ensure 'plugins' and 'apps' are always in section_order (they're dynamically populated) #}
+{% set section_order = base_section_order %}
+{% if 'apps' not in section_order %}
+    {% set section_order = section_order + ['apps'] %}
+{% endif %}
+{% if 'plugins' not in section_order %}
+    {% set section_order = section_order + ['plugins'] %}
+{% endif %}
+{# Visible sections: default sections are always visible, plus any addon sections explicitly added #}
+{% set visible_sections = default_section_order + (sidebar_config.visible if sidebar_config and sidebar_config.visible else []) %}
+{# Pinned modules: which modules appear in sidebar #}
+{% set pinned_modules = g.company_settings.get_pinned_modules() if g.company_settings else default_pinned_modules %}
+{# Get pinned standalone apps for the Apps section (only data modules, not base modules) #}
+{% set standalone_apps = g.installed_modules|selectattr('is_data_module', 'equalto', true)|selectattr('is_app', 'equalto', true)|selectattr('enabled', 'equalto', true)|list %}
+{% set pinned_apps = [] %}
+{% for mod in standalone_apps %}
+    {% set app_id = mod.name|lower|replace(' ', '_') %}
+    {% if app_id in pinned_modules %}
+        {% set _ = pinned_apps.append(mod) %}
+    {% endif %}
+{% endfor %}
+
+{# Helper macro for checking if nav item is active #}
+{% macro is_active(item) %}
+    {%- if item.get('match_prefix') and request.path.startswith(item['match_prefix']) -%}
+        active
+    {%- elif item.get('match_exact') and request.path in item['match_exact'] -%}
+        active
+    {%- endif -%}
+{% endmacro %}
+
+<nav class="side-nav" x-data="sidebarNav()">
+    {% if current_user.is_authenticated and user_workspaces|length > 0 %}
+    <div class="workspace-switcher" x-data="{ wsOpen: false }">
+        <button class="workspace-trigger" @click="wsOpen = !wsOpen" @click.outside="wsOpen = false">
+            {% set ns = namespace(ws_name='') %}
+            {% for ws in user_workspaces %}
+                {% if ws.id == active_workspace_id %}
+                    {% set ns.ws_name = ws.name %}
+                {% endif %}
+            {% endfor %}
+            <span class="workspace-initial" data-name="{{ ns.ws_name or 'W' }}">{{ (ns.ws_name or 'W')[0]|upper }}</span>
+            <span class="workspace-name">{{ ns.ws_name or 'Workspace' }}</span>
+            <i class="fas fa-arrows-rotate workspace-swap-icon"></i>
+        </button>
+        <div class="workspace-dropdown" x-show="wsOpen" x-collapse x-cloak>
+            {% for ws in user_workspaces %}
+            <form method="POST" action="{{ url_for('core_bp.switch_workspace', workspace_id=ws.id) }}" class="workspace-dropdown-item{% if ws.id == active_workspace_id %} active{% endif %}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit">
+                    <span class="workspace-initial ws-sm" data-name="{{ ws.name }}" style="background: {{ ws.color }}">{{ ws.name[0]|upper }}</span>
+                    <span>{{ ws.name }}</span>
+                </button>
+            </form>
+            {% endfor %}
+            <div class="workspace-divider"></div>
+            <button class="workspace-dropdown-item ws-new" data-bs-toggle="modal" data-bs-target="#createWorkspaceModal">
+                <i class="fas fa-plus"></i>
+                <span>{{ _("New workspace") }}</span>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+    <ul class="nav-menu" id="nav-sections-list">
+        <!-- HOME - Pinned at top -->
+        <li class="nav-item">
+            <a href="{{ url_for('dashboard_bp.index') }}"
+               class="nav-link {% if request.path == '/dashboard/' or request.path == '/dashboard' %}active{% endif %}">
+                <i class="fas fa-home"></i>
+                {{ _("Home") }}
+            </a>
+        </li>
+
+        <!-- CONNECT section (Chat + Calendar) - Always shown right after Home -->
+        {% set connect_section = nav_sections.get('connect') %}
+        {% if connect_section and module_enabled('Updates') %}
+            {% set show_connect = true %}
+            {% if connect_section.get('admin_only') and not current_user.is_admin %}
+                {% set show_connect = false %}
+            {% endif %}
+            {% if show_connect %}
+            <li class="nav-section nav-section-collapsible" data-section="connect" style="--section-color: {{ g.workspace_color }}">
+                <span class="nav-section-header nav-section-toggle" @click="toggleSection('connect')" :class="{'collapsed': !isOpen('connect')}">
+                    <span>{{ _("Sync") }}</span>
+                    <i class="fas fa-chevron-down nav-section-chevron" :class="{'rotated': isOpen('connect')}"></i>
+                </span>
+                <ul class="nav-section-items" x-show="isOpen('connect')" x-collapse>
+                    {% for item in connect_section['items'] %}
+                        {% set show_item = true %}
+                        {% if item.get('module_check') and not module_enabled(item['module_check']) %}
+                            {% set show_item = false %}
+                        {% endif %}
+                        {% if show_item %}
+                        <li class="nav-item">
+                            <a href="{{ item['url'] }}" class="nav-link {{ is_active(item) }}">
+                                <i class="{{ item['icon'] }}"></i> {{ _(item['label']) }}
+                                {% if item['label'] == 'Chat' %}
+                                <span class="chat-activity-dot" data-chat-badge style="{% if not chat_unread_count or chat_unread_count == 0 %}display: none;{% endif %}"></span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </li>
+            <li class="nav-divider"></li>
+            {% endif %}
+        {% endif %}
+
+        <!-- PLUGIN MODULES added via dropdown - shown right below Dashboard -->
+        {% if sidebar_config and sidebar_config.visible %}
+            {% for section_id in sidebar_config.visible %}
+                {% if section_id not in nav_sections %}
+                    {% for mod in g.installed_modules %}
+                        {% if mod.get('name', '')|lower == section_id and mod.get('enabled') and mod.get('is_plugin') %}
+                            {% if not mod.get('admin_only') or current_user.is_admin %}
+                            <li class="nav-section" data-section="{{ section_id }}" style="--section-color: {{ g.workspace_color }}">
+                                <span class="nav-section-header">
+                                    <span>{{ mod.get('name') }}</span>
+                                </span>
+                                <ul class="nav-section-items">
+                                    <li class="nav-item">
+                                        <a href="{{ mod.get('url', mod.get('main_route', '/')) }}" class="nav-link {% if request.path.startswith(mod.get('url', mod.get('main_route', '/'))) %}active{% endif %}">
+                                            <i class="{{ mod.get('icon_class', 'fas fa-puzzle-piece') }}"></i> {{ mod.get('name') }}
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        <!-- Dynamic sections (reorderable by admin) -->
+        {% for section_id in section_order %}
+            {# Skip connect section - it's handled separately above #}
+            {% if section_id != 'connect' %}
+            {# Only show section if it's visible AND pinned (or is apps/plugins section) #}
+            {% if section_id in visible_sections and (section_id in pinned_modules or section_id in ['apps', 'plugins']) %}
+                {% if section_id in nav_sections %}
+                    {# Built-in section from NAV_SECTIONS #}
+                    {% set section = nav_sections[section_id] %}
+
+                    {# Check if section should be shown based on admin_only, requires_access, and module_check #}
+                    {% set show_section = true %}
+                    {% if section.get('admin_only') and not current_user.is_admin %}
+                        {% set show_section = false %}
+                    {% endif %}
+                    {% if section.get('requires_access') and not current_user.has_access(section['requires_access']) %}
+                        {% set show_section = false %}
+                    {% endif %}
+                    {% if section.get('module_check') and not module_enabled(section['module_check']) %}
+                        {% set show_section = false %}
+                    {% endif %}
+
+                    {% if show_section %}
+                    {# Special handling for dynamic_apps sections (Installed Apps) #}
+                    {% if section.get('dynamic_apps') %}
+                        {% if pinned_apps %}
+                        <li class="nav-section{% if section.get('collapsible') %} nav-section-collapsible{% endif %}" data-section="{{ section_id }}" style="--section-color: {{ g.workspace_color }}">
+                            {% if section.get('collapsible') %}
+                            <span class="nav-section-header nav-section-toggle" @click="toggleSection('{{ section_id }}')" :class="{'collapsed': !isOpen('{{ section_id }}')}">
+                                <span>{{ _(section['label']) }}</span>
+                                <i class="fas fa-chevron-down nav-section-chevron" :class="{'rotated': isOpen('{{ section_id }}')}"></i>
+                            </span>
+                            {% else %}
+                            <span class="nav-section-header">
+            
+                                <span>{{ _(section['label']) }}</span>
+                            </span>
+                            {% endif %}
+                            <ul class="nav-section-items" {% if section.get('collapsible') %}x-show="isOpen('{{ section_id }}')" x-collapse{% endif %}>
+                                {% for app in pinned_apps|sort(attribute='name') %}
+                                    {% if not app.get('admin_only') or current_user.is_admin %}
+                                    <li class="nav-item">
+                                        <a href="{{ app.url or app.main_route }}" class="nav-link {% if request.path.startswith(app.url or app.main_route) %}active{% endif %}">
+                                            <i class="{{ app.icon_class }}"></i> {{ app.name }}
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        <li class="nav-divider"></li>
+                        {% endif %}
+                    {# Special handling for dynamic_plugins sections (Addons) #}
+                    {% elif section.get('dynamic_plugins') %}
+                        {# Get enabled plugins from installed modules (these are dicts, not objects) #}
+                        {% set enabled_plugins = [] %}
+                        {% for mod in g.installed_modules %}
+                            {% if mod.get('is_plugin') and mod.get('enabled') %}
+                                {% set _ = enabled_plugins.append(mod) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if enabled_plugins %}
+                        <li class="nav-section{% if section.get('collapsible') %} nav-section-collapsible{% endif %}" data-section="{{ section_id }}" style="--section-color: {{ g.workspace_color }}">
+                            {% if section.get('collapsible') %}
+                            <span class="nav-section-header nav-section-toggle" @click="toggleSection('{{ section_id }}')" :class="{'collapsed': !isOpen('{{ section_id }}')}">
+                                <span>{{ _(section['label']) }}</span>
+                                <i class="fas fa-chevron-down nav-section-chevron" :class="{'rotated': isOpen('{{ section_id }}')}"></i>
+                            </span>
+                            {% else %}
+                            <span class="nav-section-header">
+            
+                                <span>{{ _(section['label']) }}</span>
+                            </span>
+                            {% endif %}
+                            <ul class="nav-section-items" {% if section.get('collapsible') %}x-show="isOpen('{{ section_id }}')" x-collapse{% endif %}>
+                                {% for plugin in enabled_plugins|sort(attribute='name') %}
+                                    {% if not plugin.get('admin_only') or current_user.is_admin %}
+                                    <li class="nav-item">
+                                        <a href="{{ plugin.get('url', plugin.get('main_route', '/')) }}" class="nav-link {% if request.path.startswith(plugin.get('url', plugin.get('main_route', '/'))) %}active{% endif %}">
+                                            <i class="{{ plugin.get('icon_class', 'fas fa-puzzle-piece') }}"></i> {{ plugin.get('name') }}
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        <li class="nav-divider"></li>
+                        {% endif %}
+                    {% else %}
+                    {# Standard section with static items #}
+                    <li class="nav-section{% if section.get('collapsible') %} nav-section-collapsible{% endif %}" data-section="{{ section_id }}" style="--section-color: {{ g.workspace_color }}">
+                        {% if section.get('collapsible') %}
+                        <span class="nav-section-header nav-section-toggle" @click="toggleSection('{{ section_id }}')" :class="{'collapsed': !isOpen('{{ section_id }}')}">
+                            <span>{{ _(section['label']) }}</span>
+                            <i class="fas fa-chevron-down nav-section-chevron" :class="{'rotated': isOpen('{{ section_id }}')}"></i>
+                        </span>
+                        {% else %}
+                        <span class="nav-section-header">
+                            <span>{{ _(section['label']) }}</span>
+                        </span>
+                        {% endif %}
+                        <ul class="nav-section-items" {% if section.get('collapsible') %}x-show="isOpen('{{ section_id }}')" x-collapse{% endif %}>
+                            {% for item in section['items'] %}
+                                {# Check item-level visibility (module_check, admin_only, requires_access) #}
+                                {% set show_item = true %}
+                                {% if item.get('module_check') and not module_enabled(item['module_check']) %}
+                                    {% set show_item = false %}
+                                {% endif %}
+                                {% if item.get('admin_only') and not current_user.is_admin %}
+                                    {% set show_item = false %}
+                                {% endif %}
+                                {% if item.get('requires_access') and not current_user.has_access(item['requires_access']) %}
+                                    {% set show_item = false %}
+                                {% endif %}
+
+                                {% if show_item %}
+                                <li class="nav-item">
+                                    <a href="{{ item['url'] }}" class="nav-link {{ is_active(item) }}{% if item.get('coming_soon') %} text-muted{% endif %}">
+                                        <i class="{{ item['icon'] }}"></i> {{ _(item['label']) }}
+                                        {% if item.get('coming_soon') %}
+                                        <span class="badge bg-secondary badge-soon ms-1">{{ _("Soon") }}</span>
+                                        {% endif %}
+                                        {% if nav_badges.get(item['url']) %}
+                                        <span class="chat-activity-dot"></span>
+                                        {% endif %}
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    <li class="nav-divider"></li>
+                    {% endif %}
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+            {% endif %}{# end if section_id != 'connect' #}
+        {% endfor %}
+
+        <!-- Settings (admin only, pinned at bottom) -->
+        {% if current_user.is_admin %}
+        <li class="nav-divider"></li>
+        <li class="nav-item">
+            <a href="{{ url_for('core_bp.settings') }}"
+               class="nav-link {% if request.path.startswith('/settings') %}active{% endif %}">
+                <i class="fas fa-sliders"></i>
+                {{ _("Settings") }}
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<!-- Sidebar Navigation JavaScript -->
+<script nonce="{{ csp_nonce }}">
+function sidebarNav() {
+    // Default open states for sections (from NAV_SECTIONS config)
+    const defaultOpenSections = {
+        {% for section_id, section in nav_sections.items() %}
+        {% if section.get('collapsible') and section.get('default_open') %}
+        '{{ section_id }}': true,
+        {% endif %}
+        {% endfor %}
+    };
+
+    return {
+        // Collapsible sections state - load from localStorage
+        openSections: JSON.parse(localStorage.getItem('sparq_nav_sections') || '{}'),
+
+        isOpen(sectionId) {
+            // If user has explicitly set a preference, use it
+            if (sectionId in this.openSections) {
+                return this.openSections[sectionId] === true;
+            }
+            // Otherwise use the default from config
+            return defaultOpenSections[sectionId] === true;
+        },
+
+        toggleSection(sectionId) {
+            // Toggle based on current state (which may be from defaults)
+            this.openSections[sectionId] = !this.isOpen(sectionId);
+            // Persist to localStorage
+            localStorage.setItem('sparq_nav_sections', JSON.stringify(this.openSections));
+        }
+    }
+}
+</script>

@@ -1,0 +1,90 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ post.title }} - {{ _("Board") }}{% endblock %}
+
+{% block app_class %}board-app{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/board.css') }}">
+{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header with back button -->
+    <div class="board-header">
+        <a href="{{ url_for('sync_bp.board_index') }}" class="btn btn-sm btn-outline-secondary mb-3">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Board") }}
+        </a>
+    </div>
+
+    <!-- Post Content -->
+    <article class="board-post-detail">
+        {% if post.is_pinned %}
+        <span class="pin-badge mb-3 d-inline-block">
+            <i class="fas fa-thumbtack me-1"></i>{{ _("Pinned") }}
+        </span>
+        {% endif %}
+
+        <h1 class="mb-3">{{ post.title }}</h1>
+
+        <div class="board-post-meta mb-4">
+            <span class="me-3">
+                <i class="fas fa-user me-1"></i>
+                {{ post.created_by.first_name }} {{ post.created_by.last_name if post.created_by.last_name else '' }}
+            </span>
+            <span class="me-3">
+                <i class="fas fa-clock me-1"></i>
+                {{ post.created_at|format_datetime('%B %d, %Y at %I:%M %p') }}
+            </span>
+            {% if post.updated_at %}
+            <span class="text-muted">
+                <i class="fas fa-edit me-1"></i>
+                {{ _("Updated") }} {{ post.updated_at|format_datetime(show_date_only=True) }}
+            </span>
+            {% endif %}
+        </div>
+
+        {% if post.image_url %}
+        <div class="board-post-featured-image mb-4">
+            <img src="{{ post.image_url }}" alt="{{ post.title }}" class="img-fluid rounded">
+        </div>
+        {% endif %}
+
+        <div class="board-post-content">
+            {{ post.content | safe }}
+        </div>
+
+        {% if post.can_edit(current_user) %}
+        <div class="board-post-actions mt-4 pt-4 border-top">
+            <a href="{{ url_for('sync_bp.board_edit', post_id=post.id) }}" class="btn btn-sm btn-primary me-2">
+                <i class="fas fa-edit me-1"></i>{{ _("Edit") }}
+            </a>
+            {% if current_user.is_admin %}
+            <form action="{{ url_for('sync_bp.board_pin', post_id=post.id) }}" method="POST" class="d-inline me-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-thumbtack me-1"></i>
+                    {% if post.is_pinned %}{{ _("Unpin") }}{% else %}{{ _("Pin") }}{% endif %}
+                </button>
+            </form>
+            {% endif %}
+            <form action="{{ url_for('sync_bp.board_delete', post_id=post.id) }}" method="POST" class="d-inline"
+                  data-confirm="{{ _('Delete this post?') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i>{{ _("Delete") }}
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </article>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+</script>
+{% endblock %}

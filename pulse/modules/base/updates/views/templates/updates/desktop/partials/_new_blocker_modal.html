@@ -1,0 +1,204 @@
+{# Shared Blocker modal — used for both create (Blockers board + feed "New Blocker")
+   and edit (feed pencil on an "I'm blocked" post). Pass an `task` to
+   enter edit mode and a unique `modal_id` when rendering per-post for edit.
+
+   Required context: `members` (list of MemberRow or WorkspaceUser).
+   Optional context:
+     - `modal_id`         unique DOM id (default: "newBlockerModal")
+     - `task`      Task instance → edit mode (default: None = create)
+     - `projects`         list of projects for the picker
+     - `next_url`         where to return after edit submit (default: current URL handled server-side)
+     - `htmx_auto_show`   when True, emit a trailing <script> that shows the modal
+                          immediately — used by HTMX routes that swap this partial
+                          into #modal-container on mobile (where .mobile-main-content
+                          traps Bootstrap modals in its stacking context). Desktop
+                          callers leave this unset so nothing changes.
+#}
+{% set modal_id = modal_id|default('newBlockerModal') %}
+{% set task = task|default(none) %}
+{% set is_edit = task is not none %}
+{% set selected_tier = task.urgency_tier if is_edit else 2 %}
+{# Styles for .urgency-option / .urgency-dot live in the parent page
+   (see partials/_blocker_modal_styles.html) so they aren't duplicated
+   when the partial is rendered multiple times on one page. #}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% if is_edit %}{{ url_for('sync_bp.blockers_update', task_id=task.id) }}{% else %}{{ url_for('sync_bp.blockers_create') }}{% endif %}"
+                  x-data="{ assignMode: 'single' }">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% if next_url is defined and next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                <div class="modal-header">
+                    <h5 class="modal-title">{% if is_edit %}{{ _("Edit Blocker") }}{% else %}{{ _("New Blocker") }}{% endif %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">{{ _("What's blocking you?") }}</label>
+                        <input type="text" name="title" id="blocker_title_{{ modal_id }}" class="form-control" required maxlength="200"
+                               placeholder="{{ _('Brief description of the blocker') }}"
+                               value="{{ task.title if is_edit else '' }}">
+                        {% if github_connected %}
+                        {% from "github/desktop/partials/_issue_trigger.html" import issue_trigger with context %}
+                        {{ issue_trigger('blocker_title_' ~ modal_id, 'blocker', task.id if is_edit else 0, github_repo) }}
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ _("Details") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                        <textarea name="description" id="blocker_description_{{ modal_id }}" class="form-control" rows="3"
+                                  placeholder="{{ _('Additional context or details') }}">{{ task.context_note if is_edit and task.context_note else '' }}</textarea>
+                        {% if github_connected %}
+                        {% from "github/desktop/partials/_issue_trigger.html" import issue_trigger with context %}
+                        {{ issue_trigger('blocker_description_' ~ modal_id, 'blocker', task.id if is_edit else 0, github_repo) }}
+                        {% endif %}
+                    </div>
+
+                    {% if projects is defined and projects %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ _("Project") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                        <select name="project_id" class="form-select form-select-sm">
+                            <option value="">{{ _("No project") }}</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}" {% if is_edit and task.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ _("Blocked by") }}</label>
+
+                        {% if is_edit %}
+                        {# Edit mode: single assignee dropdown only #}
+                        <select name="assignee_id" class="form-select form-select-sm">
+                            <option value="">{{ _("Team (unassigned)") }}</option>
+                            {% for m in members|default([]) %}
+                            <option value="{{ m.id }}" {% if task.assignee_id == m.id %}selected{% endif %}>{{ m.first_name }} {{ m.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        {# Create mode: multi-assignment UI #}
+                        <div class="d-flex gap-2 mb-2 flex-wrap">
+                            <label class="urgency-option flex-fill text-center text-sm" :class="{ 'active': assignMode === 'single' }">
+                                <input type="radio" name="assign_mode" value="single" class="d-none"
+                                       x-model="assignMode" checked>
+                                {{ _("One person") }}
+                            </label>
+                            <label class="urgency-option flex-fill text-center text-sm" :class="{ 'active': assignMode === 'multi' }">
+                                <input type="radio" name="assign_mode" value="multi" class="d-none"
+                                       x-model="assignMode">
+                                {{ _("Select people") }}
+                            </label>
+                            <label class="urgency-option flex-fill text-center text-sm" :class="{ 'active': assignMode === 'all' }">
+                                <input type="radio" name="assign_mode" value="all" class="d-none"
+                                       x-model="assignMode">
+                                {{ _("All members") }}
+                            </label>
+                            <label class="urgency-option flex-fill text-center text-sm" :class="{ 'active': assignMode === 'unassigned' }">
+                                <input type="radio" name="assign_mode" value="unassigned" class="d-none"
+                                       x-model="assignMode">
+                                {{ _("Unassigned") }}
+                            </label>
+                        </div>
+
+                        {# Single assignee dropdown #}
+                        <div x-show="assignMode === 'single'">
+                            <select name="assignee_id" class="form-select form-select-sm">
+                                {% for m in members|default([]) %}
+                                <option value="{{ m.id }}" {% if current_member is defined and current_member and m.id == current_member.id %}selected{% endif %}>{{ m.first_name }} {{ m.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        {# Multi-assignee checkboxes #}
+                        <div x-show="assignMode === 'multi'" x-cloak>
+                            <div style="max-height:200px;overflow-y:auto;border:1px solid var(--color-gray-200);border-radius:0.375rem;padding:0.5rem;">
+                                {% for m in members|default([]) %}
+                                {% if not current_member or m.id != current_member.id %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="assignee_ids" value="{{ m.id }}" id="blocker-member-{{ m.id }}">
+                                    <label class="form-check-label text-base" for="blocker-member-{{ m.id }}">
+                                        {{ m.first_name }} {{ m.last_name }}
+                                    </label>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {# All members info #}
+                        <div x-show="assignMode === 'all'" x-cloak>
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>{{ _("Will create a blocker for every active team member (excluding you).") }}
+                            </p>
+                        </div>
+
+                        {# Unassigned info #}
+                        <div x-show="assignMode === 'unassigned'" x-cloak>
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-info-circle me-1"></i>{{ _("Team-visible blocker with no specific person — anyone can help resolve it.") }}
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ _("Urgency") }}</label>
+                        <div class="d-flex gap-2">
+                            <label class="urgency-option flex-fill text-center">
+                                <input type="radio" name="action_tier" value="1" class="d-none" {% if selected_tier == 1 %}checked{% endif %}>
+                                <span class="urgency-dot" style="background:var(--color-danger);"></span>{{ _("Now") }}
+                            </label>
+                            <label class="urgency-option flex-fill text-center">
+                                <input type="radio" name="action_tier" value="2" class="d-none" {% if selected_tier == 2 %}checked{% endif %}>
+                                <span class="urgency-dot" style="background:#d97706;"></span>{{ _("Later") }}
+                            </label>
+                            <label class="urgency-option flex-fill text-center">
+                                <input type="radio" name="action_tier" value="3" class="d-none" {% if selected_tier == 3 %}checked{% endif %}>
+                                <span class="urgency-dot" style="background:#16a34a;"></span>{{ _("Whenever") }}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        {% if is_edit %}{{ _("Save Changes") }}{% else %}{{ _("Create Blocker") }}{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if htmx_auto_show %}
+{# Auto-show after HTMX swap into #modal-container (mobile). Desktop callers
+   leave htmx_auto_show unset and rely on data-bs-toggle buttons instead. #}
+{% include "updates/desktop/partials/_blocker_modal_styles.html" %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var modalEl = document.getElementById('{{ modal_id }}');
+    if (!modalEl) return;
+    // Clear any stale backdrops from a prior modal swap.
+    document.querySelectorAll('.modal-backdrop').forEach(function(el) { el.remove(); });
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+
+    // Before Bootstrap hides the modal and sets aria-hidden="true", move focus
+    // off any descendant button (X close, Cancel, submit). Without this Chrome
+    // logs "Blocked aria-hidden on an element because its descendant retained
+    // focus" every time the modal closes.
+    modalEl.addEventListener('hide.bs.modal', function() {
+        if (modalEl.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+    });
+
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+})();
+</script>
+{% endif %}

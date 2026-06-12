@@ -1,0 +1,261 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("New Hire") if not record else _("Edit Onboarding") }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ _("New Hire Onboarding") if not record else _("Edit Onboarding") }}</h2>
+                <a href="{{ url_for('people_bp.onboarding_list') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>{{ _("Back") }}
+                </a>
+            </div>
+
+            <form method="POST" action="{{ url_for('people_bp.onboarding_edit', record_id=record.id) if record else url_for('people_bp.onboarding_new') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="row">
+                    <!-- Person Information -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">{{ _("Person Information") }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="first_name" class="form-label">{{ _("First Name") }} <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name"
+                                               value="{{ record.first_name if record else '' }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="last_name" class="form-label">{{ _("Last Name") }} <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name"
+                                               value="{{ record.last_name if record else '' }}" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="personal_email" class="form-label">{{ _("Personal Email") }} <span class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="personal_email" name="personal_email"
+                                           value="{{ record.personal_email if record else '' }}" required>
+                                    <div class="form-text">{{ _("Used to send the onboarding invite") }}</div>
+                                </div>
+                                <div class="mb-0">
+                                    <label for="work_email" class="form-label">{{ _("Work Email") }}</label>
+                                    <input type="email" class="form-control" id="work_email" name="work_email"
+                                           value="{{ record.work_email if record else '' }}">
+                                    <div class="form-text">{{ _("Optional company email (if different from personal)") }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employment Details -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">{{ _("Employment Details") }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="onboarding_type" class="form-label">{{ _("Employment Type") }} <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="onboarding_type" name="onboarding_type" required>
+                                        {% for type in OnboardingType %}
+                                        <option value="{{ type.name }}"
+                                                {% if record and record.onboarding_type == type %}selected{% endif %}>
+                                            {{ type.value }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">{{ _("Determines which tasks are created (W-4 vs W-9, etc.)") }}</div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="position" class="form-label">{{ _("Position") }}</label>
+                                        <input type="text" class="form-control" id="position" name="position"
+                                               value="{{ record.position if record else '' }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="department" class="form-label">{{ _("Department") }}</label>
+                                        <input type="text" class="form-control" id="department" name="department"
+                                               value="{{ record.department if record else '' }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="start_date" class="form-label">{{ _("Start Date") }}</label>
+                                        <input type="date" class="form-control" id="start_date" name="start_date"
+                                               value="{{ record.start_date.strftime('%Y-%m-%d') if record and record.start_date else '' }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="manager_id" class="form-label">{{ _("Manager") }}</label>
+                                        <select class="form-select" id="manager_id" name="manager_id">
+                                            <option value="">{{ _("Select Manager") }}</option>
+                                            {% for employee in potential_managers %}
+                                            <option value="{{ employee.id }}"
+                                                    {% if record and record.manager_id == employee.id %}selected{% endif %}>
+                                                {{ employee.user.first_name }} {{ employee.user.last_name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-0">
+                                        <label for="salary" class="form-label">{{ _("Salary") }}</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="salary" name="salary"
+                                                   value="{{ record.salary if record else '' }}" step="0.01">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-0">
+                                        <label for="salary_type" class="form-label">{{ _("Compensation Type") }}</label>
+                                        <select class="form-select" id="salary_type" name="salary_type" style="height: 50px;">
+                                            <option value="YEARLY" {% if not record or not record.salary_type or record.salary_type.name == 'YEARLY' %}selected{% endif %}>{{ _("Yearly") }}</option>
+                                            <option value="HOURLY" {% if record and record.salary_type and record.salary_type.name == 'HOURLY' %}selected{% endif %}>{{ _("Hourly") }}</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents to Sign -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">{{ _("Documents to Sign") }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            {{ _("Upload PDF documents that the employee needs to sign. These will be sent for e-signature.") }}
+                        </p>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-file-signature me-1"></i>{{ _("Offer Letter") }}
+                                <span class="text-muted small">({{ _("optional") }})</span>
+                            </label>
+                            {% if record and record.offer_letter_request %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <i class="fas fa-check-circle me-1"></i>
+                                {{ _("Offer letter already uploaded") }}
+                                <span class="badge bg-{{ 'success' if record.offer_letter_request.status == 'completed' else 'warning text-dark' }} ms-2">
+                                    {{ record.offer_letter_request.status }}
+                                </span>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="offer_letter" name="offer_letter" accept=".pdf">
+                            <div class="form-text">{{ _("PDF only. Will replace existing if uploaded.") }}</div>
+                        </div>
+
+                        <div class="mb-0">
+                            <label class="form-label">
+                                <i class="fas fa-file-contract me-1"></i>{{ _("Employment Contract / Agreement") }}
+                                <span class="text-muted small">({{ _("optional") }})</span>
+                            </label>
+                            {% if record and record.contract_request %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <i class="fas fa-check-circle me-1"></i>
+                                {{ _("Contract already uploaded") }}
+                                <span class="badge bg-{{ 'success' if record.contract_request.status == 'completed' else 'warning text-dark' }} ms-2">
+                                    {{ record.contract_request.status }}
+                                </span>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="contract" name="contract" accept=".pdf">
+                            <div class="form-text">{{ _("PDF only. Will replace existing if uploaded.") }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Notes -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">{{ _("Admin Notes") }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <textarea class="form-control" id="admin_notes" name="admin_notes" rows="3"
+                                  placeholder="{{ _('Internal notes about this onboarding (not visible to employee)') }}">{{ record.admin_notes if record else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Task Preview -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">{{ _("Onboarding Tasks") }}</h6>
+                        <span class="badge bg-secondary" id="task-count">{{ _("Tasks will be created based on employment type") }}</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="w2-tasks" class="task-preview">
+                            <p class="text-muted mb-2">{{ _("W-2 Employee tasks:") }}</p>
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Sign Offer Letter") }} <span class="badge bg-danger ms-1">{{ _("Required") }}</span></li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Sign Employment Agreement") }}</li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Personal Information") }} <span class="badge bg-danger ms-1">{{ _("Required") }}</span></li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Emergency Contact") }}</li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("W-4 Tax Form") }} <span class="badge bg-danger ms-1">{{ _("Required") }}</span></li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Direct Deposit Info") }}</li>
+                            </ul>
+                        </div>
+                        <div id="contractor-tasks" class="task-preview" style="display: none;">
+                            <p class="text-muted mb-2">{{ _("1099 Contractor tasks:") }}</p>
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Sign Contractor Agreement") }} <span class="badge bg-danger ms-1">{{ _("Required") }}</span></li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("Personal/Business Information") }} <span class="badge bg-danger ms-1">{{ _("Required") }}</span></li>
+                                <li><i class="fas fa-check-circle text-muted me-2"></i>{{ _("W-9 Tax Form") }} <span class="badge bg-danger ms-1">{{ _("Required") }}</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <button type="submit" name="action" value="save" class="btn btn-sm btn-primary me-2">
+                            <i class="fas fa-save me-1"></i>{{ _("Save Draft") }}
+                        </button>
+                        <button type="submit" name="action" value="send" class="btn btn-sm btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i>{{ _("Save & Send Invite") }}
+                        </button>
+                    </div>
+                    <a href="{{ url_for('people_bp.onboarding_list') }}" class="btn btn-sm btn-outline-secondary">
+                        {{ _("Cancel") }}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('onboarding_type');
+    const w2Tasks = document.getElementById('w2-tasks');
+    const contractorTasks = document.getElementById('contractor-tasks');
+    const taskCount = document.getElementById('task-count');
+
+    function updateTaskPreview() {
+        if (typeSelect.value === 'CONTRACTOR') {
+            w2Tasks.style.display = 'none';
+            contractorTasks.style.display = 'block';
+            taskCount.textContent = '{{ _("3 tasks for contractor") }}';
+        } else {
+            w2Tasks.style.display = 'block';
+            contractorTasks.style.display = 'none';
+            taskCount.textContent = '{{ _("6 tasks for W-2 employee") }}';
+        }
+    }
+
+    typeSelect.addEventListener('change', updateTaskPreview);
+    updateTaskPreview();
+});
+</script>
+{% endblock %}

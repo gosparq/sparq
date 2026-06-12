@@ -1,0 +1,166 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ _("Schedule Interview") }}{% endblock %}
+
+{% block module_content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar-plus me-2"></i>{{ _("Schedule Interview") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Candidate Info -->
+                <div class="alert alert-light border mb-3">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <strong>{{ application.candidate.full_name }}</strong>
+                            <span class="text-muted mx-1">for</span>
+                            <strong>{{ application.job_posting.title }}</strong>
+                        </div>
+                        <span class="badge bg-{{ 'info' if application.status.name == 'NEW' else 'warning' if application.status.name == 'SCREENING' else 'primary' }} ms-auto">
+                            {{ application.status.value }}
+                        </span>
+                    </div>
+                </div>
+
+                <form method="post" action="{{ url_for('people_bp.hiring_interview_schedule', application_id=application.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="row g-3">
+                        <!-- Interview Type -->
+                        <div class="col-md-6">
+                            <label for="interview_type" class="form-label small mb-1">
+                                {{ _("Interview Type") }} <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-sm" id="interview_type" name="interview_type" required>
+                                {% for itype in InterviewType %}
+                                <option value="{{ itype.name }}" {{ 'selected' if itype.name == 'VIDEO' }}>
+                                    {{ itype.value }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="col-md-6">
+                            <label for="duration" class="form-label small mb-1">
+                                {{ _("Duration") }}
+                            </label>
+                            <select class="form-select form-select-sm" id="duration" name="duration">
+                                <option value="30">30 minutes</option>
+                                <option value="45">45 minutes</option>
+                                <option value="60" selected>1 hour</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="120">2 hours</option>
+                            </select>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="col-md-6">
+                            <label for="scheduled_date" class="form-label small mb-1">
+                                {{ _("Date") }} <span class="text-danger">*</span>
+                            </label>
+                            <input type="date"
+                                   class="form-control form-control-sm"
+                                   id="scheduled_date"
+                                   name="scheduled_date"
+                                   required>
+                        </div>
+
+                        <!-- Time -->
+                        <div class="col-md-6">
+                            <label for="scheduled_time" class="form-label small mb-1">
+                                {{ _("Time") }} <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="scheduled_time"
+                                   name="scheduled_time"
+                                   value="10:00"
+                                   required
+                                   placeholder="HH:MM">
+                        </div>
+
+                        <!-- Interviewer -->
+                        <div class="col-md-6">
+                            <label for="interviewer_id" class="form-label small mb-1">
+                                {{ _("Interviewer") }}
+                            </label>
+                            <select class="form-select form-select-sm" id="interviewer_id" name="interviewer_id">
+                                <option value="">{{ _("Select interviewer...") }}</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.user.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Location/Link -->
+                        <div class="col-md-6">
+                            <label for="location" class="form-label small mb-1">
+                                {{ _("Location / Meeting Link") }}
+                            </label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="location"
+                                   name="location"
+                                   placeholder="{{ _('e.g., Zoom link, Conference Room A') }}">
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top">
+                            <a href="{{ url_for('people_bp.hiring_application_detail', application_id=application.id) }}" class="btn btn-outline-secondary btn-sm">
+                                {{ _("Cancel") }}
+                            </a>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-calendar-check me-1"></i>{{ _("Schedule Interview") }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Interviews -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>{{ _("Previous Interviews") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if application.interviews %}
+                <div class="list-group list-group-flush">
+                    {% for interview in application.interviews %}
+                    <div class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="small">
+                                <i class="fas {{ interview.type_icon }} text-muted me-1"></i>
+                                {{ interview.interview_type.value }}
+                                <div class="text-muted">{{ interview.scheduled_at|format_datetime('%b %d, %Y') }}</div>
+                            </div>
+                            <span class="badge bg-{{ 'success' if interview.status.name == 'COMPLETED' else 'secondary' if interview.status.name == 'CANCELLED' else 'info' }}">
+                                {{ interview.status.value }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">{{ _("No previous interviews") }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+flatpickr("#scheduled_time", {
+    enableTime: true, noCalendar: true, dateFormat: "H:i",
+    altInput: true, altFormat: "h:i K",
+    time_24hr: false, minuteIncrement: 15
+});
+</script>
+{% endblock module_content %}

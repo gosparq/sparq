@@ -1,0 +1,166 @@
+{% extends "msa/desktop/_base.html" %}
+
+{% block title %}{{ workspace.name }} - MSA{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('msa_bp.dashboard') }}">{{ _("Dashboard") }}</a>
+<span class="sep">/</span>
+<a href="{{ url_for('msa_bp.workspace_list') }}">{{ _("Workspaces") }}</a>
+<span class="sep">/</span>
+<span class="current">{{ workspace.slug }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="msa-detail-header">
+    <div>
+        <div class="msa-detail-title">{{ workspace.name }}</div>
+        <div class="msa-detail-slug">{{ workspace.slug }}</div>
+    </div>
+    <div class="msa-detail-actions">
+        <form method="POST" action="{{ url_for('msa_bp.transparent_enter', workspace_id=workspace.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="msa-btn msa-btn-primary msa-btn-sm">
+                <i class="fas fa-eye"></i> {{ _("Transparent Login") }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="msa-detail-grid">
+    <!-- Edit Form -->
+    <div class="msa-card">
+        <div class="msa-card-header">
+            <span class="msa-card-title">{{ _("Workspace Settings") }}</span>
+        </div>
+        <div class="msa-card-body">
+            <form method="POST" action="{{ url_for('msa_bp.workspace_edit', workspace_id=workspace.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Company Name") }}</label>
+                    <input type="text" name="name" class="msa-input" value="{{ workspace.name }}">
+                </div>
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Slug") }}</label>
+                    <input type="text" name="slug" class="msa-input" value="{{ workspace.slug }}"
+                           pattern="[a-z][a-z0-9-]{1,49}">
+                </div>
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Plan") }}</label>
+                    <input type="text" name="plan" class="msa-input" value="{{ workspace.plan or 'free' }}">
+                </div>
+
+                <div class="msa-form-group">
+                    <label class="msa-toggle">
+                        <input type="checkbox" name="is_active" value="1" {{ 'checked' if workspace.is_active }}>
+                        <span class="msa-toggle-track"></span>
+                        {{ _("Active") }}
+                    </label>
+                </div>
+
+                <button type="submit" class="msa-btn msa-btn-primary">
+                    <i class="fas fa-check"></i> {{ _("Save Changes") }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="msa-card">
+        <div class="msa-card-header">
+            <span class="msa-card-title">{{ _("Info") }}</span>
+        </div>
+        <div class="msa-card-body">
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Organization") }}</div>
+                <div class="msa-field-value">
+                    {% if workspace.organization %}
+                    <a href="{{ url_for('msa_bp.organization_detail', org_id=workspace.organization_id) }}" class="msa-detail-slug">{{ workspace.organization.name }}</a>
+                    {% else %}
+                    <span class="dim">—</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Workspace ID") }}</div>
+                <div class="msa-field-value mono" style="font-size:12px; color: var(--msa-text-dim); word-break:break-all;">{{ workspace.id }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Status") }}</div>
+                <div class="msa-field-value">
+                    {% if workspace.is_active %}
+                    <span class="msa-badge msa-badge-active">{{ _("Active") }}</span>
+                    {% else %}
+                    <span class="msa-badge msa-badge-inactive">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Created") }}</div>
+                <div class="msa-field-value">{{ workspace.created_at.strftime('%B %d, %Y at %H:%M UTC') if workspace.created_at else '—' }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Updated") }}</div>
+                <div class="msa-field-value">{{ workspace.updated_at.strftime('%B %d, %Y at %H:%M UTC') if workspace.updated_at else '—' }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Users") }}</div>
+                <div class="msa-field-value">{{ users|length }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="msa-card">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("Users") }} ({{ users|length }})</span>
+    </div>
+    <table class="msa-table">
+        <thead>
+            <tr>
+                <th>{{ _("Email") }}</th>
+                <th>{{ _("Name") }}</th>
+                <th>{{ _("Admin") }}</th>
+                <th>{{ _("Active") }}</th>
+                <th>{{ _("Created") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td class="mono">{{ u.email }}</td>
+                <td>{{ u.first_name or '' }} {{ u.last_name or '' }}</td>
+                <td>
+                    {% if u.is_admin %}
+                    <span class="msa-badge msa-badge-active">{{ _("Admin") }}</span>
+                    {% else %}
+                    <span class="dim">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if u.is_active %}
+                    <span class="msa-text-accent">{{ _("Yes") }}</span>
+                    {% else %}
+                    <span class="msa-text-danger">{{ _("No") }}</span>
+                    {% endif %}
+                </td>
+                <td class="dim">{{ u.created_at|format_datetime('%b %d, %Y') if u.created_at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">
+                    <div class="msa-empty">
+                        <i class="fas fa-users"></i>
+                        {{ _("No users in this workspace.") }}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

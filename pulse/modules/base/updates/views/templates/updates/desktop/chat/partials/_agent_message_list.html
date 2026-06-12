@@ -1,0 +1,67 @@
+{# sparQy DM view - messages loaded from localStorage by JavaScript #}
+<div class="dm-view">
+    <div class="dm-header">
+        <div class="dm-user-info">
+            <div class="user-avatar" style="background-color: var(--color-ai);">
+                <i class="fas fa-robot"></i>
+            </div>
+            <h3>sparQy</h3>
+        </div>
+    </div>
+
+    <div class="dm-messages" id="agent-messages-container">
+        {% if not llm_configured %}
+        <div class="message agent-message">
+            <div class="message-avatar avatar-ai">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-body">
+                <div class="message-meta">
+                    <span class="author">sparQy</span>
+                </div>
+                <div class="message-content">
+                    <div class="alert alert-warning mb-0 d-flex align-items-center" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span>{{ _("LLM is not configured. Please add your API key to .env to enable AI features.") }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="dm-input-area">
+        <form onsubmit="return window._sendSparqyMessage(this);">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <textarea class="form-control" name="content" placeholder="{{ _('Message sparQy…') }}" rows="2"
+                              onkeydown="if(!event.shiftKey && event.key==='Enter' && this.value.trim()){ event.preventDefault(); this.closest('form').requestSubmit(); }"></textarea>
+                </div>
+            </div>
+            <div class="message-footer">
+                <div class="message-actions"></div>
+                <button type="submit" class="btn btn-send" title="{{ _('Send message') }}">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+    if (typeof window.loadAgentMessagesFromStorage === 'function') {
+        window.loadAgentMessagesFromStorage();
+    }
+    window._sendSparqyMessage = function(form) {
+        var input = form.querySelector('[name="content"]');
+        var content = (input.value || '').trim();
+        if (!content) return false;
+        input.value = '';
+        var fd = new FormData();
+        fd.append('content', content);
+        var csrfMeta = document.querySelector('meta[name=csrf-token]');
+        if (csrfMeta) fd.append('csrf_token', csrfMeta.content);
+        fetch('/sync/chat/dms/sparqy/messages', { method: 'POST', body: fd });
+        return false;
+    };
+</script>

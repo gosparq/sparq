@@ -1,0 +1,90 @@
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <!-- Header: Category/Job + Hours -->
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">
+                {% if service_enabled and entry.job %}
+                <i class="fas fa-briefcase text-secondary flex-shrink-0"></i>
+                <span class="fw-bold text-truncate">#{{ entry.job.job_number }} {{ entry.job.title }}{% if entry.clock_punch and entry.clock_punch.needs_review %} <i class="fas fa-flag text-warning" title="{{ _('Outside geofence') }}" style="font-size: 0.75rem;"></i>{% endif %}</span>
+                {% else %}
+                {% set cat_icons = {"Break": "fa-mug-hot", "Clock": "fa-clock"} %}
+                <i class="fas {{ cat_icons.get(entry.category, 'fa-tag') }} text-secondary flex-shrink-0"></i>
+                <span class="fw-bold">{{ entry.category or _("General") }}</span>
+                {% if entry.clock_punch and entry.clock_punch.needs_review %}
+                <i class="fas fa-flag text-warning" title="{{ _('Outside geofence') }}" style="font-size: 0.75rem;"></i>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="flex-shrink-0">
+                {% if entry.is_timer_running %}
+                <span class="badge bg-danger">
+                    <i class="fas fa-circle fa-beat me-1"></i>{{ _("Running") }}
+                </span>
+                {% else %}
+                <span class="fw-bold module-color-text">{{ "%.2f"|format(entry.hours) }}</span>
+                <span class="small text-muted">{{ _("hrs") }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Time Range / Description -->
+        {% if entry.timer_start and entry.timer_end and not entry.is_timer_running %}
+        <p class="text-muted small mb-2">{{ entry.timer_start|format_datetime("%I:%M %p") }} - {{ entry.timer_end|format_datetime("%I:%M %p") }}</p>
+        {% endif %}
+        {% if entry.description %}
+        <p class="text-muted small mb-2">{{ entry.description }}</p>
+        {% endif %}
+
+        <!-- Footer: Status + Actions -->
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex gap-2 flex-wrap">
+                {% if entry.status.name == 'SUBMITTED' %}
+                <span class="badge bg-warning text-dark">{{ _("Pending") }}</span>
+                {% elif entry.status.name == 'APPROVED' %}
+                <span class="badge bg-success">{{ _("Approved") }}</span>
+                {% elif entry.status.name == 'REJECTED' %}
+                <span class="badge bg-danger">{{ _("Rejected") }}</span>
+                {% endif %}
+
+                {% if entry.is_billable %}
+                <span class="badge bg-primary">{{ _("Billable") }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Action Buttons -->
+            {% if entry.is_timer_running %}
+            <div class="d-flex gap-2">
+                <form method="POST" action="{{ url_for('presence_bp.stop_timer', entry_id=entry.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </form>
+            </div>
+            {% elif entry.status.name != 'APPROVED' and entry.status.name != 'INVOICED' %}
+            <div class="d-flex gap-2">
+                {% if not entry.all_punches_pending_correction %}
+                <button class="btn btn-sm btn-primary"
+                        hx-get="{{ url_for('presence_bp.edit_entry_modal', entry_id=entry.id) }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML">
+                    <i class="fas fa-edit"></i>
+                </button>
+                {% endif %}
+                <form method="POST" action="{{ url_for('presence_bp.delete_entry', entry_id=entry.id) }}"
+                      data-confirm="{{ _('Delete this entry?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% if entry.status.name == 'REJECTED' and entry.rejected_reason %}
+        <div class="mt-2">
+            <small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>{{ _("Rejected:") }} {{ entry.rejected_reason }}</small>
+        </div>
+        {% endif %}
+    </div>
+</div>

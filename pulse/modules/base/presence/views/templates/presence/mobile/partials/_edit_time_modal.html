@@ -1,0 +1,201 @@
+<!-- Edit Time Entry - Mobile Bottom Sheet -->
+<div class="bottom-sheet-overlay open" id="editTimeOverlay" data-action="close-edit-time-overlay"
+     data-job-id="{{ entry.job_id if entry.job else '' }}"
+     data-job-text="{% if entry.job %}#{{ entry.job.job_number }} {{ entry.job.title }}{% endif %}"
+     x-data="{
+         timeMode: '{{ 'range' if entry.timer_start and entry.timer_end else 'duration' }}',
+         selectedJobId: '',
+         selectedJobText: '',
+     }"
+     x-init="
+         selectedJobId = $el.dataset.jobId || '';
+         selectedJobText = $el.dataset.jobText || '';
+         window.selectJob = (id, text) => {
+             selectedJobId = String(id);
+             selectedJobText = text;
+             document.getElementById('edit_job_search_results').innerHTML = '';
+             document.getElementById('edit_job_search').value = '';
+         };
+     ">
+    <div class="bottom-sheet" @click.stop="" style="transform: translateY(0);">
+        <div class="bottom-sheet-handle"></div>
+        <div class="px-4 pb-2 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-edit me-2"></i>{{ _("Edit Time Entry") }}</h5>
+            <button type="button" class="btn btn-sm btn-light"
+                    hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="bottom-sheet-content px-4">
+            <form method="POST" action="{{ url_for('presence_bp.update_entry', entry_id=entry.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="time_mode" :value="timeMode">
+
+                {% if entry.status.name == 'REJECTED' and entry.rejected_reason %}
+                <div class="alert alert-danger py-2 mb-3">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    <strong>{{ _("Rejected:") }}</strong> {{ entry.rejected_reason }}
+                </div>
+                {% endif %}
+
+                <!-- Category -->
+                <div class="mb-3">
+                    <label class="form-label small text-muted">{{ _("Category") }}</label>
+                    <select name="category" class="form-select">
+                        <option value="" {% if not entry.category or entry.category == "General" %}selected{% endif %}>{{ _("General") }}</option>
+                        {% for cat in ["Admin", "Training", "Meeting", "Break", "Travel"] %}
+                        <option value="{{ cat }}" {% if entry.category == cat %}selected{% endif %}>{{ _(cat) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Time Mode Toggle -->
+                <div class="mb-3">
+                    <div class="btn-group btn-group-sm w-100" role="group">
+                        <input type="radio" class="btn-check" name="edit_time_mode_radio" id="mobile_edit_mode_duration" value="duration"
+                               :checked="timeMode === 'duration'"
+                               @click="timeMode = 'duration'">
+                        <label class="btn btn-sm btn-outline-secondary" for="mobile_edit_mode_duration">{{ _("Duration") }}</label>
+                        <input type="radio" class="btn-check" name="edit_time_mode_radio" id="mobile_edit_mode_range" value="range"
+                               :checked="timeMode === 'range'"
+                               @click="timeMode = 'range'">
+                        <label class="btn btn-sm btn-outline-secondary" for="mobile_edit_mode_range">{{ _("Start/End Time") }}</label>
+                    </div>
+                </div>
+
+                <!-- Duration input -->
+                <div class="mb-3" x-show="timeMode === 'duration'">
+                    <label class="form-label small text-muted">{{ _("Hours") }}</label>
+                    <input type="number" name="hours" id="mobile_edit_hours_input" class="form-control"
+                           step="0.25" min="0" max="24" value="{{ '%.2f'|format(entry.hours) }}"
+                           :required="timeMode === 'duration'">
+                </div>
+
+                <!-- Range inputs -->
+                <div x-show="timeMode === 'range'" x-cloak>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted">{{ _("Start") }}</label>
+                            <input type="text" name="start_time" id="mobile_edit_start_time" class="form-control" placeholder="HH:MM"
+                                   :required="timeMode === 'range'"
+                                   {% if entry.timer_start %}value="{{ entry.timer_start|format_datetime('%H:%M') }}"{% endif %}>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted">{{ _("End") }}</label>
+                            <input type="text" name="end_time" id="mobile_edit_end_time" class="form-control" placeholder="HH:MM"
+                                   :required="timeMode === 'range'"
+                                   {% if entry.timer_end %}value="{{ entry.timer_end|format_datetime('%H:%M') }}"{% endif %}>
+                            <div id="mobile-edit-end-time-error" class="text-danger small mt-1 d-none">{{ _("End Time must occur after Start Time") }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Job Selection (only if Service module enabled) -->
+                {% if service_enabled %}
+                <div class="mb-3">
+                    <label class="form-label small text-muted mb-1">{{ _("Job") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                    <input type="text" class="form-control" id="edit_job_search"
+                           placeholder="{{ _('Search jobs...') }}"
+                           hx-get="{{ url_for('presence_bp.search_jobs') }}"
+                           hx-trigger="keyup changed delay:300ms"
+                           hx-target="#edit_job_search_results"
+                           name="q"
+                           autocomplete="off"
+                           x-show="!selectedJobId">
+                    <input type="hidden" name="job_id" :value="selectedJobId">
+                    <div id="edit_job_search_results" class="mt-2"></div>
+                    <div class="mt-2" x-show="selectedJobId">
+                        <div class="alert alert-success d-flex align-items-center py-2 mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span x-text="selectedJobText"></span>
+                            <button type="button" class="btn-close ms-auto" @click="selectedJobId = ''; selectedJobText = ''"></button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Description -->
+                <div class="mb-3">
+                    <label class="form-label small text-muted mb-1">{{ _("Notes") }}</label>
+                    <input type="text" name="description" class="form-control"
+                           placeholder="{{ _('Description of work performed') }}"
+                           value="{{ entry.description or '' }}">
+                </div>
+
+                <!-- Billable -->
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" name="is_billable" id="mobile_edit_is_billable"
+                           {% if entry.is_billable %}checked{% endif %}>
+                    <label class="form-check-label" for="mobile_edit_is_billable">
+                        {{ _("Billable") }}
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2 mb-3">
+                    <button type="submit" class="btn btn-primary btn-touch-lg">
+                        <i class="fas fa-check me-1"></i>{{ _("Save Changes") }}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-touch-lg"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+var mobileEditStartPicker = flatpickr("#mobile_edit_start_time", {
+    enableTime: true, noCalendar: true, dateFormat: "H:i",
+    altInput: true, altFormat: "h:i K",
+    time_24hr: false, minuteIncrement: 5,
+    onChange: function() { mobileEditValidateEndTime(); mobileEditCalculateHours(); }
+});
+var mobileEditEndPicker = flatpickr("#mobile_edit_end_time", {
+    enableTime: true, noCalendar: true, dateFormat: "H:i",
+    altInput: true, altFormat: "h:i K",
+    time_24hr: false, minuteIncrement: 5,
+    onChange: function() { mobileEditValidateEndTime(); mobileEditCalculateHours(); }
+});
+
+function mobileEditValidateEndTime() {
+    var errorEl = document.getElementById('mobile-edit-end-time-error');
+    if (mobileEditStartPicker.selectedDates.length > 0 && mobileEditEndPicker.selectedDates.length > 0) {
+        if (mobileEditEndPicker.selectedDates[0] <= mobileEditStartPicker.selectedDates[0]) {
+            errorEl.classList.remove('d-none');
+            mobileEditEndPicker.altInput.classList.add('is-invalid');
+        } else {
+            errorEl.classList.add('d-none');
+            mobileEditEndPicker.altInput.classList.remove('is-invalid');
+        }
+    }
+}
+
+function mobileEditCalculateHours() {
+    if (mobileEditStartPicker.selectedDates.length > 0 && mobileEditEndPicker.selectedDates.length > 0) {
+        var start = mobileEditStartPicker.selectedDates[0];
+        var end = mobileEditEndPicker.selectedDates[0];
+        var diff = (end - start) / 1000 / 3600;
+        if (diff < 0) diff += 24;
+        if (diff > 0) {
+            document.getElementById('mobile_edit_hours_input').value = diff.toFixed(2);
+        }
+    }
+}
+
+function closeEditTimeSheet(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('modals').innerHTML = '';
+}
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="close-edit-time-overlay"]');
+    if (t && e.target === t) closeEditTimeSheet(e);
+});
+</script>

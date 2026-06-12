@@ -1,0 +1,49 @@
+{% extends "people/desktop/team-layout.html" %}
+
+{% block additional_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/hiring.css') }}">
+{% endblock %}
+
+{% block base_content %}
+<div class="content-card">
+    <!-- Module Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            {{ _("Hiring") }}
+        </h4>
+        {% block header_actions %}{% endblock %}
+    </div>
+
+    <!-- Horizontal Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_page == 'jobs' or active_page == 'dashboard' %}active{% endif %}"
+               href="{{ url_for('people_bp.hiring_jobs') }}">
+                <i class="fas fa-briefcase me-1"></i>{{ _("Jobs") }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_page == 'candidates' %}active{% endif %}"
+               href="{{ url_for('people_bp.hiring_candidates') }}">
+                <i class="fas fa-users me-1"></i>{{ _("Candidates") }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_page == 'pipeline' %}active{% endif %}"
+               href="{{ url_for('people_bp.hiring_pipeline') }}">
+                <i class="fas fa-columns me-1"></i>{{ _("Pipeline") }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if active_page == 'interviews' %}active{% endif %}"
+               href="{{ url_for('people_bp.hiring_interviews') }}">
+                <i class="fas fa-calendar me-1"></i>{{ _("Interviews") }}
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}

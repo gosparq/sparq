@@ -1,0 +1,16 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}connect-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/connect.css') }}">
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/connect-mobile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="connect-mobile-wrapper">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}

@@ -1,0 +1,222 @@
+{% extends "msa/desktop/_base.html" %}
+
+{% block title %}{{ org.name }} - MSA{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('msa_bp.dashboard') }}">{{ _("Dashboard") }}</a>
+<span class="sep">/</span>
+<a href="{{ url_for('msa_bp.organization_list') }}">{{ _("Organizations") }}</a>
+<span class="sep">/</span>
+<span class="current">{{ org.name }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="msa-detail-header">
+    <div>
+        <div class="msa-detail-title">{{ org.name }}</div>
+        <div class="msa-detail-slug">{{ org.slug }}</div>
+    </div>
+    <div class="msa-detail-actions">
+        {% if org.is_active %}
+        <form method="POST" action="{{ url_for('msa_bp.organization_deactivate', org_id=org.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="msa-btn msa-btn-danger msa-btn-sm">
+                <i class="fas fa-power-off"></i> {{ _("Deactivate Organization") }}
+            </button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('msa_bp.organization_activate', org_id=org.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="msa-btn msa-btn-primary msa-btn-sm">
+                <i class="fas fa-power-off"></i> {{ _("Activate Organization") }}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="msa-detail-grid">
+    <!-- Edit Form -->
+    <div class="msa-card">
+        <div class="msa-card-header">
+            <span class="msa-card-title">{{ _("Organization Settings") }}</span>
+        </div>
+        <div class="msa-card-body">
+            <form method="POST" action="{{ url_for('msa_bp.organization_edit', org_id=org.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Name") }}</label>
+                    <input type="text" name="name" class="msa-input" value="{{ org.name }}">
+                </div>
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Slug") }}</label>
+                    <input type="text" name="slug" class="msa-input" value="{{ org.slug }}"
+                           pattern="[a-z][a-z0-9-]{1,49}">
+                </div>
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Plan") }}</label>
+                    <input type="text" name="plan" class="msa-input" value="{{ org.plan or 'free' }}">
+                </div>
+
+                <div class="msa-form-group">
+                    <label class="msa-label">{{ _("Claimed Domain") }}</label>
+                    <input type="text" name="claimed_domain" class="msa-input" value="{{ org.claimed_domain or '' }}"
+                           placeholder="example.com">
+                </div>
+
+                <button type="submit" class="msa-btn msa-btn-primary">
+                    <i class="fas fa-check"></i> {{ _("Save Changes") }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="msa-card">
+        <div class="msa-card-header">
+            <span class="msa-card-title">{{ _("Info") }}</span>
+        </div>
+        <div class="msa-card-body">
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Organization ID") }}</div>
+                <div class="msa-field-value mono" style="font-size:12px; color: var(--msa-text-dim); word-break:break-all;">{{ org.id }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Owner") }}</div>
+                <div class="msa-field-value">{{ org.owner.email if org.owner else '—' }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Status") }}</div>
+                <div class="msa-field-value">
+                    {% if org.is_active %}
+                    <span class="msa-badge msa-badge-active">{{ _("Active") }}</span>
+                    {% else %}
+                    <span class="msa-badge msa-badge-inactive">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Members") }}</div>
+                <div class="msa-field-value">{{ members|length }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Workspaces") }}</div>
+                <div class="msa-field-value">{{ workspaces|length }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Created") }}</div>
+                <div class="msa-field-value">{{ org.created_at.strftime('%B %d, %Y at %H:%M UTC') if org.created_at else '—' }}</div>
+            </div>
+            <div class="msa-field">
+                <div class="msa-field-label">{{ _("Updated") }}</div>
+                <div class="msa-field-value">{{ org.updated_at.strftime('%B %d, %Y at %H:%M UTC') if org.updated_at else '—' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Members Table -->
+<div class="msa-card">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("Members") }} ({{ members|length }})</span>
+    </div>
+    <table class="msa-table">
+        <thead>
+            <tr>
+                <th>{{ _("Name") }}</th>
+                <th>{{ _("Email") }}</th>
+                <th>{{ _("Role") }}</th>
+                <th>{{ _("Active") }}</th>
+                <th>{{ _("Joined") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in members %}
+            <tr>
+                <td>{{ m.user.first_name or '' }} {{ m.user.last_name or '' }}</td>
+                <td class="mono">{{ m.user.email }}</td>
+                <td>
+                    {% if m.role == 'admin' %}
+                    <span class="msa-badge msa-badge-active">{{ _("Admin") }}</span>
+                    {% else %}
+                    <span class="msa-badge msa-badge-plan">{{ m.role|capitalize }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if m.is_active %}
+                    <span class="msa-text-accent">{{ _("Yes") }}</span>
+                    {% else %}
+                    <span class="msa-text-danger">{{ _("No") }}</span>
+                    {% endif %}
+                </td>
+                <td class="dim">{{ m.joined_at|format_datetime('%b %d, %Y') if m.joined_at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">
+                    <div class="msa-empty">
+                        <i class="fas fa-users"></i>
+                        {{ _("No members in this organization.") }}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Workspaces Table -->
+<div class="msa-card">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("Workspaces") }} ({{ workspaces|length }})</span>
+    </div>
+    <table class="msa-table">
+        <thead>
+            <tr>
+                <th>{{ _("Workspace") }}</th>
+                <th>{{ _("Slug") }}</th>
+                <th>{{ _("Members") }}</th>
+                <th>{{ _("Plan") }}</th>
+                <th>{{ _("Status") }}</th>
+                <th style="width:60px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ts in workspaces %}
+            <tr>
+                <td><a href="{{ url_for('msa_bp.workspace_detail', workspace_id=ts.id) }}" style="font-weight:500;">{{ ts.name }}</a></td>
+                <td class="mono dim">{{ ts.slug }}</td>
+                <td>{{ ts_member_counts.get(ts.id, 0) }}</td>
+                <td><span class="msa-badge msa-badge-plan">{{ ts.plan or 'free' }}</span></td>
+                <td>
+                    {% if ts.is_active %}
+                    <span class="msa-badge msa-badge-active">{{ _("Active") }}</span>
+                    {% else %}
+                    <span class="msa-badge msa-badge-inactive">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('msa_bp.workspace_detail', workspace_id=ts.id) }}"
+                       class="msa-btn msa-btn-secondary msa-btn-sm" title="{{ _('View details') }}">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6">
+                    <div class="msa-empty">
+                        <i class="fas fa-building"></i>
+                        {{ _("No workspaces in this organization.") }}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

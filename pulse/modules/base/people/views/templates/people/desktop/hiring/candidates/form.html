@@ -1,0 +1,236 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}
+{% if candidate %}{{ _("Edit Candidate") }}{% else %}{{ _("New Candidate") }}{% endif %}
+{% endblock %}
+
+{% block module_content %}
+<div class="card">
+    <div class="card-header py-2">
+        <h6 class="mb-0">
+            <i class="fas fa-user me-2"></i>
+            {% if candidate %}{{ _("Edit Candidate") }}{% else %}{{ _("New Candidate") }}{% endif %}
+        </h6>
+    </div>
+    <div class="card-body">
+        {% if not candidate %}
+        <!-- Resume Upload Section (New Candidates Only) -->
+        <div class="mb-4 pb-3 border-bottom">
+            <label class="form-label small mb-2">
+                <i class="fas fa-file-pdf me-1"></i>{{ _("Upload Resume") }}
+                <span class="text-muted fw-normal">({{ _("optional - auto-fills form") }})</span>
+            </label>
+            <div id="resume-upload-area">
+                <div class="input-group input-group-sm">
+                    <input type="file"
+                           class="form-control form-control-sm"
+                           id="resume_file"
+                           name="resume_file"
+                           accept=".pdf,.doc,.docx,.txt,.rtf"
+                           hx-post="{{ url_for('people_bp.hiring_parse_resume') }}"
+                           hx-trigger="change"
+                           hx-encoding="multipart/form-data"
+                           hx-target="#resume-status"
+                           hx-indicator="#resume-spinner">
+                    <span class="input-group-text" id="resume-spinner" style="display: none;">
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                    </span>
+                </div>
+                <small class="text-muted">{{ _("Supported: PDF, DOC, DOCX, TXT, RTF") }}</small>
+            </div>
+            <div id="resume-status" class="mt-2"></div>
+        </div>
+        {% endif %}
+
+        <form method="post"
+              id="candidate-form"
+              enctype="multipart/form-data"
+              action="{% if candidate %}{{ url_for('people_bp.hiring_candidate_edit', candidate_id=candidate.id) }}{% else %}{{ url_for('people_bp.hiring_candidate_new') }}{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <!-- Hidden field to track if resume was uploaded -->
+            <input type="hidden" name="resume_uploaded" id="resume_uploaded" value="">
+
+            <div class="row g-3">
+                <!-- Left Column - Contact Info -->
+                <div class="col-md-6">
+                    <div class="row g-3">
+                        <!-- First Name -->
+                        <div class="col-6">
+                            <label for="first_name" class="form-label small mb-1">
+                                {{ _("First Name") }} <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="first_name"
+                                   name="first_name"
+                                   value="{{ candidate.first_name if candidate else '' }}"
+                                   required>
+                        </div>
+
+                        <!-- Last Name -->
+                        <div class="col-6">
+                            <label for="last_name" class="form-label small mb-1">
+                                {{ _("Last Name") }} <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="last_name"
+                                   name="last_name"
+                                   value="{{ candidate.last_name if candidate else '' }}"
+                                   required>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-12">
+                            <label for="email" class="form-label small mb-1">
+                                {{ _("Email") }} <span class="text-danger">*</span>
+                            </label>
+                            <input type="email"
+                                   class="form-control form-control-sm"
+                                   id="email"
+                                   name="email"
+                                   value="{{ candidate.email if candidate else '' }}"
+                                   required>
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="col-12">
+                            <label for="phone" class="form-label small mb-1">{{ _("Phone") }}</label>
+                            <input type="tel"
+                                   class="form-control form-control-sm"
+                                   id="phone"
+                                   name="phone"
+                                   value="{{ candidate.phone if candidate else '' }}">
+                        </div>
+
+                        <!-- Location -->
+                        <div class="col-6">
+                            <label for="city" class="form-label small mb-1">{{ _("City") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="city"
+                                   name="city"
+                                   value="{{ candidate.city if candidate else '' }}">
+                        </div>
+                        <div class="col-6">
+                            <label for="state" class="form-label small mb-1">{{ _("State") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="state"
+                                   name="state"
+                                   value="{{ candidate.state if candidate else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Professional Info -->
+                <div class="col-md-6">
+                    <div class="row g-3">
+                        <!-- Current Title -->
+                        <div class="col-12">
+                            <label for="current_title" class="form-label small mb-1">{{ _("Current Title") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="current_title"
+                                   name="current_title"
+                                   value="{{ candidate.current_title if candidate else '' }}"
+                                   placeholder="{{ _('e.g., Software Developer') }}">
+                        </div>
+
+                        <!-- Current Company -->
+                        <div class="col-12">
+                            <label for="current_company" class="form-label small mb-1">{{ _("Current Company") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="current_company"
+                                   name="current_company"
+                                   value="{{ candidate.current_company if candidate else '' }}">
+                        </div>
+
+                        <!-- LinkedIn -->
+                        <div class="col-12">
+                            <label for="linkedin_url" class="form-label small mb-1">{{ _("LinkedIn URL") }}</label>
+                            <input type="url"
+                                   class="form-control form-control-sm"
+                                   id="linkedin_url"
+                                   name="linkedin_url"
+                                   value="{{ candidate.linkedin_url if candidate else '' }}"
+                                   placeholder="https://linkedin.com/in/...">
+                        </div>
+
+                        <!-- Source -->
+                        <div class="col-6">
+                            <label for="source" class="form-label small mb-1">{{ _("Source") }}</label>
+                            <select class="form-select form-select-sm" id="source" name="source">
+                                {% for src in CandidateSource %}
+                                <option value="{{ src.name }}"
+                                        {{ 'selected' if candidate and candidate.source == src }}>
+                                    {{ src.value }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Source Detail -->
+                        <div class="col-6">
+                            <label for="source_detail" class="form-label small mb-1">{{ _("Referrer/Details") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="source_detail"
+                                   name="source_detail"
+                                   value="{{ candidate.source_detail if candidate else '' }}"
+                                   placeholder="{{ _('e.g., John Smith') }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Width - Notes -->
+                <div class="col-12">
+                    <label for="notes" class="form-label small mb-1">{{ _("Notes") }}</label>
+                    <textarea class="form-control form-control-sm"
+                              id="notes"
+                              name="notes"
+                              rows="3"
+                              placeholder="{{ _('Any additional notes about this candidate...') }}">{{ candidate.notes if candidate else '' }}</textarea>
+                </div>
+
+                <!-- Resume display for existing candidates -->
+                {% if candidate and candidate.resume %}
+                <div class="col-12">
+                    <label class="form-label small mb-1">{{ _("Resume") }}</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ url_for('people_bp.hiring_download_resume', candidate_id=candidate.id) }}"
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download me-1"></i>{{ candidate.resume.filename }}
+                        </a>
+                        <span class="text-muted small">({{ candidate.resume.size_display }})</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Form Actions -->
+                <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top">
+                    <a href="{{ url_for('people_bp.hiring_candidates') }}" class="btn btn-outline-secondary btn-sm">
+                        {{ _("Cancel") }}
+                    </a>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% if candidate %}{{ _("Update Candidate") }}{% else %}{{ _("Add Candidate") }}{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* HTMX indicator styling */
+    .htmx-request #resume-spinner {
+        display: inline-flex !important;
+    }
+    .htmx-request .form-control {
+        opacity: 0.7;
+    }
+</style>
+{% endblock module_content %}

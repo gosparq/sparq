@@ -1,0 +1,96 @@
+<form method="POST" action="{{ url_for('presence_bp.create_entry') }}" id="mobile_add_time_form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="date" value="{{ view_date.isoformat() }}">
+
+    <!-- Job Selection (only if Service module enabled) -->
+    {% if service_enabled %}
+    <div class="mb-3">
+        <label class="form-label small">{{ _("Job") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <input type="text" class="form-control" id="mobile_job_search"
+               placeholder="{{ _('Search jobs...') }}"
+               hx-get="{{ url_for('presence_bp.search_jobs') }}"
+               hx-trigger="keyup changed delay:300ms"
+               hx-target="#mobile_job_search_results"
+               name="q"
+               autocomplete="off">
+        <input type="hidden" name="job_id" id="mobile_selected_job_id">
+        <div id="mobile_job_search_results" class="mt-2"></div>
+        <div id="mobile_selected_job_display" class="mt-2 d-none">
+            <div class="alert alert-success d-flex align-items-center py-2 mb-0">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="mobile_selected_job_text" class="flex-grow-1"></span>
+                <button type="button" class="btn-close" data-action="mobile-clear-job"></button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Category -->
+    <div class="mb-3">
+        <label class="form-label small">{{ _("Category") }}</label>
+        <select name="category" class="form-select">
+            <option value="">{{ _("General") }}</option>
+            <option value="Admin">{{ _("Admin") }}</option>
+            <option value="Training">{{ _("Training") }}</option>
+            <option value="Meeting">{{ _("Meeting") }}</option>
+            <option value="Break">{{ _("Break") }}</option>
+            <option value="Travel">{{ _("Travel") }}</option>
+        </select>
+    </div>
+
+    <!-- Hours -->
+    <div class="mb-3">
+        <label class="form-label small">{{ _("Hours") }}</label>
+        <input type="number" name="hours" class="form-control"
+               step="0.25" min="0" max="24" placeholder="0.00" required>
+    </div>
+
+    <!-- Description -->
+    <div class="mb-3">
+        <label class="form-label small">{{ _("Description") }}</label>
+        <textarea name="description" class="form-control" rows="2"
+                  placeholder="{{ _('Description of work performed') }}"></textarea>
+    </div>
+
+    <!-- Billable Toggle -->
+    <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" name="is_billable" id="mobile_is_billable">
+        <label class="form-check-label" for="mobile_is_billable">
+            {{ _("Billable") }}
+        </label>
+    </div>
+
+    <!-- Action Button -->
+    <div class="d-grid">
+        <button type="submit" class="btn btn-outline-success btn-touch">
+            <i class="fas fa-check me-2"></i>{{ _("Save Entry") }}
+        </button>
+    </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+function mobileSelectJob(jobId, jobText) {
+    document.getElementById('mobile_selected_job_id').value = jobId;
+    document.getElementById('mobile_selected_job_text').textContent = jobText;
+    document.getElementById('mobile_job_search_results').innerHTML = '';
+    document.getElementById('mobile_job_search').classList.add('d-none');
+    document.getElementById('mobile_selected_job_display').classList.remove('d-none');
+}
+
+function mobileClearJobSelection() {
+    document.getElementById('mobile_selected_job_id').value = '';
+    document.getElementById('mobile_job_search').classList.remove('d-none');
+    document.getElementById('mobile_job_search').value = '';
+    document.getElementById('mobile_selected_job_display').classList.add('d-none');
+}
+
+// Override the selectJob function for mobile context
+if (typeof selectJob === 'undefined') {
+    window.selectJob = mobileSelectJob;
+}
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="mobile-clear-job"]');
+    if (t) mobileClearJobSelection();
+});
+</script>

@@ -1,0 +1,46 @@
+<!-- Terminate Person Modal -->
+<div class="modal-header">
+    <h5 class="modal-title">{{ _("Terminate Person") }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<form action="{{ url_for('people_bp.terminate_person', employee_id=employee.id) }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="modal-body">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ _("You are about to terminate") }} <strong>{{ employee.user.first_name }} {{ employee.user.last_name }}</strong>.
+            {{ _("This will deactivate their account and prevent them from logging in.") }}
+        </div>
+
+        <div class="mb-3">
+            <label for="termination_date" class="form-label">{{ _("Termination Date") }}</label>
+            <input type="date" class="form-control" id="termination_date" name="termination_date"
+                   value="{{ today|default('') }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="termination_reason" class="form-label">{{ _("Reason for Termination") }}</label>
+            <select class="form-select" id="termination_reason" name="termination_reason" required>
+                {% for reason in termination_reasons %}
+                <option value="{{ reason.name }}">{{ reason.value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="text-muted small">
+            <i class="fas fa-info-circle me-1"></i>
+            {{ _("An offboarding checklist will be created to track the departure process.") }}
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+        <button type="submit" class="btn btn-warning">
+            <i class="fas fa-user-slash me-1"></i>{{ _("Terminate Person") }}
+        </button>
+    </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+// Set today's date as default
+document.getElementById('termination_date').value = new Date().toLocaleDateString('en-CA', { timeZone: window.SPARQ_TIMEZONE || 'America/Chicago' });
+</script>

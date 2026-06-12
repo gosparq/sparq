@@ -1,0 +1,85 @@
+{# Calendar Navigation and Content Container - for HTMX partial updates #}
+
+<!-- Calendar Navigation -->
+<div class="calendar-nav mb-3">
+    <div class="d-flex align-items-center justify-content-between">
+        <!-- Date Navigation -->
+        <div class="d-flex align-items-center gap-2">
+            <button type="button"
+                    class="btn btn-outline-module btn-sm"
+                    hx-get="{{ url_for('sync_bp.calendar_index', view=view, date=prev_date.strftime('%Y-%m-%d')) }}"
+                    hx-target="#calendar-container"
+                    hx-push-url="true">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-module btn-sm"
+                    hx-get="{{ url_for('sync_bp.calendar_index', view=view, date=next_date.strftime('%Y-%m-%d')) }}"
+                    hx-target="#calendar-container"
+                    hx-push-url="true">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <span class="calendar-title fw-bold mx-2">
+                {% if view == 'month' %}
+                    {{ current_date.strftime('%B %Y') }}
+                {% elif view == 'week' %}
+                    {{ start_date.strftime('%b %d') }} - {{ end_date.strftime('%b %d, %Y') }}
+                {% else %}
+                    {{ current_date.strftime('%A, %B %d, %Y') }}
+                {% endif %}
+            </span>
+
+            <button type="button"
+                    class="btn btn-outline-module btn-sm"
+                    hx-get="{{ url_for('sync_bp.calendar_index', view=view) }}"
+                    hx-target="#calendar-container"
+                    hx-push-url="true">
+                {{ _("Today") }}
+            </button>
+        </div>
+
+        <!-- View Switcher and Add Button -->
+        <div class="d-flex align-items-center gap-3">
+            {# View switcher #}
+            <div class="btn-group" role="group">
+                <button type="button"
+                        class="btn btn-outline-module btn-sm {% if view == 'day' %}active{% endif %}"
+                        hx-get="{{ url_for('sync_bp.calendar_index', view='day', date=current_date.strftime('%Y-%m-%d')) }}"
+                        hx-target="#calendar-container"
+                        hx-push-url="true">
+                    {{ _("Day") }}
+                </button>
+                <button type="button"
+                        class="btn btn-outline-module btn-sm {% if view == 'week' %}active{% endif %}"
+                        hx-get="{{ url_for('sync_bp.calendar_index', view='week', date=current_date.strftime('%Y-%m-%d')) }}"
+                        hx-target="#calendar-container"
+                        hx-push-url="true">
+                    {{ _("Week") }}
+                </button>
+                <button type="button"
+                        class="btn btn-outline-module btn-sm {% if view == 'month' %}active{% endif %}"
+                        hx-get="{{ url_for('sync_bp.calendar_index', view='month', date=current_date.strftime('%Y-%m-%d')) }}"
+                        hx-target="#calendar-container"
+                        hx-push-url="true">
+                    {{ _("Month") }}
+                </button>
+            </div>
+
+            {% if current_user.is_admin %}
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    hx-get="{{ url_for('sync_bp.event_new', date=current_date.strftime('%Y-%m-%d'), view=view) }}"
+                    hx-target="#modal-container">
+                <i class="fas fa-plus me-1"></i>{{ _("Add Event") }}
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Calendar Content -->
+<div id="calendar-content">
+    {% include 'updates/desktop/calendar/_calendar.html' %}
+</div>

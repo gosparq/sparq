@@ -1,0 +1,56 @@
+{# Project page Channel tab. #}
+{# #}
+{# Renders the project's channel inside project chrome, reusing the same #}
+{# thread-row layout as the team channel feed (via the shared partial). #}
+{# #}
+{# Required context (set by projects_bp.detail when active_tab == 'channel'): #}
+{#   project, channel_posts, channel_has_more, channel_offset #}
+
+{% if not project.channel %}
+<div class="text-center py-5">
+    <i class="fas fa-hashtag" style="font-size:2rem;color:var(--color-gray-300);"></i>
+    <p class="text-muted mt-2">{{ _("This project does not have a log.") }}</p>
+</div>
+{% else %}
+{% set _channel = project.channel %}
+{% set _is_closed = project.status == 'archived' %}
+
+{# ── Channel header (in-page, since project chrome already has the title) ── #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0 fw-semibold" style="font-size:1rem; color:var(--color-gray-800)">
+            <i class="fas fa-hashtag text-xs" style="color:var(--color-gray-400)"></i>
+            {{ _channel.name }}
+        </h3>
+        {% if _channel.description %}
+        <span class="text-muted text-sm">{{ _channel.description }}</span>
+        {% endif %}
+    </div>
+    {% if not _is_closed %}
+    {% set _return_to = url_for('projects_bp.detail', project_id=project.id, tab='log') %}
+    <a href="{{ url_for('updates_bp.channel_new_thread', slug=_channel.name, return_to=_return_to) }}"
+       class="btn btn-sm btn-primary">
+        <i class="fas fa-plus me-1 text-3xs"></i>{{ _("New Post") }}
+    </a>
+    {% endif %}
+</div>
+
+{# ── Closed-project banner ── #}
+{% if _is_closed %}
+<div class="project-locked-banner">
+    <i class="fas fa-lock"></i>
+    {{ _("This project is closed. Posting, replies, reactions, and follows are disabled. Reopen the project to resume activity.") }}
+</div>
+{% endif %}
+
+{# ── Thread list (shared partial) ── #}
+{% set channel = _channel %}
+{% set posts = channel_posts %}
+{% set has_more = channel_has_more %}
+{% set next_offset = channel_offset + 20 %}
+{% set is_organization_channel = false %}
+{% set load_more_url = url_for('projects_bp.detail', project_id=project.id, tab='log', offset=next_offset) %}
+{% set start_thread_url = '' if _is_closed else url_for('updates_bp.channel_new_thread', slug=_channel.name, return_to=_return_to) %}
+{# project is already in the render context — _channel_thread_list reads it #}
+{% include "updates/desktop/partials/_channel_thread_list.html" %}
+{% endif %}

@@ -1,0 +1,170 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Time Clock") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="content-heading">{{ _("Time Clock") }}</h2>
+    </div>
+
+    <div class="row g-4">
+        {# Clock widget — left #}
+        <div class="col-lg-5">
+            <div class="text-center py-4" style="border:1px solid var(--color-gray-200);border-radius:0.625rem;">
+                <div class="mb-3" x-data="liveClock('{{ timezone }}')" x-init="init()">
+                    <span class="fw-bold" style="font-size:2.5rem;color:var(--color-primary);" x-text="time"></span>
+                    <div class="text-muted mt-1 text-sm" x-text="date"></div>
+                </div>
+                <div id="clock-status"
+                     hx-get="{{ url_for('clock_bp.status') }}"
+                     hx-trigger="every 30s"
+                     hx-swap="innerHTML">
+                    {% include "presence/desktop/partials/clock_status.html" %}
+                </div>
+            </div>
+        </div>
+
+        {# Today's activity — right #}
+        <div class="col-lg-7">
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;">
+                <div class="d-flex justify-content-between align-items-center" style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-700)"><i class="fas fa-history me-2"></i>{{ _("Today's Activity") }}</span>
+                    <span class="fw-semibold text-sm" id="todays-total-hours" style="color:var(--color-primary)">
+                        {% if todays_total_hours is defined and todays_total_hours > 0 %}
+                        {{ "%.2f"|format(todays_total_hours) }} {{ _("hrs") }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div style="padding:0.75rem 1rem;" id="todays-activity">
+                    {% if todays_punches %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 punch-table">
+                            <colgroup>
+                                <col>
+                                <col>
+                                <col>
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th class="fw-semibold text-xs" style="color:var(--color-gray-500)">{{ _("Time") }}</th>
+                                    <th class="fw-semibold text-xs" style="color:var(--color-gray-500)">{{ _("Type") }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for punch in todays_punches %}
+                                <tr>
+                                    <td class="text-nowrap text-sm">
+                                        {% if pending_requests and punch.id in pending_requests %}
+                                        <span class="local-time" data-utc="{{ pending_requests[punch.id].requested_time.isoformat() }}Z"></span>
+                                        <span class="badge bg-warning text-dark ms-1 text-3xs">{{ _("Pending Approval") }}</span>
+                                        {% else %}
+                                        <span class="local-time" data-utc="{{ punch.punch_time.isoformat() }}Z"></span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if punch.punch_type.value == 'in' %}
+                                        <span class="badge bg-success text-3xs">{{ _("Clock In") }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary text-3xs">{{ _("Clock Out") }}</span>
+                                        {% endif %}
+                                        {% if punch.outside_geofence %}
+                                        <span class="badge bg-warning text-dark ms-1 text-3xs" title="{{ _('Outside geofence') }}">
+                                            <i class="fas fa-flag"></i>
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-secondary text-2xs" style="padding:0.15rem 0.4rem"
+                                                hx-get="{{ url_for('presence_bp.request_punch_edit_modal', punch_id=punch.id) }}"
+                                                hx-target="#modals"
+                                                hx-swap="innerHTML">
+                                            <i class="fas fa-pencil-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0 text-sm">{{ _("No activity recorded today") }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Availability forecast strip -->
+<div class="content-card mt-3">
+    <h6 class="content-heading mb-3 text-base">{{ _("My Availability") }}</h6>
+    <div id="forecast-week"
+         hx-get="{{ url_for('clock_bp.forecast_week') }}"
+         hx-trigger="forecastUpdated from:body"
+         hx-swap="innerHTML">
+        {% with today=today.date() %}{% include "presence/desktop/partials/_forecast_week.html" %}{% endwith %}
+    </div>
+</div>
+
+<!-- Modal container for HTMX -->
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+document.body.addEventListener('clearModals', function() {
+    document.getElementById('modals').innerHTML = '';
+});
+</script>
+
+<script nonce="{{ csp_nonce }}">
+// Company timezone for all time displays
+const companyTimezone = '{{ timezone }}';
+
+// Live clock Alpine.js component
+function liveClock(timezone) {
+    return {
+        time: '',
+        date: '',
+        init() {
+            this.updateTime();
+            setInterval(() => this.updateTime(), 1000);
+        },
+        updateTime() {
+            const now = new Date();
+            this.time = now.toLocaleTimeString('en-US', {
+                timeZone: timezone,
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            this.date = now.toLocaleDateString('en-US', {
+                timeZone: timezone,
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+    };
+}
+
+// Convert UTC times to company timezone
+document.querySelectorAll('.local-time').forEach(function(el) {
+    const utc = el.dataset.utc;
+    if (utc) {
+        const date = new Date(utc);
+        el.textContent = date.toLocaleTimeString('en-US', {
+            timeZone: companyTimezone,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    }
+});
+
+// Refresh page when a punch correction request is submitted (picks up flash + updated data)
+document.body.addEventListener('punchUpdated', function() {
+    window.location.reload();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,301 @@
+/* extends: base.css, desktop.css */
+/* Chat Styles for Connect Module */
+
+/* Chat-specific color variables (light sidebar theme) */
+:root {
+    --chat-sidebar-bg: var(--color-white);
+    --chat-sidebar-border: var(--color-gray-200);
+    --chat-sidebar-text: var(--color-gray-600);
+    --chat-sidebar-text-light: var(--color-gray-900);
+    --chat-dropdown-bg: var(--color-white);
+    --chat-dropdown-border: var(--color-gray-200);
+}
+
+/* Avatar type classes */
+.avatar-ai { background-color: var(--color-ai); }
+.avatar-webhook { background-color: var(--color-gray-500); }
+.avatar-github { background-color: var(--color-white); border: 1px solid var(--color-gray-200); color: var(--color-gray-900); }
+.avatar-fallback { background-color: var(--color-gray-300); }
+.badge-bot { font-size: var(--font-size-3xs); vertical-align: middle; }
+.avatar-github img { width: 18px; height: 18px; }
+.chat-section-heading { font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; }
+
+
+/* Chat page: make module-content-wrapper fill and lose padding */
+.chat-page .module-content-wrapper {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Chat Content Card - overrides default content-card styles */
+.chat-content-card {
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;  /* Override the 1100px min-width from base.css */
+    flex: 1;
+    min-height: 0;
+}
+
+/* Chat Container Layout */
+.chat-container {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    background: var(--color-white);
+    overflow: hidden;
+    margin: 0;
+    border-radius: 0;
+}
+
+/* Hide version footer on chat pages to reclaim space */
+.chat-page .version-footer {
+    display: none !important;
+}
+
+/* Sidebar — hidden; secondary nav handles channel/DM navigation */
+.chat-sidebar {
+    display: none;
+}
+
+.chat-sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-sidebar::-webkit-scrollbar-track {
+    background: var(--chat-sidebar-bg);
+}
+
+.chat-sidebar::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
+    border-radius: 4px;
+}
+
+.chat-sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-400);
+}
+
+.sidebar-header {
+    padding: 12px 16px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--chat-sidebar-text-light);
+}
+
+.sidebar-header .btn-link {
+    color: var(--chat-sidebar-text);
+}
+
+.sidebar-header .btn-link:hover {
+    color: var(--color-gray-900);
+}
+
+/* Channel List */
+.channel-list {
+    padding: 4px 0;
+}
+
+.channel-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.channel-list::-webkit-scrollbar-track {
+    background: var(--chat-sidebar-bg);
+}
+
+.channel-list::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
+    border-radius: 4px;
+}
+
+.channel-list::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-400);
+}
+
+.channel {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border-radius: 6px;
+    margin: 0 8px;
+    color: var(--chat-sidebar-text);
+    gap: 8px;
+}
+
+.channel:hover {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-900);
+}
+
+.channel.active {
+    background-color: var(--color-primary-lightest);
+    color: var(--color-gray-900);
+    font-weight: 500;
+}
+
+.channel-content {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 1;
+}
+
+.channel-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.channel-prefix {
+    color: inherit;
+    opacity: 0.8;
+}
+
+.channel-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Bold channel name when unread */
+.channel.has-unread .channel-name {
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+.channel.has-unread .channel-name::after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-chat-activity);
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* Hide dot when mention badge is visible (avoid double indicator) */
+.channel.has-unread:has(.mention-badge) .channel-name::after {
+    display: none;
+}
+
+/* @mention and DM unread count badge */
+.mention-badge,
+.unread-badge {
+    background-color: var(--color-chat-activity);
+    color: var(--color-white);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: var(--font-size-xs);
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}
+
+/* Channel Actions Dropdown - absolutely positioned so it doesn't shift badge alignment */
+.channel-actions {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 2;
+}
+
+.channel:hover .channel-actions {
+    opacity: 1;
+}
+
+/* Hide mention badge when hovering to make room for the 3-dot button */
+.channel:hover .mention-badge {
+    opacity: 0;
+}
+
+.channel-options {
+    color: var(--chat-sidebar-text) !important;
+    padding: 2px 6px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    text-decoration: none !important;
+    background: transparent;
+    border-radius: 4px;
+    border: none;
+    line-height: 1;
+}
+
+.channel-options:hover {
+    color: var(--color-gray-900) !important;
+    background: var(--color-gray-100);
+}
+
+.channel-actions .dropdown-menu {
+    background: var(--chat-dropdown-bg);
+    border: 1px solid var(--chat-dropdown-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    min-width: 170px;
+    padding: 4px;
+    z-index: 1000;
+    list-style: none;
+    margin: 0;
+}
+
+.channel-actions .dropdown-menu.show {
+    display: block;
+}
+
+.channel-actions .dropdown-item {
+    color: var(--chat-sidebar-text);
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background 0.1s ease;
+}
+
+.channel-actions .dropdown-item:hover {
+    background: var(--color-gray-100);
+    color: var(--color-gray-900);
+}
+
+.channel-actions .dropdown-item.text-danger {
+    color: var(--color-danger) !important;
+}
+
+.channel-actions .dropdown-item.text-danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-danger) !important;
+}

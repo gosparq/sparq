@@ -1,0 +1,20 @@
+{% extends "core/desktop/base.html" %}
+
+{% block app_class %}projects-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('projects_bp.static', filename='css/projects.css') }}">
+<link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/tasks.css') }}">
+<link rel="stylesheet" href="{{ url_for('docs_blueprint.static', filename='css/resources.css') }}">
+<link rel="stylesheet" href="{{ url_for('integrations_bp.static', filename='css/integrations.css') }}">
+{% endblock %}
+
+{% block scripts %}
+<script defer src="{{ url_for('integrations_bp.static', filename='js/integrations.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}

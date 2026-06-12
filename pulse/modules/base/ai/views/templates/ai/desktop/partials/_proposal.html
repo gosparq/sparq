@@ -1,0 +1,68 @@
+<div class="ai-proposal card border-primary mb-3" id="proposal-{{ action.id }}">
+    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
+        <i class="fas fa-robot me-2 text-primary"></i>
+        <span class="fw-semibold">{{ _("Proposed Action") }}: {{ action.tool_name | replace('_', ' ') | title }}</span>
+    </div>
+    <div class="card-body">
+        {% if action.tool_name == 'create_contact' %}
+        <dl class="row mb-0">
+            {% if action.args_json.first_name %}
+            <dt class="col-sm-3">{{ _("First Name") }}</dt>
+            <dd class="col-sm-9">{{ action.args_json.first_name }}</dd>
+            {% endif %}
+            {% if action.args_json.last_name %}
+            <dt class="col-sm-3">{{ _("Last Name") }}</dt>
+            <dd class="col-sm-9">{{ action.args_json.last_name }}</dd>
+            {% endif %}
+            {% if action.args_json.phone %}
+            <dt class="col-sm-3">{{ _("Phone") }}</dt>
+            <dd class="col-sm-9">{{ action.args_json.phone }}</dd>
+            {% endif %}
+            {% if action.args_json.email %}
+            <dt class="col-sm-3">{{ _("Email") }}</dt>
+            <dd class="col-sm-9">{{ action.args_json.email }}</dd>
+            {% endif %}
+            {% if action.args_json.company_name %}
+            <dt class="col-sm-3">{{ _("Company") }}</dt>
+            <dd class="col-sm-9">{{ action.args_json.company_name }}</dd>
+            {% endif %}
+            {% if action.args_json.notes %}
+            <dt class="col-sm-3">{{ _("Notes") }}</dt>
+            <dd class="col-sm-9">{{ action.args_json.notes }}</dd>
+            {% endif %}
+        </dl>
+        {% elif action.tool_name == 'update_contact' %}
+        <p class="mb-2"><strong>{{ _("Contact ID") }}:</strong> {{ action.args_json.contact_id }}</p>
+        <dl class="row mb-0">
+            {% for key, value in action.args_json.items() if key != 'contact_id' and value %}
+            <dt class="col-sm-3">{{ key | replace('_', ' ') | title }}</dt>
+            <dd class="col-sm-9">{{ value }}</dd>
+            {% endfor %}
+        </dl>
+        {% elif action.tool_name == 'search_contacts' %}
+        <p class="mb-0"><strong>{{ _("Search") }}:</strong> {{ action.args_json.query }}</p>
+        {% else %}
+        <pre class="mb-0"><code>{{ action.args_json | tojson(indent=2) }}</code></pre>
+        {% endif %}
+    </div>
+    <div class="card-footer bg-transparent">
+        <button class="btn btn-sm btn-success me-2"
+                hx-post="{{ url_for('ai_bp.confirm_action', action_id=action.id) }}"
+                hx-target="#proposal-{{ action.id }}"
+                hx-swap="outerHTML">
+            <i class="fas fa-check me-1"></i> {{ _("Confirm") }}
+        </button>
+        <button class="btn btn-sm btn-outline-secondary me-2"
+                hx-get="{{ url_for('ai_bp.get_edit_form', action_id=action.id) }}"
+                hx-target="#proposal-{{ action.id }}"
+                hx-swap="outerHTML">
+            <i class="fas fa-edit me-1"></i> {{ _("Edit") }}
+        </button>
+        <button class="btn btn-sm btn-outline-danger"
+                hx-post="{{ url_for('ai_bp.cancel_action', action_id=action.id) }}"
+                hx-target="#proposal-{{ action.id }}"
+                hx-swap="outerHTML">
+            <i class="fas fa-times me-1"></i> {{ _("Cancel") }}
+        </button>
+    </div>
+</div>

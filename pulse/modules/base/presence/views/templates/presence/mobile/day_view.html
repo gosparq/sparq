@@ -1,0 +1,140 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("My Timesheets") }} - {{ view_date.strftime('%B %d') }}{% endblock %}
+
+{% block module_content %}
+<!-- Date Navigation -->
+<div class="date-nav">
+    {% set prev_date = (view_date - timedelta(days=1)) %}
+    {% set next_date = (view_date + timedelta(days=1)) %}
+
+    <a href="{{ url_for('presence_bp.day_view', date_str=prev_date.isoformat()) }}" class="date-nav-btn">
+        <i class="fas fa-chevron-left"></i>
+    </a>
+
+    <div class="date-nav-center">
+        <div class="date-nav-date">
+            {% if view_date == today %}
+            {{ _("Today") }}
+            {% else %}
+            {{ view_date.strftime('%b %d, %Y') }}
+            {% endif %}
+        </div>
+        {% if view_date != today %}
+        <a href="{{ url_for('presence_bp.day_view') }}" class="date-nav-label text-primary">{{ _("Go to today") }}</a>
+        {% else %}
+        <div class="date-nav-label">{{ view_date.strftime('%A') }}</div>
+        {% endif %}
+    </div>
+
+    <a href="{{ url_for('presence_bp.day_view', date_str=next_date.isoformat()) }}" class="date-nav-btn">
+        <i class="fas fa-chevron-right"></i>
+    </a>
+</div>
+
+<!-- Day/Week Toggle -->
+<div class="date-nav-toggle">
+    <a href="{{ url_for('presence_bp.day_view', date_str=view_date.isoformat()) }}" class="active">{{ _("Day") }}</a>
+    <a href="{{ url_for('presence_bp.week_view') }}">{{ _("Week") }}</a>
+</div>
+
+<!-- Daily Summary -->
+<div class="summary-card">
+    <span class="summary-card-value">{{ "%.2f"|format(total_hours) }}</span>
+    <span class="summary-card-label">{{ _("hours today") }}</span>
+    {% set running_entries = entries|selectattr('is_timer_running')|list %}
+    {% if running_entries %}
+    <span class="badge bg-white text-danger summary-card-badge">
+        <i class="fas fa-circle fa-beat"></i> {{ _("Timer running") }}
+    </span>
+    {% endif %}
+</div>
+
+<!-- Time Entries List -->
+<div id="time-entries-list" style="padding-bottom: 3rem"
+     {% if entries and entries|selectattr('is_timer_running')|list %}
+     hx-get="{{ url_for('presence_bp.day_view', date_str=view_date.isoformat()) }}"
+     hx-trigger="every 60s"
+     hx-select="#time-entries-list"
+     hx-swap="outerHTML"
+     {% endif %}>
+    {% if entries %}
+        {% for entry in entries %}
+        {% include "presence/mobile/partials/time_entry_card.html" %}
+        {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-clock"></i>
+        <h5>{{ _("No time entries") }}</h5>
+        <p>{{ _("Tap the + button to add your first time entry for today.") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Floating Action Button -->
+<button class="fab"
+        hx-get="{{ url_for('presence_bp.add_time_form', date_str=view_date.isoformat()) }}"
+        hx-target="#add-time-sheet"
+        hx-swap="innerHTML"
+        data-action="open-add-time-sheet">
+    <i class="fas fa-plus"></i>
+</button>
+
+<!-- Add Time Bottom Sheet -->
+<div class="bottom-sheet-overlay" id="add-time-overlay" data-action="close-add-time-sheet-overlay">
+    <div class="bottom-sheet" @click.stop="">
+        <div class="bottom-sheet-handle"></div>
+        <div class="px-4 pb-2 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ _("Add Time Entry") }}</h5>
+            <button type="button" class="btn btn-sm btn-light" data-action="close-add-time-sheet">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="bottom-sheet-content px-4" id="add-time-sheet">
+            <!-- Form loaded via HTMX -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal container for HTMX -->
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+function openAddTimeSheet() {
+    document.getElementById('add-time-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAddTimeSheet(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('add-time-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+// Close sheet after successful form submission
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'time-entries-list') {
+        closeAddTimeSheet();
+    }
+});
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="open-add-time-sheet"]');
+    if (t) openAddTimeSheet();
+    t = e.target.closest('[data-action="close-add-time-sheet"]');
+    if (t) closeAddTimeSheet();
+    t = e.target.closest('[data-action="close-add-time-sheet-overlay"]');
+    if (t && e.target === t) closeAddTimeSheet();
+});
+
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+
+// Refresh page when a punch correction request is submitted
+document.body.addEventListener('punchUpdated', function() {
+    window.location.reload();
+});
+</script>
+{% endblock %}

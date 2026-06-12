@@ -1,0 +1,173 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Approve PTO Requests") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="content-heading">{{ _("PTO / Leave") }}</h2>
+    </div>
+
+    <!-- Sub-navigation -->
+    <div class="mb-3 border-bottom">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('pto_bp.index') }}">
+                    {{ _("My Requests") }}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('pto_bp.approval_queue') }}">
+                    {{ _("Approve Requests") }}
+                    {% if pending_requests %}
+                    <span class="badge bg-warning text-dark ms-1">{{ pending_requests|length }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('pto_bp.scheduled') }}">
+                    {{ _("Scheduled") }}
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    {% if pending_requests %}
+    <div class="fw-semibold text-uppercase text-xs" style="color:var(--color-gray-500); letter-spacing:0.04em; margin-bottom:0.75rem">
+        {{ _("Pending Requests") }} ({{ pending_requests|length }})
+    </div>
+    <div>
+            {% for req in pending_requests %}
+            <div style="padding:1rem;border:1px solid var(--color-gray-200);border-radius:0.625rem;{% if not loop.last %}margin-bottom:0.75rem;{% endif %}">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <span class="fw-semibold" style="font-size:0.9rem;">{{ req.member.user.first_name }} {{ req.member.user.last_name }}</span>
+                        <div class="text-muted">
+                            {{ req.member.position or _("Person") }}
+                            {% if req.member.department %} &middot; {{ req.member.department }}{% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ url_for('pto_bp.detail', request_id=req.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-external-link-alt me-1"></i>{{ _("Details") }}
+                    </a>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="text-muted small">{{ _("Leave Type") }}</label>
+                        <div class="fw-bold">{{ req.leave_type.value }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">{{ _("Dates") }}</label>
+                        <div class="fw-bold">
+                            {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d, %Y') }}{% else %}, {{ req.start_date.strftime('%Y') }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">{{ _("Duration") }}</label>
+                        <div class="fw-bold">{{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">{{ _("Submitted") }}</label>
+                        <div class="fw-bold">{{ req.submitted_at|format_datetime('%b %d, %Y') }}</div>
+                    </div>
+                </div>
+
+                {% if req.employee_notes %}
+                <div class="mb-3 p-2 bg-light rounded">
+                    <small class="text-muted">{{ _("Notes:") }}</small>
+                    <div class="fst-italic">"{{ req.employee_notes }}"</div>
+                </div>
+                {% endif %}
+
+                {% if req.admin_notes %}
+                <div class="mb-3 p-2 bg-warning bg-opacity-10 rounded">
+                    <small class="text-warning">{{ _("Previous feedback:") }}</small>
+                    <div>"{{ req.admin_notes }}"</div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <form method="POST" action="{{ url_for('pto_bp.approve_request', request_id=req.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="fas fa-check me-1"></i>{{ _("Approve") }}
+                        </button>
+                    </form>
+
+                    <button type="button" class="btn btn-sm btn-outline-warning"
+                            data-bs-toggle="modal" data-bs-target="#requestChangesModal{{ req.id }}">
+                        <i class="fas fa-comment-dots me-1"></i>{{ _("Request Changes") }}
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-bs-toggle="modal" data-bs-target="#denyModal{{ req.id }}">
+                        <i class="fas fa-times me-1"></i>{{ _("Deny") }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Request Changes Modal -->
+            <div class="modal fade" id="requestChangesModal{{ req.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('pto_bp.request_changes', request_id=req.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">{{ _("Request Changes") }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">{{ _("Send a note to") }} {{ req.member.user.first_name }}:</p>
+                                <div class="mb-3">
+                                    <textarea name="notes" class="form-control" rows="3" required
+                                              placeholder="{{ _('Please adjust the dates...') }}"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                                <button type="submit" class="btn btn-sm btn-outline-warning">{{ _("Send Feedback") }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deny Modal -->
+            <div class="modal fade" id="denyModal{{ req.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('pto_bp.deny_request', request_id=req.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <div class="modal-header">
+                                <h5 class="modal-title">{{ _("Deny Request") }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">{{ _("Deny leave request for") }} {{ req.member.user.first_name }}?</p>
+                                <div class="mb-3">
+                                    <label class="form-label">{{ _("Reason") }} <span class="text-danger">*</span></label>
+                                    <textarea name="notes" class="form-control" rows="3" required
+                                              placeholder="{{ _('Reason for denial...') }}"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger">{{ _("Deny Request") }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-check-circle fa-2x mb-3 d-block opacity-50" style="color:var(--color-success);"></i>
+        <p class="mb-1 fw-semibold text-base">{{ _("You're all caught up!") }}</p>
+        <p class="mb-0 text-sm">{{ _("There are no PTO requests awaiting approval") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

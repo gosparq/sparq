@@ -1,0 +1,80 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Offboarding") }} - {{ employee.user.first_name }} {{ employee.user.last_name }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('people_bp.people') }}">{{ _("People") }}</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('people_bp.person_detail', employee_id=employee.id) }}">
+                            {{ employee.user.first_name }} {{ employee.user.last_name }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">{{ _("Offboarding") }}</li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-user-slash text-warning me-2"></i>
+                        {{ _("Offboarding Checklist") }}
+                    </h1>
+                    <p class="text-muted mb-0">
+                        {{ employee.user.first_name }} {{ employee.user.last_name }}
+                        {% if employee.termination_date %}
+                        - {{ _("Terminated") }} {{ employee.termination_date|format_date }}
+                        {% endif %}
+                        {% if employee.termination_reason %}
+                        <span class="badge bg-secondary ms-2">{{ employee.termination_reason.value }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <form action="{{ url_for('people_bp.rehire_person', employee_id=employee.id) }}"
+                          method="POST" class="d-inline"
+                          data-confirm="{{ _('Are you sure you want to rehire this employee?') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-outline-success">
+                            <i class="fas fa-user-plus me-1"></i>{{ _("Rehire Person") }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Checklist (includes progress bar) -->
+            <div id="offboarding-checklist">
+                {% set employee_id = employee.id %}
+                {% include 'people/desktop/people/_offboarding_checklist.html' %}
+            </div>
+
+        </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

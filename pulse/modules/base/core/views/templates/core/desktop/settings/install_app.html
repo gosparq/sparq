@@ -1,0 +1,436 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}Install App{% endblock %}
+{% block page_icon %}<i class="fas fa-download"></i>{% endblock %}
+{% block page_title_display %}{{ _("Install App") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Install sparQ as an app on your device") }}</p>{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .install-container {
+        max-width: 600px;
+    }
+
+    /* Already installed state */
+    .installed-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+
+    .installed-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+    }
+
+    .installed-icon i {
+        font-size: 2.5rem;
+        color: white;
+    }
+
+    .installed-state h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 0.5rem;
+    }
+
+    .installed-state p {
+        color: #6b7280;
+        margin-bottom: 0;
+    }
+
+    /* Benefits grid */
+    .benefits-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .benefit-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .benefit-card i {
+        font-size: 1.5rem;
+        color: var(--color-focus);
+        margin-bottom: 0.5rem;
+    }
+
+    .benefit-card h4 {
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 0.25rem;
+    }
+
+    .benefit-card p {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0;
+    }
+
+    /* Install button */
+    .install-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, var(--color-focus) 0%, #6d28d9 100%);
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 1.5rem;
+    }
+
+    .install-btn:hover {
+        background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
+
+    .install-btn:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Instructions section */
+    .instructions-section {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+    }
+
+    .instructions-section h4 {
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .instructions-section h4 i {
+        color: var(--color-focus);
+    }
+
+    .instruction-steps {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .instruction-steps li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .instruction-steps li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .step-number {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--color-focus);
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .step-content {
+        flex: 1;
+        font-size: var(--font-size-base);
+        color: #374151;
+        padding-top: 2px;
+    }
+
+    .instructions-note {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #ede9fe;
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+        color: #5b21b6;
+    }
+
+    .instructions-note i {
+        margin-right: 0.5rem;
+    }
+
+    /* Unsupported browser state */
+    .unsupported-state {
+        text-align: center;
+        padding: 1rem 0;
+    }
+
+    .unsupported-state h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .unsupported-state p {
+        font-size: var(--font-size-base);
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+
+    .browser-alternatives {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .browser-alt-link {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        color: #374151;
+        text-decoration: none;
+        font-size: var(--font-size-base);
+        transition: all 0.2s;
+    }
+
+    .browser-alt-link:hover {
+        border-color: var(--color-focus);
+        color: var(--color-focus);
+    }
+
+    .browser-alt-link i {
+        font-size: 1.25rem;
+    }
+
+    /* Loading state */
+    .loading-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+
+    /* Hide elements based on install state */
+    [data-pwa-installed="false"] .installed-state,
+    [data-pwa-installed="true"] .not-installed-state {
+        display: none !important;
+    }
+
+    @media (max-width: 480px) {
+        .benefits-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .browser-alternatives {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block settings_content %}
+<div class="install-container" x-data="pwaInstallPage()" x-init="init()">
+    <!-- Loading State -->
+    <div class="loading-state" x-show="!ready" x-cloak>
+        <i class="fas fa-spinner fa-spin fa-2x"></i>
+        <p class="mt-2">{{ _("Checking installation status...") }}</p>
+    </div>
+
+    <!-- Already Installed State -->
+    <div class="installed-state" x-show="ready && isInstalled" x-cloak>
+        <div class="installed-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <h3>{{ _("Already Installed") }}</h3>
+        <p>{{ _("sparQ is installed on your device. You can launch it from your home screen or dock.") }}</p>
+    </div>
+
+    <!-- Not Installed State -->
+    <div class="not-installed-state" x-show="ready && !isInstalled" x-cloak>
+        <!-- Benefits -->
+        <div class="benefits-grid">
+            <div class="benefit-card">
+                <i class="fas fa-rocket"></i>
+                <h4>{{ _("Quick Access") }}</h4>
+                <p>{{ _("Launch from home screen") }}</p>
+            </div>
+            <div class="benefit-card">
+                <i class="fas fa-bell"></i>
+                <h4>{{ _("Notifications") }}</h4>
+                <p>{{ _("Get push notifications") }}</p>
+            </div>
+            <div class="benefit-card">
+                <i class="fas fa-expand"></i>
+                <h4>{{ _("Full Screen") }}</h4>
+                <p>{{ _("No browser UI clutter") }}</p>
+            </div>
+            <div class="benefit-card">
+                <i class="fas fa-wifi-slash"></i>
+                <h4>{{ _("Works Offline") }}</h4>
+                <p>{{ _("Cached content available") }}</p>
+            </div>
+        </div>
+
+        <!-- Native Install Button (Chrome/Edge) -->
+        <button
+            class="install-btn"
+            x-show="hasNativePrompt"
+            @click="installApp()"
+            :disabled="installing"
+        >
+            <template x-if="!installing">
+                <span><i class="fas fa-download"></i> {{ _("Install sparQ") }}</span>
+            </template>
+            <template x-if="installing">
+                <span><i class="fas fa-spinner fa-spin"></i> {{ _("Installing...") }}</span>
+            </template>
+        </button>
+
+        <!-- Browser-Specific Instructions -->
+        <div class="instructions-section" x-show="!instructions.unsupported">
+            <h4>
+                <i class="fas fa-list-ol"></i>
+                <span x-text="'{{ _("Install on") }} ' + platformName + ' (' + browserName + ')'"></span>
+            </h4>
+
+            <ol class="instruction-steps">
+                <template x-for="(step, index) in instructions.steps" :key="index">
+                    <li>
+                        <span class="step-number" x-text="index + 1"></span>
+                        <span class="step-content" x-text="step.text"></span>
+                    </li>
+                </template>
+            </ol>
+
+            <div class="instructions-note" x-show="instructions.note">
+                <i class="fas fa-lightbulb"></i>
+                <span x-text="instructions.note"></span>
+            </div>
+        </div>
+
+        <!-- Unsupported Browser State -->
+        <div class="unsupported-state" x-show="instructions.unsupported">
+            <h4><i class="fas fa-exclamation-triangle text-warning me-2"></i>{{ _("Browser Not Supported") }}</h4>
+            <p x-text="instructions.unsupportedMessage"></p>
+
+            <div class="browser-alternatives">
+                <template x-for="alt in instructions.alternatives || []" :key="alt.name">
+                    <a :href="alt.url" target="_blank" rel="noopener" class="browser-alt-link">
+                        <i :class="alt.icon"></i>
+                        <span x-text="alt.name"></span>
+                    </a>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function pwaInstallPage() {
+    return {
+        ready: false,
+        isInstalled: false,
+        hasNativePrompt: false,
+        installing: false,
+        instructions: {},
+        browserName: '',
+        platformName: '',
+
+        init() {
+            // Wait for PWAInstall to be ready
+            if (typeof window.PWAInstall !== 'undefined') {
+                this.updateState();
+            } else {
+                // PWAInstall might not be loaded yet, wait a bit
+                setTimeout(() => this.updateState(), 100);
+            }
+
+            // Listen for install prompt becoming available
+            window.addEventListener('pwa-install-available', () => {
+                this.hasNativePrompt = true;
+            });
+
+            // Listen for successful installation
+            window.addEventListener('pwa-installed', () => {
+                this.isInstalled = true;
+                this.installing = false;
+            });
+
+            // Listen for install completion (accepted or dismissed)
+            window.addEventListener('pwa-install-complete', (e) => {
+                this.installing = false;
+                if (e.detail.outcome === 'accepted') {
+                    this.isInstalled = true;
+                }
+            });
+        },
+
+        updateState() {
+            const pwa = window.PWAInstall;
+            if (!pwa) {
+                this.ready = true;
+                this.instructions = {
+                    unsupported: true,
+                    unsupportedMessage: 'Unable to detect browser capabilities. Please try refreshing the page.'
+                };
+                return;
+            }
+
+            this.isInstalled = pwa.isInstalled();
+            this.hasNativePrompt = pwa.hasNativePrompt();
+            this.instructions = pwa.getInstructions();
+            this.browserName = pwa.getBrowserName();
+            this.platformName = pwa.getPlatformName();
+            this.ready = true;
+        },
+
+        async installApp() {
+            if (!window.PWAInstall) return;
+
+            this.installing = true;
+            const result = await window.PWAInstall.triggerInstall();
+
+            if (result.outcome === 'error' || result.outcome === 'unavailable') {
+                this.installing = false;
+            }
+            // For 'accepted' or 'dismissed', the event listeners will handle the state
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{# Mobile DM thread view with messages - simplified for mobile #}
+<div class="dm-view mobile-dm-view">
+    <div class="dm-header mobile-dm-header">
+        <div class="dm-user-info">
+            <div class="user-avatar" style="background-color: {{ other_user.avatar_color }}">
+                <i class="fas fa-user"></i>
+            </div>
+            <span class="dm-user-name">{{ other_user.full_name }}</span>
+        </div>
+    </div>
+
+    <div class="dm-messages" id="dm-messages-{{ thread.id }}">
+        {% for message in messages %}
+        {% include "updates/desktop/chat/partials/_dm_message.html" %}
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <p>{{ _('No messages yet. Start the conversation!') }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+// Update Alpine state with thread info and scroll to bottom
+(function() {
+    var c = document.querySelector('.mobile-chat-container');
+    if (c && c._x_dataStack && c._x_dataStack[0]) {
+        c._x_dataStack[0].activeDmThread = {{ thread.id }};
+        c._x_dataStack[0].activeDmUser = {{ other_user.id }};
+        c._x_dataStack[0].activeView = 'dm';
+    }
+    // Scroll to bottom
+    var container = document.querySelector('.dm-messages');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+    // Re-process htmx for delete buttons
+    var dmView = document.querySelector('.mobile-dm-view');
+    if (dmView) {
+        htmx.process(dmView);
+    }
+})();
+</script>

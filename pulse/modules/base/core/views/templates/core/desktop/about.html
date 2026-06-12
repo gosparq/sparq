@@ -1,0 +1,176 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}About{% endblock %}
+{% block page_icon %}<i class="fas fa-info-circle"></i>{% endblock %}
+{% block page_title_display %}{{ _("About") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Version and copyright information") }}</p>{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .about-content {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+
+    .about-logo {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 1rem;
+    }
+
+    .about-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .about-version {
+        font-size: 1.125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .about-build-date {
+        font-size: 0.9375rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1.5rem;
+    }
+
+    .about-copyright {
+        font-size: 0.9375rem;
+        color: var(--color-gray-400);
+        line-height: 1.6;
+    }
+
+    /* Install App Prompt Card */
+    .install-prompt-card {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, var(--color-focus) 0%, #6d28d9 100%);
+        border-radius: 0.75rem;
+        color: white;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    .install-prompt-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .install-prompt-icon i {
+        font-size: 1.5rem;
+    }
+
+    .install-prompt-content {
+        flex: 1;
+    }
+
+    .install-prompt-content h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .install-prompt-content p {
+        font-size: var(--font-size-base);
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .install-prompt-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        color: var(--color-focus);
+        border-radius: 0.375rem;
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .install-prompt-btn:hover {
+        background: #f3f4f6;
+        color: #6d28d9;
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 480px) {
+        .install-prompt-card {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .install-prompt-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block settings_content %}
+<div class="about-content">
+    <div class="about-logo">
+        <img src="{{ url_for('static', filename='images/sparq-logo.png') }}" alt="sparQ">
+    </div>
+
+    <p class="about-version">Version {{ sparq_version }}</p>
+    <p class="about-build-date">{{ sparq_build_date }}</p>
+
+    <p class="about-copyright">
+        Copyright 2025-2026 sparQ Software LLC<br>
+        All rights reserved.
+    </p>
+
+    <!-- Install App Prompt (hidden when already installed) -->
+    <div id="install-prompt-card" class="install-prompt-card" style="display: none;">
+        <div class="install-prompt-icon">
+            <i class="fas fa-download"></i>
+        </div>
+        <div class="install-prompt-content">
+            <h4>{{ _("Install sparQ") }}</h4>
+            <p>{{ _("Get quick access from your home screen with offline support.") }}</p>
+        </div>
+        <a href="{{ url_for('core_bp.install_app') }}" class="install-prompt-btn">
+            <i class="fas fa-arrow-right"></i> {{ _("Install") }}
+        </a>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+// Show install prompt only when not installed as PWA
+(function() {
+    function checkAndShowPrompt() {
+        const card = document.getElementById('install-prompt-card');
+        if (!card) return;
+
+        // Check if running as standalone PWA
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+
+        // Show the card if NOT installed
+        if (!isStandalone) {
+            card.style.display = '';
+        }
+    }
+    // Run immediately
+    checkAndShowPrompt();
+    // Also run after DOM ready
+    document.addEventListener('DOMContentLoaded', checkAndShowPrompt);
+})();
+</script>
+{% endblock %}

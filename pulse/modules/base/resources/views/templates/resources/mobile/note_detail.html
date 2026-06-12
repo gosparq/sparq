@@ -1,0 +1,105 @@
+{% extends "resources/mobile/layout.html" %}
+
+{% block title %}{{ note.title or _("Untitled Note") }}{% endblock %}
+
+{# Hide module sub-nav while editing a note — maximize vertical space for the editor. #}
+{% block mobile_bottom_nav %}{% endblock %}
+
+{% block module_content %}
+{% set can_edit = member and note.member_id == member.id %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('notes_blueprint.index', tab=note.visibility) }}"
+       class="text-muted text-decoration-none d-inline-flex align-items-center gap-1"
+       style="font-size: var(--font-size-base);">
+        <i class="fas fa-arrow-left"></i>{{ _("Notes") }}
+    </a>
+    <div class="d-flex gap-2 align-items-center">
+        <span id="note-saved-indicator" class="text-muted" style="font-size:0.75rem;font-style:italic;"></span>
+
+        {% if can_edit or current_user.is_admin %}
+        {# Pin toggle #}
+        <form id="pin-form" action="{{ url_for('notes_blueprint.pin', note_id=note.id) }}" method="POST"
+              hx-post="{{ url_for('notes_blueprint.pin', note_id=note.id) }}"
+              hx-target="#pin-btn-wrapper"
+              hx-swap="outerHTML"
+              style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <span id="pin-btn-wrapper">
+                <button type="submit"
+                        class="btn btn-sm {% if note.is_pinned %}btn-warning{% else %}btn-outline-secondary{% endif %}"
+                        title="{{ _('Toggle pin') }}"
+                        style="padding:0.25rem 0.5rem;">
+                    <i class="fas fa-thumbtack"></i>
+                </button>
+            </span>
+        </form>
+
+        {# Delete #}
+        <form hx-post="{{ url_for('notes_blueprint.delete', note_id=note.id) }}"
+              hx-confirm="{{ _('Delete this note?') }}"
+              hx-target="body"
+              hx-swap="none"
+              style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:0.25rem 0.5rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<form id="note-form">
+    {# Visibility selector #}
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        {% if can_edit or current_user.is_admin %}
+        <div class="btn-group btn-group-sm" role="group">
+            <input type="radio" class="btn-check" name="visibility" id="vis-personal" value="personal"
+                   {% if note.visibility == 'personal' %}checked{% endif %}
+                   hx-post="{{ url_for('notes_blueprint.save', note_id=note.id) }}"
+                   hx-include="#note-form"
+                   hx-target="#note-saved-indicator"
+                   hx-swap="innerHTML">
+            <label class="btn btn-outline-secondary" for="vis-personal" style="font-size:0.8125rem;">
+                <i class="fas fa-user me-1"></i>{{ _("Personal") }}
+            </label>
+            <input type="radio" class="btn-check" name="visibility" id="vis-team" value="team"
+                   {% if note.visibility == 'team' %}checked{% endif %}
+                   hx-post="{{ url_for('notes_blueprint.save', note_id=note.id) }}"
+                   hx-include="#note-form"
+                   hx-target="#note-saved-indicator"
+                   hx-swap="innerHTML">
+            <label class="btn btn-outline-secondary" for="vis-team" style="font-size:0.8125rem;">
+                <i class="fas fa-users me-1"></i>{{ _("Team") }}
+            </label>
+        </div>
+        {% else %}
+        <span class="badge" style="font-size:0.75rem;padding:0.25rem 0.6rem;background:var(--color-primary-lightest, rgba(99,102,241,0.1));color:var(--color-primary);">
+            <i class="fas fa-users me-1"></i>{{ _("Team") }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="text-muted mb-2" style="font-size:0.75rem;">
+        {{ _("Last updated") }}: {{ note.updated_at|format_datetime('%b %d, %Y %H:%M') if note.updated_at else _('Never') }}
+    </div>
+
+    {# Content textarea with auto-save on blur / keyup #}
+    <textarea
+        id="note-content"
+        name="content"
+        class="form-control"
+        rows="18"
+        placeholder="{{ _('Start writing...') }}"
+        style="resize:vertical;font-size:0.9375rem;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;{% if not can_edit %}background:var(--color-gray-50);cursor:default;{% endif %}"
+        {% if can_edit %}
+        hx-post="{{ url_for('notes_blueprint.save', note_id=note.id) }}"
+        hx-include="#note-form"
+        hx-trigger="blur, keyup changed delay:2s"
+        hx-target="#note-saved-indicator"
+        hx-swap="innerHTML"
+        {% else %}
+        readonly
+        {% endif %}>{{ note.content or '' }}</textarea>
+</form>
+{% endblock %}

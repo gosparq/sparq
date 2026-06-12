@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _("Document Signed") }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .success-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 3rem;
+            max-width: 500px;
+            text-align: center;
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #d1fae5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        .success-icon i {
+            font-size: 2.5rem;
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-card">
+        <div class="success-icon">
+            <i class="fas fa-check"></i>
+        </div>
+
+        {% if already_complete %}
+        <h2 class="h4 mb-3">{{ _("Document Already Completed") }}</h2>
+        <p class="text-muted mb-4">
+            {{ _("All signatures have been collected for this document.") }}
+        </p>
+        {% elif already_signed %}
+        <h2 class="h4 mb-3">{{ _("You've Already Signed") }}</h2>
+        <p class="text-muted mb-4">
+            {{ _("You signed this document on") }} {{ recipient.signed_at|format_datetime('%B %d, %Y') if recipient.signed_at else '' }}.
+        </p>
+        {% else %}
+        <h2 class="h4 mb-3">{{ _("Document Signed Successfully") }}</h2>
+        <p class="text-muted mb-4">
+            {{ _("Thank you for signing") }} <strong>{{ request.title }}</strong>.
+            {% if request.all_signed %}
+            {{ _("All signatures have been collected.") }}
+            {% else %}
+            {{ _("We're waiting for other signatures.") }}
+            {% endif %}
+        </p>
+        {% endif %}
+
+        <div class="bg-light rounded p-3 mb-4">
+            <p class="mb-1 small text-muted">{{ _("Document") }}</p>
+            <p class="mb-0"><strong>{{ request.title }}</strong></p>
+        </div>
+
+        {% if recipient.signed_at %}
+        <div class="text-start bg-light rounded p-3 mb-4">
+            <p class="mb-2 small"><strong>{{ _("Signature Details:") }}</strong></p>
+            <p class="mb-1 small text-muted">
+                <i class="fas fa-signature me-1"></i> {{ recipient.signed_name }}
+            </p>
+            <p class="mb-1 small text-muted">
+                <i class="fas fa-clock me-1"></i> {{ recipient.signed_at.strftime('%B %d, %Y at %H:%M UTC') if recipient.signed_at else '' }}
+            </p>
+        </div>
+        {% endif %}
+
+        <p class="text-muted small">
+            <i class="fas fa-shield-alt me-1"></i>
+            {{ _("A copy will be sent to all parties when complete.") }}
+        </p>
+
+        {% if is_onboarding %}
+        <button class="btn btn-primary mt-3" data-action="back-to-onboarding">
+            <i class="fas fa-arrow-left me-2"></i>{{ _("Back to Onboarding") }}
+        </button>
+        {% endif %}
+    </div>
+
+    {% if is_onboarding %}
+    <script nonce="{{ csp_nonce }}">
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('[data-action="back-to-onboarding"]')) {
+            window.close();
+            setTimeout(function() {
+                window.location.href = "{{ url_for('people_bp.onboarding_wizard') }}";
+            }, 100);
+        }
+    });
+    </script>
+    {% endif %}
+</body>
+</html>

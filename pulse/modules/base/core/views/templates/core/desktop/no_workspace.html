@@ -1,0 +1,37 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("No Access") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("No Workspace") }}</h2>
+        <p class="text-muted mb-3 text-center">
+            {{ _("You don't belong to any workspaces yet.") }}
+        </p>
+
+        <form action="{{ url_for('core_bp.create_workspace') }}" method="POST" class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-plus me-1"></i>{{ _("Create a Workspace") }}
+            </button>
+        </form>
+
+        <p class="text-muted small mb-0 text-center">
+            {{ _("Or contact your administrator to be invited to an existing one.") }}
+        </p>
+
+        <div class="mt-3 text-center">
+            <small class="text-muted"><a href="{{ url_for('core_bp.logout') }}">{{ _("Log Out") }}</a></small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">{{ _("Powered by") }} <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a></small>
+{% endblock %}

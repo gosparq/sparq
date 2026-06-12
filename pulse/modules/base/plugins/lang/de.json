@@ -1,0 +1,22 @@
+{
+    "About": "Über",
+    "Active": "Aktiv",
+    "Back to Plugins": "Zurück zu Plugins",
+    "Dependencies": "Abhängigkeiten",
+    "Details": "Details",
+    "Disabled": "Deaktiviert",
+    "Enabled": "Aktiviert",
+    "Extend sparQ with additional features. Each plugin adds new functionality to the core application.": "Erweitere sparQ mit zusätzlichen Funktionen. Jedes Plugin fügt der Kernanwendung neue Funktionalität hinzu.",
+    "Inactive": "Inaktiv",
+    "Info": "Info",
+    "No plugins installed": "Keine Plugins installiert",
+    "Open": "Öffnen",
+    "Plugin Info": "Plugin-Info",
+    "Plugins": "Plugins",
+    "Plugins will appear here when installed.": "Plugins werden hier angezeigt, wenn sie installiert sind.",
+    "Quick Access": "Schnellzugriff",
+    "Slug": "Slug",
+    "Status": "Status",
+    "This plugin enhances existing features and doesn't have a dedicated page.": "Dieses Plugin erweitert bestehende Funktionen und hat keine eigene Seite.",
+    "Version": "Version"
+}

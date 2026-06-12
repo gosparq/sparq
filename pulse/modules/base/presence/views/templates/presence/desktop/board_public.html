@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="300"><!-- Fallback: refresh every 5 minutes -->
+    <title>{{ _("In/Out Board") }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script nonce="{{ csp_nonce }}">htmx.config.inlineScriptNonce = "{{ csp_nonce }}";</script>
+    <style>
+        :root {
+            --primary-color: #4a6cf7;
+            --success-color: #28a745;
+            --bg-dark: #1a1d2e;
+            --bg-card: #242736;
+            --text-primary: #ffffff;
+            --text-muted: #8b8d97;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header h1 i {
+            color: var(--text-primary);
+            margin-right: 0.5rem;
+        }
+
+        .clock-display {
+            text-align: right;
+        }
+
+        .clock-time {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .clock-date {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+        }
+
+        .board-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .person-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .person-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .person-card.clocked-in {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .person-card.clocked-out {
+            border-left: 4px solid var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .avatar.in {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .avatar.out {
+            background: var(--text-muted);
+            color: white;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .employee-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .employee-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .employee-status {
+            font-size: 1rem;
+        }
+
+        .employee-status.in {
+            color: var(--success-color);
+        }
+
+        .employee-status.out {
+            color: var(--text-muted);
+        }
+
+        .summary {
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            padding: 1rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+        }
+
+        .summary-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+        }
+
+        .summary-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+        }
+
+        .summary-badge.in {
+            background: var(--success-color);
+        }
+
+        .summary-badge.out {
+            background: var(--text-muted);
+        }
+
+        .branding {
+            position: fixed;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header" x-data="liveClock('{{ timezone }}')" x-init="init()">
+        <h1><i class="fas fa-users"></i>{{ _("Who's In") }}</h1>
+        <div class="clock-display">
+            <div class="clock-time" x-text="time"></div>
+            <div class="clock-date" x-text="date"></div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce }}">
+        function liveClock(timezone) {
+            return {
+                time: '',
+                date: '',
+                init() {
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                },
+                updateTime() {
+                    const now = new Date();
+                    this.time = now.toLocaleTimeString('en-US', {
+                        timeZone: timezone,
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    this.date = now.toLocaleDateString('en-US', {
+                        timeZone: timezone,
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                }
+            };
+        }
+    </script>
+
+    <div id="board-content"
+         hx-get="{{ url_for('board_bp.public_board_partial', token=token) }}"
+         hx-trigger="every 10s"
+         hx-swap="innerHTML">
+        <div class="board-container">
+            {% for item in members %}
+            <div class="person-card {% if item.is_clocked_in %}clocked-in{% else %}clocked-out{% endif %}">
+                <div class="avatar {% if item.is_clocked_in %}in{% else %}out{% endif %}">
+                    {% if item.member.user and item.member.user.avatar_url %}
+                    <img src="{{ item.member.user.avatar_url }}" alt="">
+                    {% else %}
+                    {{ item.member.user.first_name[0] if item.member.user and item.member.user.first_name else '?' }}{{ item.member.user.last_name[0] if item.member.user and item.member.user.last_name else '' }}
+                    {% endif %}
+                </div>
+                <div class="employee-info">
+                    <div class="employee-name">{{ item.member.user.full_name if item.member.user else 'Unknown' }}</div>
+                    <div class="employee-status {% if item.is_clocked_in %}in{% else %}out{% endif %}">
+                        {% if item.is_clocked_in %}
+                        <i class="fas fa-circle fa-beat me-1"></i>{{ _("In") }}
+                        <span class="text-muted">({{ item.elapsed_str }})</span>
+                        {% else %}
+                        <i class="fas fa-circle me-1"></i>{{ _("Out") }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center">
+                <p class="text-muted fs-4">{{ _("No employees found") }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Summary -->
+        {% set clocked_in_count = members | selectattr('is_clocked_in') | list | length %}
+        <div class="summary">
+            <div class="summary-item">
+                <span class="summary-badge in">{{ clocked_in_count }}</span>
+                <span>{{ _("In") }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-badge out">{{ members | length - clocked_in_count }}</span>
+                <span>{{ _("Out") }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="branding">
+        Powered by <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit"><strong>sparQ</strong></a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,91 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ category.name }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('kb_staff_bp.index') }}">{{ _("Knowledge Base") }}</a></li>
+            <li class="breadcrumb-item active">{{ category.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-4">
+        <div class="rounded p-3 me-3" style="background-color: var(--color-primary); color: white;">
+            <i class="{{ category.icon_class }} fa-lg"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h2 class="mb-0">{{ category.name }}</h2>
+            {% if category.description %}
+            <p class="text-muted mb-0">{{ category.description }}</p>
+            {% endif %}
+        </div>
+        <form action="{{ url_for('kb_staff_bp.search') }}" method="get" class="d-flex">
+            <input type="hidden" name="category" value="{{ category.id }}">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="{{ _('Search...') }}">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Subcategories -->
+    {% if subcategories %}
+    <h5 class="text-muted mb-3">{{ _("Subcategories") }}</h5>
+    <div class="row g-3 mb-4">
+        {% for sub in subcategories %}
+        <div class="col-md-4">
+            <div class="card">
+                <a href="{{ url_for('kb_staff_bp.category_or_article', category_slug=category.slug, path_part=sub.slug) }}" class="text-decoration-none text-reset">
+                    <div class="card-body">
+                        <h6 class="mb-1">{{ sub.name }}</h6>
+                        {% if sub.description %}
+                        <p class="text-muted small mb-1">{{ sub.description }}</p>
+                        {% endif %}
+                        <small class="text-muted">{{ sub.article_count }} {{ _("articles") }}</small>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Articles -->
+    {% if articles %}
+    <h5 class="text-muted mb-3">{{ _("Articles") }}</h5>
+    <div class="list-group">
+        {% for article in articles %}
+        <a href="{{ url_for('kb_staff_bp.category_or_article', category_slug=category.slug, path_part=article.slug) }}"
+           class="list-group-item list-group-item-action">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">
+                        {{ article.title }}
+                        {% if not article.is_public %}
+                        <span class="badge bg-secondary ms-1">{{ _("Private") }}</span>
+                        {% endif %}
+                    </h6>
+                    {% if article.excerpt %}
+                    <p class="text-muted small mb-0">{{ article.excerpt }}</p>
+                    {% endif %}
+                </div>
+                <i class="fas fa-chevron-right text-muted"></i>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not subcategories and not articles %}
+    <div class="text-center py-5">
+        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+        <p class="text-muted">{{ _("No articles in this category yet.") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

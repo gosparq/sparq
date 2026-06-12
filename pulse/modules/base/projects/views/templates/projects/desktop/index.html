@@ -1,0 +1,452 @@
+{% extends "projects/desktop/layout.html" %}
+
+{% block title %}{{ _("Projects Overview") }}{% endblock %}
+
+{% block module_content %}
+{# Pre-paint the saved view choice to avoid board flash before Alpine init #}
+<script nonce="{{ csp_nonce }}">
+(function(){
+    try {
+        if (localStorage.getItem('project_board_view') !== 'board') {
+            document.documentElement.classList.add('project-board-view-list');
+        }
+    } catch (e) {}
+})();
+</script>
+<style nonce="{{ csp_nonce }}">
+.project-board-view-list [data-pj-view="list"] { display: block !important; }
+.project-board-view-list [data-pj-view="board"] { display: none !important; }
+</style>
+<div class="content-card" x-data="projectBoard()">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Projects Overview") }}</h2>
+            <span class="text-muted text-base">{{ _("See what's happening across all projects.") }}</span>
+        </div>
+        <a href="{{ url_for('projects_bp.new') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>{{ _("New Project") }}
+        </a>
+    </div>
+
+    {# ── Stat strip ── #}
+    <div class="task-summary-panel mb-4">
+        <div class="task-summary-totals pj-stat-cols-3">
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("In Progress") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.current"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("Overdue") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.overdue"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("Stale") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.stale"></div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Filter + View Toggle ── #}
+    {% if projects %}
+
+    <div class="task-work-panel">
+        <div class="task-work-toolbar">
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <button class="task-filter-pill"
+                        :class="{ 'task-filter-pill--active': selectedMembers.length === 0 }"
+                        @click="clearAll()">{{ _("All") }}</button>
+                {% for m in members %}
+                {% if m.user and not m.user.is_sample %}
+                <button class="task-filter-pill"
+                        x-show="memberHasProjects({{ m.id }})"
+                        x-cloak
+                        :class="{ 'task-filter-pill--active': selectedMembers.includes({{ m.id }}) }"
+                        @click="toggleMember({{ m.id }})">
+                    <span class="avatar-circle" style="width:18px;height:18px;font-size:0.4rem;background:{{ m.user.avatar_color|default('#6b7280') }};">
+                        {{ m.user.first_name[0]|upper }}{{ m.user.last_name[0]|upper }}
+                    </span>
+                    <span>{{ m.user.first_name }}</span>
+                    <span class="task-filter-pill-count" x-show="memberActiveCount({{ m.id }}) > 0" x-text="memberActiveCount({{ m.id }})"></span>
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div class="pj-view-toggle">
+                <button class="btn btn-sm border-0 pj-view-toggle-btn"
+                        :style="viewMode === 'list' ? 'background:var(--color-gray-100);color:var(--color-gray-700);' : 'background:transparent;color:var(--color-gray-400);'"
+                        @click="viewMode = 'list'"><i class="fas fa-list"></i></button>
+                <button class="btn btn-sm border-0 pj-view-toggle-btn"
+                        :style="viewMode === 'board' ? 'background:var(--color-gray-100);color:var(--color-gray-700);' : 'background:transparent;color:var(--color-gray-400);'"
+                        @click="viewMode = 'board'"><i class="fas fa-columns"></i></button>
+            </div>
+        </div>
+
+        {# ════════════════ LIST VIEW ════════════════ #}
+        <div data-pj-view="list" x-cloak x-show="viewMode === 'list'" class="task-work-view" style="overflow:hidden;display:none;">
+            <div class="d-none d-md-flex align-items-center pj-list-header">
+                <div class="pj-list-col-name">{{ _("Name") }}</div>
+                <div class="pj-list-col-owner">{{ _("Owner") }}</div>
+                <div class="pj-list-col-open">{{ _("Open") }}</div>
+                <div class="pj-list-col-activity">{{ _("Activity") }}</div>
+                <div class="pj-list-col-eta">{{ _("ETA") }}</div>
+                <div class="pj-list-col-status">{{ _("Status") }}</div>
+            </div>
+
+            {% for ws_status in workspace_statuses %}
+            {% set status_projects = projects | selectattr('status', 'equalto', ws_status.code) | list %}
+            {% set is_archived = ws_status.is_archived %}
+            {% if status_projects %}
+            <div x-show="filteredStatusCount('{{ ws_status.code }}') > 0">
+                <div class="pj-list-group-header cursor-pointer"{% if is_archived %} @click="showArchived = !showArchived"{% endif %}>
+                    <span class="project-status-dot" style="background:{{ ws_status.color }};"></span>
+                    <span class="pj-group-label">{{ _(ws_status.label) }}</span>
+                    <span class="pj-group-count" x-text="filteredStatusCount('{{ ws_status.code }}')"></span>
+                    {% if is_archived %}<i class="fas pj-group-chevron" :class="showArchived ? 'fa-chevron-up' : 'fa-chevron-down'"></i>{% endif %}
+                </div>
+                <div{% if is_archived %} x-show="showArchived"{% endif %}>
+                    {% for project in status_projects %}
+                    <div x-show="showProject({{ project.id }})">
+                        <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}" class="pj-list-row">
+                            <div class="pj-list-col-name text-truncate">
+                                {% if project.color %}<span class="pj-color-bar" style="background:{{ project.color }};"></span>{% endif %}
+                                {% if project.emoji %}{{ project.emoji }} {% endif %}{{ project.name }}
+                                {% if project.is_private %}<i class="fas fa-lock text-3xs" style="color:var(--color-gray-400); margin-left:0.25rem"></i>{% endif %}
+                                {% if project.overdue_count > 0 %}
+                                <span class="project-meta-badge project-meta-badge--overdue ms-1">
+                                    <i class="fas fa-circle-exclamation text-icon"></i>{{ project.overdue_count }} {{ _("overdue") }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="pj-list-col-owner">
+                                {% if project.owner_first_name %}
+                                <span>{{ project.owner_first_name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="pj-list-col-open">
+                                <span class="text-muted">{{ project.open_count }}</span>
+                            </div>
+                            <div class="pj-list-col-activity">
+                                {% if project.last_activity_label() %}
+                                <span class="text-muted">{{ project.last_activity_label() }}</span>
+                                {% else %}<span class="text-muted">&mdash;</span>{% endif %}
+                            </div>
+                            <div class="pj-list-col-eta">
+                                {% if project.eta_label() %}
+                                <span{% if project.eta and project.eta < today %} class="text-danger fw-semibold"{% else %} class="text-muted"{% endif %}>{{ project.eta_label() }}</span>
+                                {% else %}<span class="text-muted">&mdash;</span>{% endif %}
+                            </div>
+                            <div class="pj-list-col-status">
+                                <span class="pj-status-pill" style="background:{{ ws_status.color }}15;color:{{ ws_status.color }};">{{ _(ws_status.label) }}</span>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {# ════════════════ BOARD VIEW ════════════════ #}
+        <div data-pj-view="board" x-cloak x-show="viewMode === 'board'" class="pj-board-wrap">
+        <div class="project-board-row">
+            {% for ws_status in workspace_statuses %}
+            {% set status_projects = projects | selectattr('status', 'equalto', ws_status.code) | list %}
+            {% set is_archived = ws_status.is_archived %}
+            <div class="project-board-col{% if is_archived %} project-board-col--archived{% endif %}">
+                <div class="project-board-col-header{% if is_archived %} project-board-col-header--toggle{% endif %}"{% if is_archived %} @click="showArchived = !showArchived"{% endif %}>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="project-status-dot" style="background:{{ ws_status.color }};"></span>
+                        <span class="project-board-col-label">{{ _(ws_status.label) }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="project-board-col-count" x-text="filteredStatusCount('{{ ws_status.code }}')">{{ status_projects|length }}</span>
+                        {% if is_archived %}<i class="fas project-board-col-chevron" :class="showArchived ? 'fa-chevron-up' : 'fa-chevron-down'"></i>{% endif %}
+                    </div>
+                </div>
+                <div class="project-board-dropzone" data-status="{{ ws_status.code }}"{% if is_archived %} :class="{ 'project-board-dropzone--collapsed': !showArchived }"{% endif %}>
+                    {% for project in status_projects %}
+                    {% set has_overdue = project.overdue_count > 0 %}
+                    {% set is_stale = project.is_stale %}
+                    <div x-show="{% if is_archived %}showArchived && {% endif %}showProject({{ project.id }})">
+                        <div class="project-board-card{% if is_archived %} project-board-card--archived{% endif %}" data-project-id="{{ project.id }}">
+                            <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}">
+                                <div class="d-flex align-items-center gap-2 flex-wrap project-board-card-name">
+                                    <span class="text-truncate project-board-card-title">
+                                        {% if project.emoji %}{{ project.emoji }} {% endif %}{{ project.name }}
+                                        {% if project.is_private %}<i class="fas fa-lock text-3xs" style="color:var(--color-gray-400); margin-left:0.25rem"></i>{% endif %}
+                                    </span>
+                                    {% if has_overdue %}
+                                    <span class="project-meta-badge project-meta-badge--overdue">
+                                        <i class="fas fa-circle-exclamation text-icon"></i>{{ project.overdue_count }} {{ _("overdue") }}
+                                    </span>
+                                    {% endif %}
+                                    {% if is_stale %}
+                                    <span class="project-meta-badge project-meta-badge--stale" title="{{ _('No activity in') }} {{ stale_days }}+ {{ _('days') }}">
+                                        <i class="fas fa-hourglass-half text-icon"></i>{{ _("stale") }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if not is_archived %}
+                                <div class="d-flex align-items-center gap-2 flex-wrap project-board-card-meta">
+                                    {% if project.owner_first_name %}
+                                    <span>{{ project.owner_first_name }}</span>
+                                    {% endif %}
+                                    <span>{{ project.open_count }} {{ _("open") }}</span>
+                                    {% if project.eta_label() %}
+                                    <span{% if project.eta and project.eta < today %} class="text-danger"{% endif %}>
+                                        <i class="fas fa-calendar text-3xs"></i>
+                                        {{ project.eta_label() }}
+                                    </span>
+                                    {% endif %}
+                                    {% if project.last_activity_label() %}
+                                    <span title="{{ project.last_activity_at.strftime('%b %d, %Y %H:%M UTC') }}">
+                                        <i class="fas fa-clock text-3xs"></i>
+                                        {{ project.last_activity_label() }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if project.members %}
+                                <div class="project-avatar-stack">
+                                    {% for member in project.members %}
+                                    <span class="avatar-circle"
+                                          title="{{ member.first_name }} {{ member.last_name }}"
+                                          style="background:{{ member.avatar_color|default('#6b7280') }};">
+                                        {{ member.first_name[0]|upper }}{{ member.last_name[0]|upper if member.last_name else '' }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% endif %}
+                            </a>
+                            {% if project.color %}
+                            <span class="project-color-bar" style="background:{{ project.color }};"></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        </div>
+    </div>
+
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-folder-open fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-1 fw-medium text-base">{{ _("No projects yet") }}</p>
+            <p class="mb-3 text-base">{{ _("Create a project to start grouping action items and updates") }}</p>
+            <a href="{{ url_for('projects_bp.new') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>{{ _("New Project") }}
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function projectBoard() {
+    var allProjects = [
+        {% for p in projects %}
+        {id: {{ p.id }}, s: {{ p.status|tojson }}, o: {{ p.owner_id|tojson }}, c: {{ p.created_by_id|tojson }}, inv: {{ p.involved_member_ids|tojson }}, ov: {{ p.overdue_count }}, stale: {{ p.is_stale|tojson }}}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    var prefSaveUrl = '{{ url_for("projects_bp.set_filter_pref") }}';
+    var viewPrefSaveUrl = '{{ url_for("projects_bp.set_view_pref") }}';
+    var csrfToken = document.querySelector('meta[name=csrf-token]') ? document.querySelector('meta[name=csrf-token]').content : '{{ csrf_token }}';
+    var projectById = {};
+    allProjects.forEach(function(p) { projectById[p.id] = p; });
+
+    return {
+        selectedMembers: {{ initial_filter_pref.selectedMembers|tojson }},
+        showArchived: true,
+        viewMode: '{{ initial_view_pref }}',
+        currentMemberId: {{ current_member_id }},
+        _saveTimer: null,
+        _viewSaveTimer: null,
+        filterProject(project) {
+            if (this.selectedMembers.length > 0) {
+                for (var i = 0; i < this.selectedMembers.length; i++) {
+                    if (project.inv.indexOf(this.selectedMembers[i]) !== -1) return true;
+                }
+                return false;
+            }
+            return true;
+        },
+        showProject(projectId) {
+            var p = projectById[projectId];
+            if (!p) return true;
+            return this.filterProject(p);
+        },
+        filteredStatusCount(status) {
+            var self = this;
+            var n = 0;
+            allProjects.forEach(function(p) {
+                if (p.s === status && self.filterProject(p)) n++;
+            });
+            return n;
+        },
+        get filteredCounts() {
+            var self = this;
+            var counts = {current: 0, overdue: 0, stale: 0};
+            allProjects.forEach(function(p) {
+                if (!self.filterProject(p)) return;
+                if (p.s === 'current') counts.current++;
+                if (p.ov > 0) counts.overdue++;
+                if (p.stale) counts.stale++;
+            });
+            return counts;
+        },
+        get memberCounts() {
+            var counts = {};
+            allProjects.forEach(function(p) {
+                p.inv.forEach(function(mid) {
+                    if (!counts[mid]) counts[mid] = {total: 0, active: 0};
+                    counts[mid].total++;
+                    if (p.s !== 'archived') counts[mid].active++;
+                });
+            });
+            return counts;
+        },
+        memberHasProjects(id) {
+            return !!(this.memberCounts[id] && this.memberCounts[id].total > 0);
+        },
+        memberActiveCount(id) {
+            return this.memberCounts[id] ? this.memberCounts[id].active : 0;
+        },
+        init() {
+            var self = this;
+            document.documentElement.classList.remove('project-board-view-list');
+            this.$watch('viewMode', function(val) {
+                localStorage.setItem('project_board_view', val);
+                self._scheduleViewPrefSave(val);
+            });
+            self.$watch('selectedMembers', function() { self._schedulePrefSave(); });
+
+            self.$watch('showArchived', function(val) {
+                document.querySelectorAll('[data-drag-to-archived]').forEach(function(el) {
+                    if (val) {
+                        el.classList.remove('project-board-drag-hidden');
+                    } else {
+                        el.classList.add('project-board-drag-hidden');
+                    }
+                });
+            });
+        },
+        _schedulePrefSave() {
+            var self = this;
+            if (self._saveTimer) clearTimeout(self._saveTimer);
+            self._saveTimer = setTimeout(function() { self._savePref(); }, 500);
+        },
+        _savePref() {
+            var body = {
+                selectedMembers: this.selectedMembers
+            };
+            fetch(prefSaveUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify(body)
+            }).catch(function() {});
+        },
+        _scheduleViewPrefSave(val) {
+            var self = this;
+            if (self._viewSaveTimer) clearTimeout(self._viewSaveTimer);
+            self._viewSaveTimer = setTimeout(function() { self._saveViewPref(val); }, 500);
+        },
+        _saveViewPref(val) {
+            fetch(viewPrefSaveUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({ mode: val })
+            }).catch(function() {});
+        },
+        toggleMember(id) {
+            var idx = this.selectedMembers.indexOf(id);
+            if (idx === -1) {
+                this.selectedMembers.push(id);
+            } else {
+                this.selectedMembers.splice(idx, 1);
+            }
+        },
+        clearAll() {
+            this.selectedMembers = [];
+        },
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var statusUrl = '{{ url_for("projects_bp.update_status", project_id=0) }}';
+    var csrfToken = document.querySelector('meta[name=csrf-token]')
+        ? document.querySelector('meta[name=csrf-token]').content
+        : '{{ csrf_token }}';
+
+    document.querySelectorAll('.project-board-dropzone').forEach(function(col) {
+        Sortable.create(col, {
+            group: 'projects',
+            animation: 150,
+            ghostClass: 'project-board-card-ghost',
+            dragClass: 'project-board-card-drag',
+            onStart: function(evt) {
+                evt.item.querySelectorAll('a').forEach(function(a) { a.style.pointerEvents = 'none'; });
+            },
+            onEnd: function(evt) {
+                evt.item.querySelectorAll('a').forEach(function(a) { a.style.pointerEvents = ''; });
+
+                if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return;
+
+                var card = evt.item.querySelector('.project-board-card') || evt.item;
+                var projectId = card.dataset.projectId;
+                if (!projectId) return;
+                var newStatus = evt.to.dataset.status;
+
+                if (newStatus === 'archived') {
+                    var root = document.querySelector('[x-data="projectBoard()"]');
+                    if (root && !Alpine.$data(root).showArchived) {
+                        evt.item.setAttribute('data-drag-to-archived', 'true');
+                        evt.item.classList.add('project-board-drag-hidden');
+                    }
+                } else {
+                    evt.item.removeAttribute('data-drag-to-archived');
+                    evt.item.classList.remove('project-board-drag-hidden');
+                }
+
+                [evt.from, evt.to].forEach(function(container) {
+                    var colEl = container.closest('.project-board-col');
+                    if (colEl) {
+                        var ce = colEl.querySelector('.project-board-col-count');
+                        if (ce) {
+                            var current = parseInt(ce.textContent, 10) || 0;
+                            ce.textContent = container === evt.to ? current + 1 : current - 1;
+                        }
+                    }
+                });
+
+                var form = new FormData();
+                form.append('status', newStatus);
+                form.append('csrf_token', csrfToken);
+
+                fetch(statusUrl.replace('/0/', '/' + projectId + '/'), {
+                    method: 'POST',
+                    body: form,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    redirect: 'follow'
+                }).then(function(response) {
+                    if (!response.ok) window.location.reload();
+                }).catch(function() {
+                    window.location.reload();
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

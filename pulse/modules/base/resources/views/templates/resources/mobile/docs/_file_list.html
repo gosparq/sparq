@@ -1,0 +1,64 @@
+{% if folders or documents or current_folder %}
+<!-- Parent folder link -->
+{% if current_folder %}
+<a href="{% if current_folder.parent_id %}{{ url_for('docs_blueprint.view_folder', folder_id=current_folder.parent_id) }}{% else %}{{ url_for('docs_blueprint.index') }}{% endif %}" class="resource-card">
+    <div class="resource-card-icon folder">
+        <i class="fas fa-level-up-alt"></i>
+    </div>
+    <div class="resource-card-content">
+        <div class="resource-card-title">..</div>
+        <div class="resource-card-meta">{{ _("Parent folder") }}</div>
+    </div>
+    <div class="resource-card-action">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</a>
+{% endif %}
+
+<!-- Folders -->
+{% for folder in folders %}
+<a href="{{ url_for('docs_blueprint.view_folder', folder_id=folder.id) }}" class="resource-card">
+    <div class="resource-card-icon folder">
+        <i class="fas fa-folder"></i>
+    </div>
+    <div class="resource-card-content">
+        <div class="resource-card-title">{{ folder.name }}</div>
+        <div class="resource-card-meta">{{ _("Folder") }}</div>
+    </div>
+    <div class="resource-card-action">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</a>
+{% endfor %}
+
+<!-- Documents -->
+{% for doc in documents %}
+<a href="{{ url_for('docs_blueprint.download', doc_id=doc.id) }}" class="resource-card">
+    <div class="resource-card-icon file">
+        <i class="fas fa-file"></i>
+    </div>
+    <div class="resource-card-content">
+        <div class="resource-card-title">{{ doc.filename }}</div>
+        <div class="resource-card-meta">{{ doc.size_display }}</div>
+    </div>
+    <div class="resource-card-action">
+        <i class="fas fa-download"></i>
+    </div>
+</a>
+{% endfor %}
+
+{% if not folders and not documents %}
+<div class="empty-state">
+    <i class="fas fa-folder-open"></i>
+    <h5>{{ _("Empty folder") }}</h5>
+    <p>{{ _("This folder doesn't contain any files.") }}</p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-folder-open"></i>
+    <h5>{{ _("No documents yet") }}</h5>
+    <p>{{ _("Documents will appear here once uploaded.") }}</p>
+</div>
+{% endif %}

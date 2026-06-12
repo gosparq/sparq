@@ -1,0 +1,141 @@
+<!-- Create/Edit Company Event Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('sync_bp.event_edit', event_id=event.id) if is_edit else url_for('sync_bp.event_new') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="view" value="{{ view|default('month') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-calendar-plus text-primary me-2"></i>
+                        {{ _("Edit Event") if is_edit else _("New Event") }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Title -->
+                    <div class="mb-3">
+                        <label for="title" class="form-label">{{ _("Title") }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title"
+                               value="{{ event.title if event else '' }}" required autofocus>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">{{ _("Description") }}</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ event.description if event else '' }}</textarea>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="mb-3">
+                        <label for="scheduled_date" class="form-label">{{ _("Date") }} <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="scheduled_date" name="scheduled_date"
+                               value="{{ event.scheduled_date.strftime('%Y-%m-%d') if event else prefill_date }}" required>
+                    </div>
+
+                    <!-- All Day Toggle -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="is_all_day" name="is_all_day"
+                                   {{ 'checked' if (event and event.is_all_day) or not event else '' }}
+                                   data-action="toggle-time-fields">
+                            <label class="form-check-label" for="is_all_day">{{ _("All day event") }}</label>
+                        </div>
+                    </div>
+
+                    <!-- Time Fields (hidden if all day) -->
+                    <div id="time-fields" style="{{ 'display: none;' if (event and event.is_all_day) or not event else '' }}">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label for="scheduled_start_time" class="form-label">{{ _("Start Time") }}</label>
+                                <input type="text" class="form-control" id="scheduled_start_time" name="scheduled_start_time"
+                                       value="{{ event.scheduled_start_time.strftime('%H:%M') if event and event.scheduled_start_time else '' }}" placeholder="HH:MM">
+                            </div>
+                            <div class="col-6">
+                                <label for="scheduled_end_time" class="form-label">{{ _("End Time") }}</label>
+                                <input type="text" class="form-control" id="scheduled_end_time" name="scheduled_end_time"
+                                       value="{{ event.scheduled_end_time.strftime('%H:%M') if event and event.scheduled_end_time else '' }}" placeholder="HH:MM">
+                                <div id="end-time-error" class="text-danger small mt-1 d-none">{{ _("End Time must occur after Start Time") }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="mb-3">
+                        <label for="location" class="form-label">{{ _("Location") }}</label>
+                        <input type="text" class="form-control" id="location" name="location"
+                               value="{{ event.location if event else '' }}"
+                               placeholder="{{ _('Optional') }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>{{ _("Save Event") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function toggleTimeFields() {
+    var isAllDay = document.getElementById('is_all_day').checked;
+    var timeFields = document.getElementById('time-fields');
+    timeFields.style.display = isAllDay ? 'none' : 'block';
+}
+
+(function() {
+    var modalEl = document.getElementById('eventModal');
+    if (modalEl) {
+        document.querySelectorAll('.modal-backdrop').forEach(function(el) { el.remove(); });
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+    function validateEndTime() {
+        var errorEl = document.getElementById('end-time-error');
+        if (startPicker.selectedDates.length > 0 && endPicker.selectedDates.length > 0) {
+            if (endPicker.selectedDates[0] <= startPicker.selectedDates[0]) {
+                errorEl.classList.remove('d-none');
+                endPicker.altInput.classList.add('is-invalid');
+                return false;
+            } else {
+                errorEl.classList.add('d-none');
+                endPicker.altInput.classList.remove('is-invalid');
+            }
+        }
+        return true;
+    }
+
+    document.querySelector('#eventModal form').addEventListener('submit', function(e) {
+        var isAllDay = document.getElementById('is_all_day').checked;
+        if (!isAllDay && !validateEndTime()) {
+            e.preventDefault();
+        }
+    });
+    var startPicker = flatpickr("#scheduled_start_time", {
+        enableTime: true, noCalendar: true, dateFormat: "H:i",
+        altInput: true, altFormat: "h:i K",
+        time_24hr: false, minuteIncrement: 15,
+        allowInput: true,
+        onChange: validateEndTime
+    });
+    var endPicker = flatpickr("#scheduled_end_time", {
+        enableTime: true, noCalendar: true, dateFormat: "H:i",
+        altInput: true, altFormat: "h:i K",
+        time_24hr: false, minuteIncrement: 15,
+        allowInput: true,
+        onChange: validateEndTime
+    });
+
+    document.addEventListener('change', function(e) {
+        var t = e.target.closest('[data-action="toggle-time-fields"]');
+        if (t) toggleTimeFields();
+    });
+})();
+</script>

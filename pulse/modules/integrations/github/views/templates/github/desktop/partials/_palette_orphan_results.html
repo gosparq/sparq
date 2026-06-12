@@ -1,0 +1,17 @@
+{# HTMX fragment — no extends. Swapped into #palette-orphan-results inside the slash palette. #}
+{# Buttons use data attributes; click is handled by event delegation on the parent Alpine div. #}
+<ul class="palette-orphan-list">
+  {% for o in orphans %}
+  <li>
+    <button type="button"
+            class="palette-orphan-item"
+            data-issue-number="{{ o.number }}"
+            data-issue-title="{{ o.title | e }}">
+      <span class="palette-orphan-num">#{{ o.number }}</span>
+      <span class="palette-orphan-title">{{ o.title }}</span>
+    </button>
+  </li>
+  {% else %}
+  <li class="palette-empty">{{ _("No matching issues") }}</li>
+  {% endfor %}
+</ul>

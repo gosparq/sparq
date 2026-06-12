@@ -1,0 +1,40 @@
+{% extends "projects/desktop/layout.html" %}
+
+{% block title %}{{ _("Archived Projects") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="mb-4">
+        <a href="{{ url_for('projects_bp.index') }}" class="text-muted text-decoration-none">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Projects") }}
+        </a>
+    </div>
+
+    <h2 class="content-heading mb-3">{{ _("Archived Projects") }}</h2>
+
+    {% if projects %}
+        {% for project in projects %}
+        <div class="project-card d-flex align-items-center gap-3 mb-2">
+            <div class="flex-grow-1 min-w-0">
+                <div class="project-card-title text-truncate" style="color:var(--color-gray-500);">
+                    {% if project.emoji %}{{ project.emoji }} {% endif %}{{ project.name }}
+                </div>
+                <div class="project-card-meta">
+                    <span>{{ _("Archived") }} {{ project.archived_at|format_datetime('%b %d, %Y') }}</span>
+                </div>
+            </div>
+            <form method="POST" action="{{ url_for('projects_bp.unarchive', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm text-sm">
+                    <i class="fas fa-box-open me-1"></i>{{ _("Unarchive") }}
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <p class="mb-0 text-base">{{ _("No archived projects.") }}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

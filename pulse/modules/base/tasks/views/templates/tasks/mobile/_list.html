@@ -1,0 +1,78 @@
+{# Reusable tier-grouped action item list.
+   Expects: tier_groups (dict {1,2,3}), tier_defaults, today, next_url
+#}
+{% set has_items = tier_groups[1] or tier_groups[2] or tier_groups[3] %}
+
+{% if has_items %}
+    {% for tier_num in [1, 2, 3] %}
+    {% set items = tier_groups[tier_num] %}
+    {% if items %}
+    <div class="mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ tier_defaults[tier_num].color }};"></span>
+            <span class="text-muted fw-semibold text-uppercase" style="font-size:0.75rem;letter-spacing:0.04em;">
+                {{ tier_defaults[tier_num].label }}
+            </span>
+            <span class="text-muted" style="font-size:0.75rem;">({{ items|length }})</span>
+        </div>
+
+        {% for item in items %}
+        <div class="d-flex align-items-start gap-2 mb-2"
+             style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.875rem;border-left:3px solid {{ tier_defaults[tier_num].color }};">
+            <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+               class="flex-grow-1 text-decoration-none" style="min-width:0;">
+                <div class="text-truncate" style="font-size:0.9375rem;font-weight:600;color:var(--color-gray-900);">
+                    {% if item.is_blocker %}<i class="fas fa-hand text-danger me-1" title="{{ _('Blocker') }}"></i>{% endif %}{{ item.title }}
+                </div>
+                <div class="text-muted d-flex align-items-center gap-2 flex-wrap" style="font-size:0.75rem;margin-top:0.25rem;">
+                    {% if item.is_system_raised %}
+                        <span>{{ _("System") }}</span>
+                    {% elif item.raised_by_first_name %}
+                        <span>{{ item.raised_by_first_name }}</span>
+                    {% endif %}
+                    <span>&middot;</span>
+                    <span>{{ item.time_ago() }}</span>
+                    {% if item.due_date %}
+                    <span>&middot;</span>
+                    <span {% if item.due_date < today %}class="text-danger fw-semibold"{% endif %}>
+                        <i class="fas fa-calendar-day me-1" style="font-size:0.6rem;"></i>{{ item.due_date.strftime('%b %d') }}
+                    </span>
+                    {% endif %}
+                    {% if item.project_id and item.project_name %}
+                    <span style="padding:0.125rem 0.5rem;border-radius:999px;font-size:0.7rem;background:var(--color-gray-100);color:var(--color-gray-700);">
+                        {{ item.project_name[:20] }}
+                    </span>
+                    {% endif %}
+                </div>
+            </a>
+            {% if item.raised_by_id %}
+            <form method="POST" action="{{ url_for('tasks_bp.resolve', item_id=item.id) }}" style="flex-shrink:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-sm btn-outline-success" title="{{ _('Resolve') }}"
+                        style="padding:0.25rem 0.5rem;">
+                    <i class="fas fa-check"></i>
+                </button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('tasks_bp.dismiss', item_id=item.id) }}" style="flex-shrink:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ _('Dismiss') }}"
+                        style="padding:0.25rem 0.5rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="fas fa-check-circle fa-2x mb-3 d-block opacity-50"></i>
+    <p class="mb-1 text-base" style="font-weight:500">{% block empty_title %}{{ _("You're all clear") }}{% endblock %}</p>
+    <p class="mb-0 text-base">{% block empty_desc %}{{ _("No open action items") }}{% endblock %}</p>
+</div>
+{% endif %}

@@ -1,0 +1,28 @@
+{# Admin person selector dropdown.
+   Requires set-before-include:
+     selector_action_url  - form action URL
+     selector_id          - id attr for <select> (default: "employee_selector")
+   Inherited from context:
+     members, selected_member_id, current_user
+#}
+{% set selector_id = selector_id if selector_id is defined else "employee_selector" %}
+<form method="GET" action="{{ selector_action_url }}" class="person-selector-container d-flex align-items-center gap-2">
+    <label for="{{ selector_id }}" class="person-selector-label mb-0 text-nowrap">{{ _("Manage Person") }}</label>
+    <select class="form-select form-select-sm w-auto person-selector"
+            id="{{ selector_id }}" name="member_id"
+            data-auto-submit>
+        <option value="">{{ _("My Timesheets") }}</option>
+        {% for emp in members %}
+        {% if emp.user_id != current_user.id %}
+        <option value="{{ emp.id }}" {% if selected_member_id == emp.id %}selected{% endif %}>
+            {{ emp.user.full_name }}
+        </option>
+        {% endif %}
+        {% endfor %}
+    </select>
+</form>
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll('[data-auto-submit]').forEach(function(el) {
+    el.addEventListener('change', function() { this.form.submit(); });
+});
+</script>

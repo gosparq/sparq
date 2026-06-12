@@ -1,0 +1,99 @@
+{% extends "projects/mobile/layout.html" %}
+
+{% block title %}{{ _("New Project") }}{% endblock %}
+
+{% block module_content %}
+<div class="mb-3">
+    <a href="{{ url_for('projects_bp.index') }}" class="text-muted text-decoration-none d-inline-flex align-items-center gap-1 text-base">
+        <i class="fas fa-arrow-left"></i>{{ _("Back") }}
+    </a>
+</div>
+
+<h2 class="mb-3" style="font-size:1.25rem;font-weight:600;">{{ _("New Project") }}</h2>
+
+<form method="POST" action="{{ url_for('projects_bp.create') }}"
+      x-data="{
+          projectName: '',
+          createChannel: true,
+          channelName: '',
+          suggestChannel(name) {
+              const slug = name.toLowerCase()
+                  .replace(/[^a-z0-9\s]/g, '')
+                  .trim()
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .join('-')
+                  .substring(0, 20);
+              return slug || 'project';
+          }
+      }">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Name") }} <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control" required maxlength="200"
+               placeholder="{{ _('e.g. Q3 Campaign Launch') }}"
+               x-model="projectName"
+               @input="if(createChannel) channelName = suggestChannel(projectName)">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Description") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <textarea name="description" class="form-control" rows="3" maxlength="500"
+                  placeholder="{{ _('What is this project about?') }}"></textarea>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label text-base">{{ _("Owner") }}</label>
+        <select name="owner_id" class="form-select">
+            {% for m in members %}
+            <option value="{{ m.id }}">{{ m.user.first_name }} {{ m.user.last_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3" x-data="{ selectedColor: '' }">
+        <label class="form-label text-base">{{ _("Color") }} <span class="text-muted">({{ _("optional") }})</span></label>
+        <div class="d-flex gap-2 flex-wrap">
+            {% set colors = ['var(--color-danger)', '#d97706', '#16a34a', '#2563eb', 'var(--color-focus)', '#ec4899'] %}
+            {% for c in colors %}
+            <label style="cursor:pointer;display:inline-block;">
+                <input type="radio" name="color" value="{{ c }}" class="d-none" x-model="selectedColor">
+                <span :style="'display:block;width:36px;height:36px;border-radius:8px;background:{{ c }};border:3px solid ' + (selectedColor === '{{ c }}' ? 'var(--color-gray-900)' : 'transparent')"></span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mb-3 p-3" style="border:1px solid var(--color-gray-200);border-radius:0.5rem;background:var(--color-gray-50);">
+        <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="create_channel" id="createChannelCheck"
+                   x-model="createChannel"
+                   @change="if(createChannel && projectName) channelName = suggestChannel(projectName)"
+                   checked>
+            <label class="form-check-label text-base" for="createChannelCheck" style="font-weight:500">
+                {{ _("Create a channel for this project") }}
+            </label>
+        </div>
+
+        <div x-show="createChannel" x-cloak class="mt-3">
+            <label class="form-label" style="font-size:0.8rem;">{{ _("Channel name") }}</label>
+            <div class="input-group">
+                <span class="input-group-text" style="color:var(--color-gray-400);">#</span>
+                <input type="text" name="channel_name" class="form-control" maxlength="50"
+                       placeholder="{{ _('auto-generated') }}"
+                       x-model="channelName">
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+            <i class="fas fa-folder-open me-1"></i>{{ _("Create Project") }}
+        </button>
+        <a href="{{ url_for('projects_bp.index') }}" class="btn btn-outline-secondary">
+            {{ _("Cancel") }}
+        </a>
+    </div>
+</form>
+{% endblock %}

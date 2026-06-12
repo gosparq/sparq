@@ -1,0 +1,75 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("GitHub People") }}{% endblock %}
+{% block page_icon %}<i class="fa-brands fa-github"></i>{% endblock %}
+{% block page_title_display %}{{ _("GitHub People") }}{% endblock %}
+{% block page_description %}
+<p class="text-muted">{{ _("Match GitHub accounts to sparQ members so repo activity posts as the right person.") }}</p>
+{% endblock %}
+
+{% block settings_back %}
+<a href="{{ url_for('github_bp.github_settings') }}" class="d-inline-flex align-items-center gap-1 text-muted mb-3 text-decoration-none text-base">
+    <i class="fas fa-arrow-left text-xs"></i> {{ _("Back") }}
+</a>
+{% endblock %}
+
+{% block settings_content %}
+<div class="d-flex flex-column gap-2" style="max-width:560px;">
+    <div class="text-muted text-sm mb-1">
+        {{ mapped_count }} {{ _("of") }} {{ collaborators|length }} {{ _("collaborators mapped") }}
+    </div>
+
+    {% if not collaborators %}
+    <p class="text-muted mb-0">{{ _("No collaborators found on this repository.") }}</p>
+    {% else %}
+    <div class="d-flex flex-column">
+        {% for c in collaborators %}
+        {% set gh_id = c.get("id")|string %}
+        {% set mapped = mappings.get(gh_id) %}
+        <div class="d-flex align-items-center justify-content-between gap-3 py-2 {% if not loop.last %}border-bottom{% endif %}"
+             style="border-color:var(--color-gray-100) !important;">
+            {# GitHub account #}
+            <div class="d-flex align-items-center gap-2 text-truncate">
+                {% if c.get("avatar_url") %}
+                <img src="{{ c.avatar_url }}" alt="" width="28" height="28" class="rounded-circle flex-shrink-0">
+                {% endif %}
+                <span class="text-base text-truncate">{{ c.get("login", "") }}</span>
+            </div>
+
+            {# sparQ member #}
+            <div class="flex-shrink-0">
+                {% if current_user.is_admin %}
+                <form method="POST" action="{{ url_for('github_bp.github_people_map') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="github_user_id" value="{{ gh_id }}">
+                    <select name="member_id" class="form-select form-select-sm" style="min-width:220px;"
+                            onchange="this.form.submit()">
+                        <option value="">{{ _("— Unmapped —") }}</option>
+                        {% for m in members %}
+                        <option value="{{ m.id }}" {% if mapped and mapped.id == m.id %}selected{% endif %}>
+                            {{ m.user.first_name }} {{ m.user.last_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+                {% else %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-base">
+                        {% if mapped %}{{ mapped.user.first_name }} {{ mapped.user.last_name }}{% else %}<span class="text-muted">{{ _("Unmapped") }}</span>{% endif %}
+                    </span>
+                    {% if not mapped or mapped.id != current_member_id %}
+                    <form method="POST" action="{{ url_for('github_bp.github_people_claim') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="github_user_id" value="{{ gh_id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">{{ _("This is me") }}</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

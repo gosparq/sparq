@@ -1,0 +1,133 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Reimbursements") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ _("Pending Reimbursements") }}</h2>
+            <p class="text-muted mb-0">{{ _("Expenses awaiting reimbursement to employees") }}</p>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 bg-warning bg-opacity-10">
+                <div class="card-body">
+                    <div class="text-muted small mb-1">{{ _("Pending Amount") }}</div>
+                    <h3 class="mb-0">${{ "%.2f"|format(stats.pending_amount) }}</h3>
+                    <span class="small text-muted">{{ stats.pending_count }} {{ _("expense(s)") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if expenses %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>{{ _("Date") }}</th>
+                    <th>{{ _("Person") }}</th>
+                    <th>{{ _("Description") }}</th>
+                    <th>{{ _("Category") }}</th>
+                    <th class="text-end">{{ _("Amount") }}</th>
+                    <th class="text-center">{{ _("Actions") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td>{{ expense.expense_date.strftime('%m/%d/%Y') }}</td>
+                    <td>{{ expense.submitted_by.first_name }} {{ expense.submitted_by.last_name }}</td>
+                    <td>
+                        <a href="{{ url_for('finance_bp.expense_detail', expense_id=expense.id) }}">
+                            {{ expense.description }}
+                        </a>
+                    </td>
+                    <td><span class="badge bg-secondary">{{ expense.category.value }}</span></td>
+                    <td class="text-end fw-bold">${{ "%.2f"|format(expense.amount) }}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-success"
+                                data-bs-toggle="modal" data-bs-target="#reimburseModal{{ expense.id }}">
+                            <i class="fas fa-check me-1"></i> {{ _("Reimburse") }}
+                        </button>
+                        <form action="{{ url_for('finance_bp.expense_waive', expense_id=expense.id) }}"
+                              method="POST" class="d-inline"
+                              data-confirm="{{ _('Waive reimbursement for this expense?') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                {{ _("Waive") }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- Reimburse Modal -->
+                <div class="modal fade" id="reimburseModal{{ expense.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form action="{{ url_for('finance_bp.expense_reimburse', expense_id=expense.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{{ _("Record Reimbursement") }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p><strong>{{ expense.description }}</strong></p>
+                                    <p class="fs-4">${{ "%.2f"|format(expense.amount) }} {{ _("to") }} {{ expense.submitted_by.first_name }} {{ expense.submitted_by.last_name }}</p>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ _("Payment Method") }} <span class="text-danger">*</span></label>
+                                        <select name="method" class="form-select" required>
+                                            <option value="">{{ _("Select method...") }}</option>
+                                            <option value="Check">{{ _("Check") }}</option>
+                                            <option value="ACH Transfer">{{ _("ACH Transfer") }}</option>
+                                            <option value="Cash">{{ _("Cash") }}</option>
+                                            <option value="Payroll">{{ _("Added to Payroll") }}</option>
+                                            <option value="Other">{{ _("Other") }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ _("Reference") }}</label>
+                                        <input type="text" name="reference" class="form-control"
+                                               placeholder="{{ _('Check #, Transaction ID, etc.') }}">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-check me-1"></i> {{ _("Record Reimbursement") }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5 class="text-muted">{{ _("All caught up!") }}</h5>
+        <p class="text-muted">{{ _("No pending reimbursements") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+        });
+    });
+});
+</script>
+{% endblock %}

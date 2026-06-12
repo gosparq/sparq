@@ -1,0 +1,104 @@
+{# Individual DM message #}
+{% set is_webhook = message.webhook_id is not none %}
+{% set is_github = message.content.startswith('GITHUB_HTML::') %}
+<div class="message dm-message {% if is_continuation is defined and is_continuation %}continuation{% endif %}" id="dm-message-{{ message.id }}" data-author-id="{{ message.author_id }}">
+    <span class="hover-time">{{ (message.created_at|format_datetime('%I:%M')).lstrip('0') }}</span>
+    {% if is_webhook and is_github %}
+    <div class="message-avatar avatar-github">
+        <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}">
+    </div>
+    {% else %}
+    <div class="message-avatar {% if is_webhook %}avatar-webhook{% elif message.author %}{% else %}avatar-fallback{% endif %}"
+         {% if message.author and not is_webhook %}style="background-color: {{ message.author.avatar_color }}"{% endif %}>
+        <i class="{% if is_webhook %}fas fa-plug{% else %}fas fa-user{% endif %}"></i>
+    </div>
+    {% endif %}
+    <div class="message-body">
+        <div class="message-meta">
+            <span class="author">
+                {% if is_webhook %}
+                    {{ message.webhook_username or ('GitHub' if is_github else 'Webhook') }}
+                    <span class="badge bg-secondary ms-1 badge-bot">{{ 'APP' if is_github else 'BOT' }}</span>
+                {% elif message.author %}
+                    {{ message.author.full_name }}
+                {% else %}
+                    {{ _('Unknown User') }}
+                {% endif %}
+            </span>
+            <span class="timestamp" title="{{ message.created_at|format_datetime('%B %d, %Y at %I:%M %p') if message.created_at else '' }}">
+                {{ message.created_at|timeago if message.created_at else '' }}
+            </span>
+        </div>
+        <div class="message-content">
+            {% if is_github %}
+                {{ message.content[13:] | safe }}
+            {% else %}
+                {{ message.formatted_content }}
+            {% endif %}
+        </div>
+        {% set attachment_links = AttachmentLink.get_for_entity('direct_message', message.id) if AttachmentLink else [] %}
+        {% if attachment_links %}
+        <div class="message-attachments">
+            {% for link in attachment_links %}
+            {% set att = link.attachment %}
+            <div class="attachment-item">
+                {% if att.mime_type.startswith('image/') %}
+                <div class="attachment-image-wrapper">
+                    <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" target="_blank" class="attachment-image">
+                        <img src="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" alt="{{ att.filename }}" class="attachment-thumb-msg">
+                    </a>
+                    <div class="attachment-overlay">
+                        <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}?download=1" class="overlay-btn" title="{{ _('Download') }}" download="{{ att.filename }}">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" target="_blank" class="overlay-btn" title="{{ _('Open in new tab') }}">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{{ url_for('sync_bp.download_attachment', uuid=att.uuid) }}" class="attachment-doc" target="_blank">
+                    <i class="fas fa-file"></i>
+                    <span class="attachment-name">{{ att.filename }}</span>
+                    <span class="attachment-size">{{ att.size_display }}</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% set viewer_id = viewing_user_id if viewing_user_id is defined else current_user.id %}
+        {% set dm_reactions = DMReaction.get_for_message(message.id) if DMReaction is defined and DMReaction else {} %}
+        {% if dm_reactions %}
+        <div class="message-reactions" id="dm-reactions-{{ message.id }}">
+            {% for emoji, data in dm_reactions.items() %}
+            <button class="reaction-badge {% if viewer_id in data.user_ids %}user-reacted{% endif %}"
+                    data-action="toggle-dm-reaction" data-message-id="{{ message.id }}" data-emoji="{{ emoji }}"
+                    title="{{ data.users|join(', ') }}">
+                <span class="reaction-emoji">{{ emoji }}</span>
+                <span class="reaction-count">{{ data.count }}</span>
+            </button>
+            {% endfor %}
+            <button class="reaction-add-btn" data-action="show-dm-reaction-picker" data-message-id="{{ message.id }}" title="{{ _('Add reaction') }}">
+                <i class="far fa-smile"></i>
+            </button>
+        </div>
+        {% endif %}
+        <div class="message-actions">
+            <button class="btn btn-sm btn-link action-btn"
+                    data-action="show-dm-reaction-picker" data-message-id="{{ message.id }}"
+                    title="{{ _('Add reaction') }}">
+                <i class="far fa-smile"></i>
+            </button>
+            {% if message.author_id == viewer_id %}
+            <button class="btn btn-sm btn-link action-btn"
+                    hx-delete="{{ url_for('sync_bp.delete_dm_message', message_id=message.id) }}"
+                    hx-confirm="{{ _('Are you sure you want to delete this message?') }}"
+                    hx-swap="none"
+                    title="{{ _('Delete') }}">
+                <i class="fas fa-trash"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>

@@ -1,0 +1,59 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Sync") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="connect-landing">
+        <h1 class="mb-4">{{ _("Sync") }}</h1>
+        <p class="text-muted mb-5">{{ _("Your communication hub for team collaboration") }}</p>
+
+        <div class="row g-4">
+            <!-- Chat Card -->
+            <div class="col-md-6">
+                <a href="{{ url_for('sync_bp.chat_index') }}" class="connect-feature-card">
+                    <div class="card h-100">
+                        <div class="card-body text-center py-5">
+                            <div class="feature-icon mb-4">
+                                <i class="fas fa-comments fa-3x text-primary"></i>
+                            </div>
+                            <h3 class="card-title">{{ _("Chat") }}</h3>
+                            <p class="card-text text-muted">{{ _("Real-time team messaging and channels") }}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Calendar Card -->
+            <div class="col-md-6">
+                <a href="{{ url_for('sync_bp.calendar_index') }}" class="connect-feature-card">
+                    <div class="card h-100">
+                        <div class="card-body text-center py-5">
+                            <div class="feature-icon mb-4">
+                                <i class="fas fa-calendar-days fa-3x text-primary"></i>
+                            </div>
+                            <h3 class="card-title">{{ _("Calendar") }}</h3>
+                            <p class="card-text text-muted">{{ _("Company-wide events and schedules") }}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- DMs Card -->
+            <div class="col-md-6">
+                <a href="{{ url_for('sync_bp.get_dm_threads') }}" class="connect-feature-card">
+                    <div class="card h-100">
+                        <div class="card-body text-center py-5">
+                            <div class="feature-icon mb-4">
+                                <i class="fas fa-envelope fa-3x text-primary"></i>
+                            </div>
+                            <h3 class="card-title">{{ _("Direct Messages") }}</h3>
+                            <p class="card-text text-muted">{{ _("Private conversations with team members") }}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

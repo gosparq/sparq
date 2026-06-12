@@ -1,0 +1,54 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Integrations") }}{% endblock %}
+{% block page_icon %}<i class="fa-solid fa-plug"></i>{% endblock %}
+{% block page_title_display %}{{ _("Integrations") }}{% endblock %}
+{% block page_description %}
+<p class="text-muted">{{ _("Connect external apps to your workspace") }}</p>
+{% endblock %}
+
+{% block settings_content %}
+{% if providers %}
+<div class="d-flex flex-column" style="border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;">
+    {% for entry in providers %}
+    {% set info = entry.info %}
+    {% set conn = entry.connection %}
+    <div class="d-flex align-items-center gap-3 px-3 py-3{% if not loop.last %} border-bottom{% endif %}">
+        <div class="d-flex align-items-center flex-shrink-0" style="width:32px; height:32px; border-radius:var(--radius-sm); background:var(--bg-secondary); justify-content:center">
+            <i class="{{ info.icon_class }}" style="color:{{ info.color }};font-size:1rem;"></i>
+        </div>
+        <div class="flex-grow-1 min-width-0">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-semibold" style="font-size:0.9rem">{{ info.name }}</span>
+                {% if conn %}
+                <span class="fw-medium text-2xs" style="padding:1px 7px; border-radius:9999px; background:var(--success)22; color:var(--success)">
+                    {{ _("Connected") }}
+                </span>
+                {% if conn.external_repo %}
+                <span class="text-muted text-sm">{{ conn.external_repo }}</span>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="text-muted text-sm">{{ info.description }}</div>
+        </div>
+        <div class="flex-shrink-0">
+            {% if conn %}
+            <a href="{{ info.settings_url }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Manage") }}
+            </a>
+            {% else %}
+            <a href="{{ info.connect_url }}" class="btn btn-sm btn-dark">
+                {{ _("Connect") }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="fa-solid fa-plug fa-2x mb-3 d-block" style="opacity:0.3;"></i>
+    <p class="mb-0 text-base">{{ _("No integrations are available.") }}</p>
+</div>
+{% endif %}
+{% endblock %}

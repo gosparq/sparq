@@ -1,0 +1,33 @@
+{% for req in past %}
+<div class="list-group-item clickable-row" @click="nav($event, '{{ url_for('pto_bp.detail', request_id=req.id) }}')">
+    <div class="flex-grow-1">
+        <div class="d-flex align-items-center mb-1">
+            <strong>{{ req.member.user.first_name }} {{ req.member.user.last_name }}</strong>
+            {% if req.member.position %}
+            <span class="text-muted ms-2 small">{{ req.member.position }}</span>
+            {% endif %}
+        </div>
+        <div class="mb-1">
+            <strong>
+                {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d, %Y') }}{% else %}, {{ req.start_date.strftime('%Y') }}{% endif %}
+            </strong>
+        </div>
+        <div class="text-muted small">
+            {{ req.leave_type.value }} &middot; {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+            {% if req.reviewed_by %}
+            &middot; {{ _("Approved by") }} {{ req.reviewed_by.first_name }} {{ _("on") }} {{ req.reviewed_at|format_datetime('%b %d, %Y') }}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% if has_more_past %}
+<div class="text-center py-3" id="load-more-past">
+    <button class="btn btn-sm btn-outline-secondary"
+            hx-get="{{ url_for('pto_bp.scheduled_past', offset=past_offset) }}"
+            hx-target="#load-more-past"
+            hx-swap="outerHTML">
+        {{ _("Show more") }}
+    </button>
+</div>
+{% endif %}

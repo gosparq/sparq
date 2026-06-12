@@ -1,0 +1,30 @@
+{# Status card partial - returned by HTMX on status change #}
+<div id="status-card" class="card mb-3">
+    <div class="card-header py-2">
+        <h6 class="mb-0">
+            <i class="fas fa-flag me-2"></i>{{ _("Status") }}
+        </h6>
+    </div>
+    <div class="card-body">
+        <form hx-post="{{ url_for('people_bp.hiring_application_status', application_id=application.id) }}"
+              hx-target="#status-card"
+              hx-swap="outerHTML">
+            <select name="status" class="form-select form-select-sm mb-2"
+                    hx-post="{{ url_for('people_bp.hiring_application_status', application_id=application.id) }}"
+                    hx-target="#status-card"
+                    hx-swap="outerHTML"
+                    hx-trigger="change">
+                {% for status in ApplicationStatus %}
+                <option value="{{ status.name }}" {{ 'selected' if application.status == status }}>
+                    {{ status.value }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+
+        <!-- Rating -->
+        <div id="rating-section" class="mt-3">
+            {% include "people/desktop/hiring/partials/_rating.html" %}
+        </div>
+    </div>
+</div>

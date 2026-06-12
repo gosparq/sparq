@@ -1,0 +1,15 @@
+<div class="text-center py-5" x-data="{ countdown: 2 }" x-init="setInterval(() => { if (countdown > 0) countdown--; else window.location.reload(); }, 1000)">
+    <div class="mb-4">
+        <div class="rounded-circle bg-danger d-inline-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+            <i class="fas fa-times fa-3x text-white"></i>
+        </div>
+    </div>
+
+    <h2 class="mb-2 text-danger">{{ _("Error") }}</h2>
+
+    <p class="fs-4 mb-4">{{ error }}</p>
+
+    <p class="text-muted mt-4">
+        {{ _("Returning to PIN entry in") }} <span class="fw-bold" x-text="countdown"></span>...
+    </p>
+</div>

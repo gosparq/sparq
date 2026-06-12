@@ -1,0 +1,249 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ _("Task Overview") }}{% endblock %}
+
+{% block module_content %}
+<div x-data="mobileBoardFilter()">
+    <div class="mb-3">
+        <h2 class="mb-0" style="font-size:1.25rem;font-weight:600;">{{ _("Task Overview") }}</h2>
+        <span class="text-muted" style="font-size:0.8125rem;">{{ _("See who's working on what across the team.") }}</span>
+    </div>
+
+    {# ── Stats row ── #}
+    <div style="display:flex;gap:0.5rem;overflow-x:auto;padding-bottom:0.5rem;margin-bottom:1rem;-webkit-overflow-scrolling:touch;">
+        <div style="flex:1;min-width:70px;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.5rem;text-align:center;">
+            <div style="font-size:1.25rem;font-weight:700;color:var(--color-gray-800);" x-text="filteredCounts.open"></div>
+            <div style="font-size:0.6875rem;color:var(--color-gray-500);white-space:nowrap;">{{ _("Open") }}</div>
+        </div>
+        <div style="flex:1;min-width:70px;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.5rem;text-align:center;">
+            <div style="font-size:1.25rem;font-weight:700;color:var(--color-gray-800);" x-text="filteredCounts.todo"></div>
+            <div style="font-size:0.6875rem;color:var(--color-gray-500);white-space:nowrap;">{{ _("To Do") }}</div>
+        </div>
+        <div style="flex:1;min-width:70px;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.5rem;text-align:center;">
+            <div style="font-size:1.25rem;font-weight:700;color:var(--color-gray-800);" x-text="filteredCounts.in_progress"></div>
+            <div style="font-size:0.6875rem;color:var(--color-gray-500);white-space:nowrap;">{{ _("In Progress") }}</div>
+        </div>
+        <div style="flex:1;min-width:70px;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.5rem;text-align:center;">
+            <div style="font-size:1.25rem;font-weight:700;color:var(--color-gray-800);" x-text="filteredCounts.done"></div>
+            <div style="font-size:0.6875rem;color:var(--color-gray-500);white-space:nowrap;">{{ _("Done") }}</div>
+        </div>
+        <div style="flex:1;min-width:70px;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.5rem;text-align:center;">
+            <div style="font-size:1.25rem;font-weight:700;color:var(--color-gray-800);" x-text="filteredCounts.on_hold"></div>
+            <div style="font-size:0.6875rem;color:var(--color-gray-500);white-space:nowrap;">{{ _("On Hold") }}</div>
+        </div>
+    </div>
+
+    {# ── Filter pills (matches desktop .task-work-toolbar layout) ── #}
+    <div class="task-work-toolbar" style="margin-bottom:0.75rem;">
+        <div class="d-flex align-items-center gap-1" style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem;flex-wrap:nowrap;">
+            <button class="task-filter-pill" style="flex-shrink:0;padding:0.3rem 0.625rem;font-size:0.8125rem;"
+                    :class="{ 'task-filter-pill--active': selectedMembers.length === 0 && !raisedByMe && !showUnassigned }"
+                    @click="clearAll()">{{ _("All") }}</button>
+            <button class="task-filter-pill" style="flex-shrink:0;padding:0.3rem 0.625rem;font-size:0.8125rem;"
+                    :class="{ 'task-filter-pill--active': raisedByMe }"
+                    @click="raisedByMe = !raisedByMe">
+                <i class="fas fa-paper-plane" style="font-size:0.55rem;"></i>
+                <span>{{ _("Created by Me") }}</span>
+            </button>
+            <button class="task-filter-pill" style="flex-shrink:0;padding:0.3rem 0.625rem;font-size:0.8125rem;"
+                    :class="{ 'task-filter-pill--active': showUnassigned }"
+                    @click="showUnassigned = !showUnassigned">
+                <i class="fas fa-user-slash" style="font-size:0.55rem;"></i>
+                <span>{{ _("Unassigned") }}</span>
+            </button>
+            {% for m in members %}
+            {% if m.user and not m.user.is_sample %}
+            <button class="task-filter-pill" style="flex-shrink:0;padding:0.3rem 0.625rem;font-size:0.8125rem;"
+                    x-show="memberHasItems({{ m.id }})"
+                    x-cloak
+                    :class="{ 'task-filter-pill--active': selectedMembers.includes({{ m.id }}) }"
+                    @click="toggleMember({{ m.id }})">
+                <span class="avatar-circle" style="width:18px;height:18px;font-size:0.4rem;background:{{ m.user.avatar_color|default('#6b7280') }};">
+                    {{ m.user.first_name[0]|upper }}{{ m.user.last_name[0]|upper }}
+                </span>
+                <span>{{ m.user.first_name }}</span>
+                <span class="task-filter-pill-count" x-show="memberOpenCount({{ m.id }}) > 0" x-text="memberOpenCount({{ m.id }})"></span>
+            </button>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ── List view (no kanban on mobile) ── #}
+    {% set has_items = human_items|length > 0 %}
+    {% if has_items %}
+    <div x-cloak style="overflow:hidden;">
+        {% for ws in workflow_statuses %}
+        {% set ws_items = workflow_groups.get(ws.key, []) %}
+        {% set ws_count = ws_items|length %}
+        {% set is_done = ws.key == 'done' %}
+        {% if ws_count > 0 %}
+        <div x-show="filteredGroupCount('{{ ws.key }}') > 0">
+        <div class="d-flex align-items-center gap-2"
+             style="padding:0.375rem 0;border-bottom:1px solid var(--color-gray-200);{% if not loop.first %}margin-top:0.5rem;{% endif %}{% if is_done %}cursor:pointer;{% endif %}"{% if is_done %} @click="showDone = !showDone"{% endif %}>
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{{ ws.color }};"></span>
+            <span style="font-size:0.8125rem;font-weight:600;color:var(--color-gray-600);">{{ ws.label }}</span>
+            <span style="font-size:0.8125rem;color:var(--color-gray-400);" x-text="filteredGroupCount('{{ ws.key }}')"></span>
+            {% if is_done %}<i class="fas" :class="showDone ? 'fa-chevron-up' : 'fa-chevron-down'" style="font-size:0.6rem;margin-left:auto;color:var(--color-gray-400);"></i>{% endif %}
+        </div>
+        <div{% if is_done %} x-show="showDone"{% endif %}>
+            {% for item in ws_items %}
+            <div x-show="showItem({{ item.assignee_id|tojson }}, {{ item.raised_by_id|tojson }}, '{{ ws.key }}', {{ loop.index0 }})">
+                <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+                   class="d-flex align-items-start gap-2 text-decoration-none"
+                   style="padding:0.75rem;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;margin-bottom:0.375rem;{% if is_done %}opacity:0.6;{% endif %}">
+                    <div style="flex:1;min-width:0;">
+                        <div class="text-truncate text-base" style="font-weight:500;color:{% if is_done %}var(--color-gray-400){% else %}var(--color-gray-800){% endif %}">
+                            {% if item.is_blocker %}<i class="fas fa-hand text-danger" style="font-size:0.65rem;margin-right:0.25rem;"></i>{% endif %}
+                            {{ item.title }}
+                        </div>
+                        <div class="d-flex align-items-center gap-1 flex-wrap" style="font-size:0.75rem;color:var(--color-gray-500);margin-top:0.125rem;">
+                            {% if item.assignee and item.assignee.user %}
+                            <span class="avatar-circle" style="width:16px;height:16px;font-size:0.375rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};">
+                                {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+                            </span>
+                            <span>{{ item.assignee.user.first_name }}</span>
+                            {% endif %}
+                            {% if item.due_date %}
+                            <span>&middot;</span>
+                            <span {% if item.status == 'open' and item.due_date < today %}class="text-danger fw-semibold"{% endif %}>{{ item.due_date.strftime('%b %d') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span style="display:inline-block;padding:0.125rem 0.375rem;border-radius:999px;font-size:0.75rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;flex-shrink:0;">
+                        {{ tier_defaults[item.urgency_tier].label }}
+                    </span>
+                </a>
+            </div>
+            {% endfor %}
+            {% if not is_done %}
+            <div x-show="!isGroupExpanded('{{ ws.key }}') && filteredGroupCount('{{ ws.key }}') > 10"
+                 style="padding:0.375rem 0;text-align:center;">
+                <button @click="expandGroup('{{ ws.key }}')"
+                        style="font-size:0.8125rem;color:var(--color-gray-500);background:none;border:none;cursor:pointer;">
+                    {{ _("Show all") }} (<span x-text="filteredGroupCount('{{ ws.key }}')"></span>)
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-check-circle fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-1 text-base" style="font-weight:500">{{ _("All clear") }}</p>
+        <p class="mb-0 text-base">{{ _("No action items across the team") }}</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<button type="button" class="fab" aria-label="{{ _('Create Task') }}"
+        hx-get="{{ url_for('tasks_bp.create_modal') }}"
+        hx-target="#modals"
+        hx-swap="innerHTML">
+    <i class="fas fa-plus"></i>
+</button>
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+function mobileBoardFilter() {
+    var allItems = [
+        {% for item in human_items %}
+        {s: {{ item.workflow_status|tojson }}, a: {{ item.assignee_id|tojson }}, r: {{ item.raised_by_id|tojson }}}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    var groupItems = {
+        {% for ws in workflow_statuses %}{% set ws_human = workflow_groups.get(ws.key, []) %}'{{ ws.key }}': [{% for item in ws_human %}{a: {{ item.assignee_id|tojson }}, r: {{ item.raised_by_id|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]{% if not loop.last %},{% endif %}{% endfor %}
+    };
+    return {
+        selectedMembers: {{ initial_filter_pref.selectedMembers|tojson }},
+        raisedByMe: {{ initial_filter_pref.raisedByMe|tojson }},
+        showUnassigned: {{ initial_filter_pref.showUnassigned|tojson }},
+        showDone: false,
+        expandedGroups: [],
+        currentMemberId: {{ current_member_id }},
+        filterItem(assigneeId, raisedById) {
+            if (this.showUnassigned) return assigneeId === null;
+            if (this.raisedByMe && raisedById !== this.currentMemberId) return false;
+            if (this.selectedMembers.length > 0 && !this.selectedMembers.includes(assigneeId)) return false;
+            return true;
+        },
+        isGroupExpanded(key) {
+            return this.expandedGroups.includes(key);
+        },
+        expandGroup(key) {
+            if (!this.expandedGroups.includes(key)) this.expandedGroups.push(key);
+        },
+        filteredRankInGroup(key, loopIndex) {
+            var self = this;
+            var items = groupItems[key] || [];
+            var rank = 0;
+            for (var i = 0; i < loopIndex; i++) {
+                if (self.filterItem(items[i].a, items[i].r)) rank++;
+            }
+            return rank;
+        },
+        showItem(assigneeId, raisedById, key, loopIndex) {
+            if (!this.filterItem(assigneeId, raisedById)) return false;
+            if (key === 'done' || this.isGroupExpanded(key)) return true;
+            return this.filteredRankInGroup(key, loopIndex) < 10;
+        },
+        filteredGroupCount(key) {
+            var self = this;
+            var n = 0;
+            allItems.forEach(function(item) { if (item.s === key && self.filterItem(item.a, item.r)) n++; });
+            return n;
+        },
+        init() {
+            var params = new URLSearchParams(window.location.search);
+            var memberId = params.get('member');
+            if (memberId) {
+                this.selectedMembers = [parseInt(memberId, 10)];
+            }
+        },
+        get filteredCounts() {
+            var self = this;
+            var counts = {open: 0, todo: 0, in_progress: 0, on_hold: 0, done: 0};
+            allItems.forEach(function(item) {
+                if (!self.filterItem(item.a, item.r)) return;
+                if (item.s === 'todo') { counts.todo++; counts.open++; }
+                else if (item.s === 'in_progress') { counts.in_progress++; counts.open++; }
+                else if (item.s === 'on_hold') { counts.on_hold++; counts.open++; }
+                else if (item.s === 'done') { counts.done++; }
+            });
+            return counts;
+        },
+        get memberCounts() {
+            var counts = {};
+            allItems.forEach(function(item) {
+                if (item.a === null) return;
+                if (!counts[item.a]) counts[item.a] = {open: 0, total: 0};
+                counts[item.a].total++;
+                if (item.s !== 'done') counts[item.a].open++;
+            });
+            return counts;
+        },
+        memberHasItems(id) {
+            return !!(this.memberCounts[id] && this.memberCounts[id].total > 0);
+        },
+        memberOpenCount(id) {
+            return this.memberCounts[id] ? this.memberCounts[id].open : 0;
+        },
+        toggleMember(id) {
+            this.showUnassigned = false;
+            var idx = this.selectedMembers.indexOf(id);
+            if (idx === -1) { this.selectedMembers.push(id); }
+            else { this.selectedMembers.splice(idx, 1); }
+        },
+        clearAll() {
+            this.selectedMembers = [];
+            this.raisedByMe = false;
+            this.showUnassigned = false;
+        },
+    };
+}
+</script>
+{% endblock %}

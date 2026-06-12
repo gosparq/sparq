@@ -1,0 +1,121 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Inbox") }}{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/tasks.css') }}">
+<style>
+.inbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-gray-200);
+    transition: background 0.1s;
+    position: relative;
+}
+.inbox-row:last-child { border-bottom: none; }
+.inbox-row:hover { background: var(--color-gray-50); }
+.inbox-row--unread { background: color-mix(in srgb, var(--color-primary) 4%, transparent); }
+.inbox-row--unread:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+.inbox-row-icon { flex-shrink: 0; font-size: 0.8rem; width: 20px; text-align: center; }
+.inbox-row-title { font-size: 0.8125rem; font-weight: 500; color: var(--color-gray-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inbox-row--unread .inbox-row-title { font-weight: 600; }
+.inbox-row-message { font-size: 0.8125rem; color: var(--color-gray-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.inbox-row-time { font-size: 0.75rem; color: var(--color-gray-400); white-space: nowrap; flex-shrink: 0; }
+.inbox-row-actions { opacity: 0; transition: opacity 0.15s; display: flex; gap: 0; flex-shrink: 0; }
+.inbox-row:hover .inbox-row-actions { opacity: 1; }
+.inbox-action-btn { color: var(--color-gray-400); padding: 2px 6px; font-size: 0.75rem; background: none; border: none; cursor: pointer; }
+.inbox-action-btn:hover { color: var(--color-gray-700); }
+.inbox-action-btn--danger:hover { color: var(--color-danger); }
+.inbox-group-label { font-size: 0.6875rem; font-weight: 600; color: var(--color-gray-400); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 0.75rem 0.375rem; }
+body.dark .inbox-row { border-color: var(--color-gray-700); }
+body.dark .inbox-row:hover { background: var(--color-gray-800); }
+body.dark .inbox-row--unread { background: color-mix(in srgb, var(--color-primary) 8%, var(--color-gray-900)); }
+body.dark .inbox-row-title { color: var(--color-gray-100); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+        {# ── Header ── #}
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h2 class="content-heading">{{ _("Inbox") }}</h2>
+                <span class="text-muted text-base">{{ _("Your notifications") }}</span>
+            </div>
+            {% if items %}
+            <div class="d-flex gap-2">
+                <form hx-post="{{ url_for('core_bp.notifications_mark_all_read') }}"
+                      hx-target="#inbox-list"
+                      hx-swap="innerHTML">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="source" value="inbox">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" hx-disabled-elt="this">
+                        <i class="fas fa-check-double me-1"></i>{{ _("Mark all read") }}
+                    </button>
+                </form>
+                <form hx-post="{{ url_for('core_bp.notifications_dismiss_all') }}"
+                      hx-target="#inbox-list"
+                      hx-swap="innerHTML">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="source" value="inbox">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" hx-disabled-elt="this">
+                        <i class="fas fa-xmark me-1"></i>{{ _("Dismiss all") }}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── Filter pills ── #}
+        <div id="inbox-filters" class="d-flex align-items-center gap-1 flex-wrap mb-4">
+            {% for tab_key in filter_groups.keys() %}
+            <a class="task-filter-pill {% if active_filter == tab_key %}task-filter-pill--active{% endif %} text-decoration-none"
+               href="{{ url_for('core_bp.notifications_inbox', filter=tab_key) }}"
+               hx-get="{{ url_for('core_bp.notifications_inbox', filter=tab_key) }}"
+               hx-target="#inbox-list"
+               hx-swap="innerHTML"
+               hx-push-url="true"
+               data-filter="{{ tab_key }}">
+                {{ _(tab_key|replace('-', ' ')|title) }}
+                {% if tab_counts.get(tab_key, 0) > 0 %}
+                <span class="task-filter-pill-count">{{ tab_counts[tab_key] }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+
+        {# ── Notification list ── #}
+        <div id="inbox-list">
+            {% include "core/desktop/core/_inbox_list.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var filters = document.getElementById('inbox-filters');
+    if (!filters) return;
+    filters.addEventListener('click', function(e) {
+        var pill = e.target.closest('[data-filter]');
+        if (!pill) return;
+        var pills = filters.querySelectorAll('[data-filter]');
+        for (var i = 0; i < pills.length; i++) {
+            pills[i].classList.remove('task-filter-pill--active');
+        }
+        pill.classList.add('task-filter-pill--active');
+    });
+
+    document.addEventListener('click', function(e) {
+        var item = e.target.closest('[data-href]');
+        if (item && !e.target.closest('button') && !e.target.closest('form')) {
+            window.location.href = item.dataset.href;
+        }
+    });
+})();
+</script>
+{% endblock %}

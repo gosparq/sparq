@@ -1,0 +1,281 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Approve") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" x-data="{ showSlider: false }">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="content-heading">{{ _("Timesheets") }}</h2>
+    </div>
+
+    <!-- Sub-navigation -->
+    <div class="d-flex gap-1 mb-4 pb-3" style="border-bottom: 1px solid var(--color-gray-200);">
+        <a href="{{ url_for('presence_bp.day_view') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Timesheets") }}
+        </a>
+        <a href="{{ url_for('presence_bp.approve_timesheets') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="background: var(--color-primary-lightest); color: var(--color-primary-dark);">
+            {{ _("Approve") }}
+        </a>
+        <a href="{{ url_for('presence_bp.payroll') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Payroll") }}
+        </a>
+    </div>
+
+    <!-- Approve to date filter -->
+    <div class="mb-4">
+        <form method="GET" action="{{ url_for('presence_bp.approve_timesheets') }}" class="d-flex align-items-center gap-2">
+            <label class="form-label mb-0 text-nowrap">{{ _("Approve to") }}</label>
+            <input type="date" class="form-control form-control-sm date-filter-input"
+                   name="through_date" value="{{ through_date }}"
+                   data-auto-submit>
+        </form>
+    </div>
+
+    <!-- Success message area -->
+    <div x-cloak x-show="showSlider" x-transition class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i> {{ _("Hours have been successfully approved.") }}
+        <button type="button" class="btn-close" @click="showSlider = false"></button>
+    </div>
+
+    <!-- Pending punch correction requests section -->
+    {% if requests_by_member %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ _("Pending punch corrections") }}</h5>
+        </div>
+        <div class="card-body">
+            {% for member_id, data in requests_by_member.items() %}
+            <div class="approval-item mb-3 p-3 border rounded">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="fw-bold">
+                        {{ data.member.user.first_name }} {{ data.member.user.last_name }}
+                    </span>
+                    <span class="badge bg-secondary ms-2">{{ _("%(count)d request") % {'count': data.requests|length} if data.requests|length == 1 else _("%(count)d requests") % {'count': data.requests|length} }}</span>
+                </div>
+
+                <div class="ms-4">
+                    {% for req in data.requests %}
+                    <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                        <div class="flex-grow-1">
+                            <div class="mb-1">
+                                {% if req.clock_punch.punch_type.value == 'in' %}
+                                <span class="badge bg-success">{{ _("Clock IN") }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ _("Clock OUT") }}</span>
+                                {% endif %}
+                                <span class="text-muted ms-2 small">
+                                    <span class="local-time" data-utc="{{ req.original_time.isoformat() }}Z"></span>
+                                    <i class="fas fa-arrow-right mx-1"></i>
+                                    <strong><span class="local-time" data-utc="{{ req.requested_time.isoformat() }}Z"></span></strong>
+                                </span>
+                            </div>
+                            {% if req.reason %}
+                            <div class="small text-muted">
+                                <i class="fas fa-comment me-1"></i>{{ req.reason }}
+                            </div>
+                            {% endif %}
+                            {% if affected_entry_status.get(req.id) %}
+                            <div class="small mt-1">
+                                <span class="badge bg-info">
+                                    <i class="fas fa-exclamation-circle me-1"></i>{{ _("Affects %(status)s timesheet") % {"status": affected_entry_status[req.id]|lower} }}
+                                </span>
+                            </div>
+                            {% endif %}
+                            <div class="small text-muted">
+                                {{ _("Submitted") }} {{ req.created_at|format_datetime('%b %d, %Y %I:%M %p') }}
+                            </div>
+                        </div>
+                        <div class="text-end ms-3">
+                            <div class="btn-group btn-group-sm">
+                                <form method="POST" action="{{ url_for('presence_bp.approve_punch_correction', request_id=req.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-check me-1"></i>{{ _("Approve") }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('presence_bp.deny_punch_correction', request_id=req.id) }}" class="d-inline"
+                                      data-confirm="{{ _("Deny this correction request?") }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-times me-1"></i>{{ _("Deny") }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Submitted timesheets section -->
+    {% if entries_by_member %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ _("Logged hours awaiting approval") }}</h5>
+            </div>
+            <div class="card-body">
+                <!-- People list -->
+                {% for member_id, data in entries_by_member.items() %}
+                <div class="approval-item mb-3 p-3 border rounded">
+                    <div class="d-flex align-items-center mb-2">
+                        <input type="checkbox" class="form-check-input me-2" id="employee-{{ member_id }}" checked>
+                        <label class="form-check-label fw-bold" for="employee-{{ member_id }}">
+                            {{ data.member.user.first_name }} {{ data.member.user.last_name }}
+                        </label>
+                        <span class="ms-auto h5 mb-0 text-primary">{{ "%.2f"|format(data.total_hours) }}</span>
+                    </div>
+
+                    <!-- Time entries for this member -->
+                    <div class="ms-4">
+                        {% for entry in data.entries %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div class="flex-grow-1">
+                                <div>
+                                    <strong>{{ entry.date.strftime('%a') }}</strong>
+                                    <span class="text-muted ms-2">{{ entry.date.strftime('%b %d, %Y') }}</span>
+                                </div>
+                                <div class="small text-muted">
+                                    {% if entry.job %}
+                                        {{ _("Job") }} #{{ entry.job.job_number }} - {{ entry.job.title }}
+                                    {% elif entry.category %}
+                                        {{ entry.category }}
+                                    {% else %}
+                                        {{ _("General") }}
+                                    {% endif %}
+                                    {% if entry.timer_start and entry.timer_end and not entry.is_timer_running %}
+                                        - {{ entry.timer_start|format_datetime("%I:%M %p") }} - {{ entry.timer_end|format_datetime("%I:%M %p") }}
+                                    {% endif %}
+                                    {% if entry.description %}
+                                        - {{ entry.description }}
+                                    {% endif %}
+                                    {% if entry.clock_punch and entry.clock_punch.outside_geofence %}
+                                    <span class="badge bg-warning text-dark ms-2" title="{{ _('Clocked in outside geofence') }}">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ _("Outside geofence") }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">{{ entry.hours }}</div>
+                                <div class="btn-group btn-group-sm">
+                                    <form method="POST" action="{{ url_for('presence_bp.approve_entry', entry_id=entry.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <input type="hidden" name="through_date" value="{{ through_date }}">
+                                        <button type="submit" class="btn btn-sm btn-primary" @click="showSlider = true">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-bs-toggle="modal" data-bs-target="#rejectModal{{ entry.id }}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reject modal for this entry -->
+                        <div class="modal fade" id="rejectModal{{ entry.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('presence_bp.reject_entry', entry_id=entry.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <input type="hidden" name="through_date" value="{{ through_date }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ _("Reject Time Entry") }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>{{ _("Reject time entry for") }} {{ data.member.user.first_name }} {{ data.member.user.last_name }}?</p>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ _("Reason") }}</label>
+                                                <textarea name="reason" class="form-control" rows="3" required></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                                                {{ _("Cancel") }}
+                                            </button>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                {{ _("Reject") }}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Person action buttons -->
+                    <div class="mt-3 text-end">
+                        <form method="POST" action="{{ url_for('presence_bp.approve_all_for_person', member_id=member_id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="through_date" value="{{ through_date }}">
+                            <button type="submit" class="btn btn-sm btn-primary" @click="showSlider = true">
+                                <i class="fas fa-check"></i> {{ _("Approve") }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% elif not requests_by_member %}
+        <!-- Empty state - only show when BOTH punch corrections and timesheets are empty -->
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <div class="alert alert-success d-inline-flex align-items-center" role="alert">
+                    <i class="fas fa-check-circle fa-2x me-3"></i>
+                    <div class="text-start">
+                        <h5 class="mb-1">{{ _("You're all caught up!") }}</h5>
+                        <p class="mb-0">{{ _("No pending approvals") }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% if requests_by_member %}
+<script nonce="{{ csp_nonce }}">
+// Convert UTC times to company timezone
+const companyTimezone = '{{ timezone }}';
+document.querySelectorAll('.local-time').forEach(function(el) {
+    const utc = el.dataset.utc;
+    if (utc) {
+        const date = new Date(utc);
+        el.textContent = date.toLocaleTimeString('en-US', {
+            timeZone: companyTimezone,
+            hour: 'numeric',
+            minute: '2-digit'
+        }) + ' ' + date.toLocaleDateString('en-US', {
+            timeZone: companyTimezone,
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+});
+</script>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll('[data-auto-submit]').forEach(function(el) {
+    el.addEventListener('change', function() { this.form.submit(); });
+});
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+</script>
+{% endblock %}

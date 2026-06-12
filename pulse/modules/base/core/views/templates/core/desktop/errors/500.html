@@ -1,0 +1,17 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Error") }}{% endblock %}
+
+{% block app_class %}error-page{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <h1>{{ _("Oops! Something went wrong") }}</h1>
+        <p>{{ error }}</p>
+        <a href="{{ url_for(module_home) }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-home"></i> {{ _("Return Home") }}
+        </a>
+    </div>
+</div>
+{% endblock %} 

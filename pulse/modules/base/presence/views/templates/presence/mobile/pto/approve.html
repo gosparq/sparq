@@ -1,0 +1,161 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("Approve Leave Requests") }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('pto_bp.index') }}" class="btn btn-sm btn-light">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{{ _("Approve Leave") }}</h5>
+</div>
+
+<!-- Summary -->
+{% if pending_requests %}
+<div class="summary-card mb-3" style="background: var(--color-warning);">
+    <div class="d-flex align-items-center gap-3">
+        <i class="fas fa-hourglass-half fa-2x"></i>
+        <div>
+            <div class="summary-card-value">{{ pending_requests|length }}</div>
+            <div class="summary-card-label">{{ _("pending request") if pending_requests|length == 1 else _("pending requests") }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Requests -->
+{% for req in pending_requests %}
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <!-- Person + Dates -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <div class="fw-bold">{{ req.member.user.first_name }} {{ req.member.user.last_name }}</div>
+                <small class="text-muted">{{ req.member.user.email }}</small>
+            </div>
+            <a href="{{ url_for('pto_bp.detail', request_id=req.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-eye"></i>
+            </a>
+        </div>
+
+        <!-- Request Info -->
+        <div class="d-flex flex-wrap gap-3 mb-3 text-muted small">
+            <div>
+                <i class="fas fa-calendar me-1"></i>
+                {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d') }}{% endif %}
+            </div>
+            <div>
+                <i class="fas fa-clock me-1"></i>
+                {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+            </div>
+            <div>
+                <i class="fas fa-umbrella-beach me-1"></i>
+                {{ req.leave_type.value }}
+            </div>
+        </div>
+
+        {% if req.employee_notes %}
+        <div class="p-2 bg-light rounded small mb-3 fst-italic">
+            "{{ req.employee_notes|truncate(100) }}"
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2">
+            <form method="POST" action="{{ url_for('pto_bp.approve_request', request_id=req.id) }}" class="flex-fill">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="fas fa-check me-1"></i>{{ _("Approve") }}
+                </button>
+            </form>
+            <button type="button" class="btn btn-outline-danger" data-action="show-deny-modal" data-id="{{ req.id }}">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Deny Modal (Bottom Sheet) -->
+<div class="bottom-sheet-overlay" id="deny-modal" data-action="hide-deny-modal-overlay">
+    <div class="bottom-sheet" @click.stop="">
+        <div class="bottom-sheet-handle"></div>
+        <div class="px-4 pb-2 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ _("Deny Request") }}</h5>
+            <button type="button" class="btn btn-sm btn-light" data-action="hide-deny-modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="bottom-sheet-content px-4">
+            <form method="POST" id="deny-form" data-validate="deny-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Reason for denial") }} <span class="text-danger">*</span></label>
+                    <textarea name="notes" class="form-control" rows="3" id="deny-notes" required
+                              placeholder="{{ _('Please provide a reason...') }}"></textarea>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-danger btn-touch">
+                        <i class="fas fa-times me-2"></i>{{ _("Deny Request") }}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-touch" data-action="hide-deny-modal">
+                        {{ _("Cancel") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+var currentDenyId = null;
+
+function showDenyModal(requestId) {
+    currentDenyId = requestId;
+    document.getElementById('deny-form').action = '/presence/pto/' + requestId + '/deny';
+    document.getElementById('deny-notes').value = '';
+    document.getElementById('deny-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function hideDenyModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('deny-modal').classList.remove('open');
+    document.body.style.overflow = '';
+    currentDenyId = null;
+}
+
+function validateDenyForm() {
+    var notes = document.getElementById('deny-notes').value.trim();
+    if (!notes) {
+        alert('{{ _("A reason is required when denying a request") }}');
+        return false;
+    }
+    return true;
+}
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="show-deny-modal"]');
+    if (t) { showDenyModal(parseInt(t.dataset.id)); return; }
+    t = e.target.closest('[data-action="hide-deny-modal"]');
+    if (t) { hideDenyModal(); return; }
+    t = e.target.closest('[data-action="hide-deny-modal-overlay"]');
+    if (t && e.target === t) hideDenyModal();
+});
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-validate="deny-form"]');
+    if (t && !validateDenyForm()) e.preventDefault();
+});
+</script>
+
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-check-circle" style="color: var(--color-success);"></i>
+    <h5>{{ _("All caught up!") }}</h5>
+    <p>{{ _("No pending leave requests to review.") }}</p>
+    <a href="{{ url_for('pto_bp.index') }}" class="btn btn-primary btn-touch">
+        <i class="fas fa-arrow-left me-2"></i>{{ _("Back to Leave") }}
+    </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,24 @@
+{# Inline edit form for a single comment — replaces #comment-{id} inner HTML #}
+<div class="min-w-0" style="flex:1">
+    <form hx-post="{{ url_for('tasks_bp.update_comment', item_id=item_id, comment_id=comment.id) }}"
+          hx-target="#comments-list"
+          hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <textarea name="content"
+                  class="form-control form-control-sm mb-2 text-base"
+                  rows="3"
+                  maxlength="2000"
+                  required>{{ comment.content }}</textarea>
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @click="window.location.reload()">
+                {{ _("Cancel") }}
+            </button>
+            <button type="submit" class="btn btn-sm btn-outline-primary"
+                    hx-disabled-elt="this">
+                <i class="fas fa-save me-1"></i>{{ _("Save") }}
+            </button>
+        </div>
+    </form>
+</div>

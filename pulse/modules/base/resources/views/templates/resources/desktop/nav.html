@@ -1,0 +1,45 @@
+<nav class="side-nav">
+    <div class="nav-module-header" style="--section-color: {{ g.workspace_color }}">
+        <a href="{{ url_for('dashboard_bp.index') }}" class="nav-module-back">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <span class="nav-module-name">{{ _("Resources") }}</span>
+    </div>
+    <ul class="nav-menu">
+        <li class="nav-item">
+            <a href="{{ url_for('docs_blueprint.index') }}" class="nav-link {% if active_page == 'resources' and request.path.startswith('/resources/docs') %}active{% endif %}">
+                <i class="fas fa-folder"></i>{{ _("Documents") }}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('forms_blueprint.index') }}" class="nav-link {% if active_page == 'resources' and request.path.startswith('/resources/forms') %}active{% endif %}">
+                <i class="fas fa-file-alt"></i>{{ _("Forms") }} <span class="badge bg-secondary ms-1">soon</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('kb_staff_bp.index') }}" class="nav-link {% if active_page == 'resources' and request.path.startswith('/resources/knowledge/browse') %}active{% endif %}">
+                <i class="fas fa-book"></i>{{ _("Knowledge Base") }}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('working_agreement_bp.index') }}" class="nav-link {% if request.path.startswith('/resources/working-agreement') %}active{% endif %}">
+                <i class="fas fa-handshake"></i>{{ _("Working Agreement") }}
+            </a>
+        </li>
+        {% if current_user.is_admin %}
+        <li class="nav-item">
+            <a href="{{ url_for('resources_esign_bp.index') }}" class="nav-link {% if request.path.startswith('/resources/esign') %}active{% endif %}">
+                <i class="fas fa-signature"></i>{{ _("E-Sign") }}
+            </a>
+        </li>
+        {% endif %}
+        {% if current_user.is_admin %}
+        <li class="nav-divider"></li>
+        <li class="nav-item">
+            <a href="{{ url_for('resources_settings_bp.index') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>{{ _("Settings") }}
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>

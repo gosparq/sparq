@@ -1,0 +1,170 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block title %}{{ _("General") }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .settings-page-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .settings-back-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .settings-back-link:active {
+        background: var(--color-gray-200);
+    }
+
+    .settings-page-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-900);
+        margin: 0;
+    }
+
+    .settings-form-section {
+        background: var(--color-white);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .mobile-form-label {
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .mobile-form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 0.5rem;
+        background: var(--color-white);
+        color: var(--color-gray-900);
+    }
+
+    .mobile-form-input:focus {
+        outline: none;
+        border-color: var(--color-gray-500);
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-form-group {
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .mobile-btn {
+        display: block;
+        width: 100%;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .mobile-btn-primary {
+        background: var(--workspace-color);
+        color: white;
+    }
+
+    .mobile-btn-primary:active {
+        background: color-mix(in srgb, var(--workspace-color) 80%, black);
+    }
+
+    .color-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .color-swatch.active {
+        border-color: var(--color-gray-900);
+        box-shadow: 0 0 0 2px var(--color-white);
+    }
+
+    .color-swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.625rem;
+        margin-top: 0.5rem;
+    }
+
+    .section-save-row {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-gray-100);
+    }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="settings-page-header">
+    <a href="{{ url_for('core_bp.settings') }}" class="settings-back-link">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="settings-page-title">{{ _("General") }}</h1>
+</div>
+
+<form method="POST" action="{{ url_for('core_bp.settings_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_section" value="workspace">
+    <div class="settings-form-section" x-data="{ selectedColor: '{{ workspace.color or 'orange' }}' }">
+        <div class="mobile-form-group">
+            <label for="company_name" class="mobile-form-label">{{ _("Workspace Name") }}</label>
+            <input type="text" class="mobile-form-input" id="company_name" name="company_name"
+                   value="{{ workspace.name or '' }}" placeholder="{{ _('Enter workspace name') }}">
+        </div>
+        <div class="mobile-form-group" style="margin-bottom:0;">
+            <label class="mobile-form-label">{{ _("Color") }}</label>
+            <input type="hidden" name="color" :value="selectedColor">
+            <div class="color-swatches">
+                {% for name, hex in workspace_colors.items() %}
+                <button type="button"
+                        class="color-swatch"
+                        :class="{ 'active': selectedColor === '{{ name }}' }"
+                        style="background: {{ hex }}"
+                        @click="selectedColor = '{{ name }}'"
+                        title="{{ name|capitalize }}"></button>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="section-save-row">
+            <button type="submit" class="mobile-btn mobile-btn-primary">
+                <i class="fas fa-save"></i> {{ _("Save Changes") }}
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

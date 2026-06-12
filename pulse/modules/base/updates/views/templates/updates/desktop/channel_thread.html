@@ -1,0 +1,11 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% set _post_content = (post.payload or {}).get('content', '') %}
+{% set is_webhook_post = post.webhook_id is not none %}
+{% set is_github_post = is_webhook_post and _post_content.startswith('GITHUB_HTML::') %}
+
+{% block title %}{{ post.subject or (_("GitHub activity") if is_github_post else (post.webhook_username if is_webhook_post else _("Thread"))) }} — #{{ channel.name }}{% endblock %}
+
+{% block module_content %}
+{% include "updates/desktop/partials/_channel_thread_view.html" %}
+{% endblock %}

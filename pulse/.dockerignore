@@ -1,0 +1,9 @@
+venv/
+tests/
+blueprint/
+data/
+__pycache__/
+.pytest_cache/
+.env
+Makefile
+*.md

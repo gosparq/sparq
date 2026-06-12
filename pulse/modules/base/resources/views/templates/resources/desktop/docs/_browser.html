@@ -1,0 +1,87 @@
+{# Library browser for attachment modal #}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item">
+            {% if current_folder %}
+                <a href="#"
+                   hx-get="{{ url_for('docs_blueprint.browser', entity_type=entity_type, entity_id=entity_id) }}"
+                   hx-target="#library-browser">
+                    <i class="fas fa-home"></i>
+                </a>
+            {% else %}
+                <i class="fas fa-home"></i>
+            {% endif %}
+        </li>
+        {% for crumb in breadcrumbs %}
+            {% if loop.last %}
+                <li class="breadcrumb-item active" aria-current="page">{{ crumb.name }}</li>
+            {% else %}
+                <li class="breadcrumb-item">
+                    <a href="#"
+                       hx-get="{{ url_for('docs_blueprint.browser', folder_id=crumb.id, entity_type=entity_type, entity_id=entity_id) }}"
+                       hx-target="#library-browser">
+                        {{ crumb.name }}
+                    </a>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ol>
+</nav>
+
+{% if folders or documents %}
+<div class="list-group">
+    <!-- Parent folder -->
+    {% if current_folder %}
+    <a href="#"
+       class="list-group-item list-group-item-action"
+       hx-get="{{ url_for('docs_blueprint.browser', folder_id=current_folder.parent_id, entity_type=entity_type, entity_id=entity_id) if current_folder.parent_id else url_for('docs_blueprint.browser', entity_type=entity_type, entity_id=entity_id) }}"
+       hx-target="#library-browser">
+        <i class="fas fa-level-up-alt text-muted me-2"></i>
+        <span class="text-muted">..</span>
+    </a>
+    {% endif %}
+
+    <!-- Folders -->
+    {% for folder in folders %}
+    <a href="#"
+       class="list-group-item list-group-item-action"
+       hx-get="{{ url_for('docs_blueprint.browser', folder_id=folder.id, entity_type=entity_type, entity_id=entity_id) }}"
+       hx-target="#library-browser">
+        <i class="fas fa-folder text-warning me-2"></i>
+        {{ folder.name }}
+    </a>
+    {% endfor %}
+
+    <!-- Documents -->
+    {% for doc in documents %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-file text-secondary me-2"></i>
+            {{ doc.filename }}
+            <small class="text-muted ms-2">{{ doc.size_display }}</small>
+        </div>
+        <form action="{{ url_for('docs_blueprint.attach_document') }}"
+              method="post"
+              hx-post="{{ url_for('docs_blueprint.attach_document') }}"
+              hx-target="#attachments-list"
+              hx-swap="innerHTML">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="document_id" value="{{ doc.id }}">
+            <input type="hidden" name="entity_type" value="{{ entity_type }}">
+            <input type="hidden" name="entity_id" value="{{ entity_id }}">
+            <button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+                <i class="fas fa-paperclip me-1"></i>{{ _("Attach") }}
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-4">
+    <i class="fas fa-folder-open fa-2x text-muted mb-2"></i>
+    <p class="text-muted mb-0">{{ _("This folder is empty") }}</p>
+    <p class="text-muted small">{{ _("Upload files first using the Upload tab") }}</p>
+</div>
+{% endif %}

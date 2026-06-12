@@ -1,0 +1,130 @@
+{% extends "tasks/desktop/layout.html" %}
+
+{% block title %}{{ _("Created by Me") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" x-data="{ showClosed: false }">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Tasks") }}</h2>
+            <span class="text-muted text-base">{{ _("Items you've created") }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                hx-get="{{ url_for('tasks_bp.create_modal') }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("New") }}
+        </button>
+    </div>
+
+    {# ── Back to Board ── #}
+    <div class="mb-4 pb-3" style="border-bottom:1px solid var(--color-gray-200);">
+        <a href="{{ url_for('tasks_bp.board') }}"
+           class="text-decoration-none small text-muted">
+            <i class="fas fa-arrow-left me-1 text-3xs"></i>{{ _("Back to Board") }}
+        </a>
+    </div>
+
+    {# ── Open Items by Tier ── #}
+    {% set has_open = open_by_tier[1] or open_by_tier[2] or open_by_tier[3] %}
+
+    {% if has_open %}
+    {% for tier_num in [1, 2, 3] %}
+    {% set items = open_by_tier[tier_num] %}
+    {% if items %}
+    <div class="mb-4">
+        <div class="task-tier-label mb-2">
+            <span class="task-tier-dot" style="background:{{ tier_defaults[tier_num].color }};"></span>
+            {{ tier_defaults[tier_num].label }} <span class="text-muted">({{ items|length }})</span>
+        </div>
+
+        {% for item in items %}
+        {% set bg = broadcast_groups.get(item.broadcast_group_id|string) if item.broadcast_group_id else None %}
+        <div class="task-card task-card--tier{{ tier_num }} mb-2">
+            <div class="d-flex align-items-start gap-3">
+                <div class="flex-grow-1 min-w-0">
+                    <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="task-card-title text-truncate d-block text-decoration-none" style="color:inherit;">
+                        {% if item.is_blocker %}<i class="fas fa-hand text-danger me-1" title="{{ _('Blocker') }}"></i>{% endif %}{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}
+                    </a>
+                    <div class="task-card-meta">
+                        <span><i class="fas fa-arrow-right text-icon"></i>
+                            {% if item.assignee_first_name %}{{ item.assignee_first_name }} {{ item.assignee_last_name }}{% else %}{{ _("Unassigned") }}{% endif %}
+                        </span>
+                        <span>&middot;</span>
+                        <span>{{ item.time_ago() }}</span>
+                        {% if item.due_date %}
+                        <span>&middot;</span>
+                        <span {% if item.due_date < today %}class="text-danger"{% endif %}><i class="fas fa-calendar-day me-1 text-3xs"></i>{{ item.due_date.strftime('%b %d') }}</span>
+                        {% endif %}
+                        {% if item.project_id and item.project_name %}
+                        <a href="{{ url_for('projects_bp.detail', project_id=item.project_id) }}" class="project-badge-pill" onclick="event.stopPropagation();">{{ item.project_name[:20] }}</a>
+                        {% endif %}
+                        {% if bg and bg.total > 1 %}
+                        <span>&middot;</span>
+                        <span class="task-broadcast-badge">{{ bg.resolved }}/{{ bg.total }} {{ _("resolved") }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex-shrink-0">
+                    <form method="POST" action="{{ url_for('tasks_bp.cancel', item_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ _('Cancel') }}">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% elif not closed_items %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-paper-plane fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-1 fw-medium text-base">{{ _("No items created") }}</p>
+        <p class="mb-0 text-base">{{ _("Create a task to hold someone accountable") }}</p>
+    </div>
+    {% endif %}
+
+    {# ── Resolved / Dismissed ── #}
+    {% if closed_items %}
+    <div class="mt-4">
+        <button class="btn btn-link btn-sm text-muted p-0 mb-2 text-decoration-none" @click="showClosed = !showClosed">
+            <i class="fas text-3xs" :class="showClosed ? 'fa-chevron-down' : 'fa-chevron-right'" style="width:12px"></i>
+            {{ _("Resolved / Dismissed") }} <span class="badge bg-secondary ms-1 text-2xs">{{ closed_items|length }}</span>
+        </button>
+        <div x-show="showClosed" x-cloak>
+            {% for item in closed_items %}
+            <div class="task-card task-card--closed mb-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="flex-shrink-0">
+                        {% if item.status == 'resolved' %}
+                        <i class="fas fa-check-circle text-success text-sm"></i>
+                        {% elif item.status == 'dismissed' %}
+                        <i class="fas fa-minus-circle text-muted text-sm"></i>
+                        {% else %}
+                        <i class="fas fa-ban text-muted text-sm"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="text-truncate d-block text-decoration-none text-base text-secondary">
+                            {% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}
+                        </a>
+                    </div>
+                    <div class="flex-shrink-0 text-muted text-sm">
+                        <span><i class="fas fa-arrow-right" style="font-size:0.5rem;"></i>
+                            {% if item.assignee_first_name %}{{ item.assignee_first_name }}{% else %}{{ _("Unassigned") }}{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="modals"></div>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends "tasks/desktop/layout.html" %}
+
+{% block title %}{{ _("Blockers") }}{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/tasks.css') }}">
+<link rel="stylesheet" href="{{ url_for('docs_blueprint.static', filename='css/resources.css') }}">
+<style>
+.sync-badge-blocked { background: var(--color-danger-light); color: var(--color-danger-dark); border: 1px solid var(--color-danger-light); }
+.sync-badge-resolved { background: var(--color-success-light); color: var(--color-success); border: 1px solid var(--color-success-light); }
+.blocker-card-actions { opacity: 0; transition: opacity 0.15s; display: flex; gap: 0; }
+.card:hover .blocker-card-actions { opacity: 1; }
+.blocker-action-btn { color: var(--color-gray-400); padding: 2px 6px; font-size: 0.75rem; background: none; border: none; cursor: pointer; }
+.blocker-action-btn:hover { color: var(--color-gray-700); }
+.blocker-action-btn-danger:hover { color: var(--color-danger, var(--color-danger)); }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="content-heading">{{ _("Blockers") }}</h2>
+            <span class="text-muted text-sm">{{ _("Open blockers across the team") }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                hx-get="{{ url_for('tasks_bp.create_modal', is_blocker=1, next=url_for('tasks_bp.blockers')) }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("New Blocker") }}
+        </button>
+    </div>
+
+    {# ── Open Blockers ── #}
+    {% if items %}
+    <div class="mb-5">
+        {% for item in items %}
+        <div class="card mb-2" style="border:1px solid var(--color-gray-200,#e5e7eb);border-radius:0.625rem;">
+            <div class="card-body py-3 px-4">
+                <div class="d-flex align-items-start gap-3">
+                    {# Assignee avatar #}
+                    <div class="flex-shrink-0">
+                        {% if item.assignee and item.assignee.user %}
+                        <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8125rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};">
+                            {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="avatar-circle text-sm" style="width:36px; height:36px; background:#9ca3af">
+                            <i class="fas fa-user text-2xs"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {# Content #}
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                            {% if item.assignee and item.assignee.user %}
+                            <span class="fw-semibold text-base">{{ item.assignee.user.full_name }}</span>
+                            {% else %}
+                            <span class="fw-semibold text-muted text-base">{{ _("Unassigned") }}</span>
+                            {% endif %}
+                            <span class="badge sync-badge-blocked text-3xs">{{ _("I'm blocked") }}</span>
+                            {% if item.raised_by and item.raised_by.user %}
+                            <span class="text-muted text-xs">
+                                <i class="fas fa-arrow-right text-icon"></i>
+                                {{ _("created by") }} {{ item.raised_by.user.first_name }}
+                            </span>
+                            {% endif %}
+                            <span class="text-muted ms-auto text-sm">{{ item.time_ago() }}</span>
+                            {% if item.raised_by_id and (item.assignee_id == current_member_id or current_user.is_admin) %}
+                            <div class="blocker-card-actions">
+                                <form method="POST" action="{{ url_for('tasks_bp.resolve', item_id=item.id) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="next" value="{{ url_for('tasks_bp.blockers') }}">
+                                    <button type="submit" class="blocker-action-btn" title="{{ _('Resolve') }}"><i class="fas fa-check"></i></button>
+                                </form>
+                                <form method="POST" action="{{ url_for('tasks_bp.dismiss', item_id=item.id) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="next" value="{{ url_for('tasks_bp.blockers') }}">
+                                    <button type="submit" class="blocker-action-btn blocker-action-btn-danger" title="{{ _('Dismiss') }}"><i class="fas fa-times"></i></button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="text-decoration-none">
+                            <p class="fw-semibold mb-1 text-base" style="color:var(--color-gray-800)">{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}
+                                {% if item.due_date %}
+                                <span class="ms-1 {% if item.due_date < today %}text-danger{% endif %}" style="font-weight:400">
+                                    <i class="fas fa-calendar-day me-1 text-icon"></i>{{ item.due_date.strftime('%b %d') }}
+                                </span>
+                                {% endif %}
+                                {% if item.project_id and item.project %}
+                                <a href="{{ url_for('projects_bp.detail', project_id=item.project.id) }}" class="project-badge-pill ms-1">{{ item.project.name[:20] }}</a>
+                                {% endif %}
+                            </p>
+                        </a>
+                        {% if item.context_note %}
+                        <p class="mb-1 mt-1 text-sm text-secondary" style="white-space:pre-wrap">{{ item.context_note|urlize(target="_blank") }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-hand fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-0">{{ _("No open blockers.") }}</p>
+    </div>
+    {% endif %}
+
+    {# ── Recently Resolved ── #}
+    {% if resolved %}
+    <div class="mt-4 pt-4" style="border-top:1px solid var(--color-gray-200);">
+        <div class="text-muted mb-3 fw-bold text-uppercase text-2xs" style="letter-spacing:0.05em">
+            {{ _("Recently Resolved") }}
+        </div>
+        {% for item in resolved %}
+        <div class="card mb-2" style="border:1px solid var(--color-gray-200,#e5e7eb);border-radius:0.625rem;opacity:0.6;">
+            <div class="card-body py-3 px-4">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="flex-shrink-0">
+                        {% if item.assignee and item.assignee.user %}
+                        <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8125rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};">
+                            {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="avatar-circle text-sm" style="width:36px; height:36px; background:#9ca3af">
+                            <i class="fas fa-user text-2xs"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                            {% if item.assignee and item.assignee.user %}
+                            <span class="fw-semibold text-base">{{ item.assignee.user.full_name }}</span>
+                            {% endif %}
+                            <span class="badge sync-badge-resolved text-3xs"><i class="fas fa-check-circle me-1"></i>{{ _("Resolved") }}</span>
+                            <span class="text-muted ms-auto text-sm">{{ item.time_ago() }}</span>
+                        </div>
+                        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="text-decoration-none">
+                            <p class="mb-0 text-base" style="color:var(--color-gray-600)">{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div id="modals"></div>
+{% endblock %}

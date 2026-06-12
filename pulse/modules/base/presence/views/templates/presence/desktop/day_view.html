@@ -1,0 +1,254 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}
+{% if viewing_other %}{{ member.user.full_name }} - {% endif %}{{ _("My Timesheets") }} - {{ view_date.strftime('%B %d, %Y') }}
+{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="content-heading">{{ _("Timesheets") }}</h2>
+        {% if current_user.is_admin and members %}
+        {% set selector_action_url = url_for('presence_bp.day_view', date_str=view_date.isoformat()) %}
+        {% set selector_id = "employee_selector" %}
+        {% include "presence/desktop/partials/_person_selector.html" with context %}
+        {% endif %}
+    </div>
+
+    <!-- Sub-navigation (admin only) -->
+    {% if current_user.is_admin %}
+    <div class="d-flex gap-1 mb-4 pb-3" style="border-bottom: 1px solid var(--color-gray-200);">
+        <a href="{{ url_for('presence_bp.day_view', date_str=view_date.isoformat(), member_id=selected_member_id) }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="background: var(--color-primary-lightest); color: var(--color-primary-dark);">
+            {{ _("Timesheets") }}
+        </a>
+        <a href="{{ url_for('presence_bp.approve_timesheets') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Approve") }}
+        </a>
+        <a href="{{ url_for('presence_bp.payroll') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Payroll") }}
+        </a>
+    </div>
+    {% endif %}
+
+    {% if viewing_other %}
+    <div class="alert alert-info py-2 mb-3">
+        <i class="fas fa-user-edit me-1"></i>
+        {{ (_("Managing timesheets for %(name)s") % {"name": member_name_html}) | safe }}
+    </div>
+    {% endif %}
+
+    <!-- Date selector -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <!-- View toggle -->
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="{{ url_for('presence_bp.day_view', date_str=view_date.isoformat(), member_id=selected_member_id) }}"
+               class="btn btn-sm btn-primary active">
+                {{ _("Day") }}
+            </a>
+            <a href="{{ url_for('presence_bp.week_view', date_str=view_date.isoformat(), member_id=selected_member_id) }}"
+               class="btn btn-sm btn-outline-primary">
+                {{ _("Week") }}
+            </a>
+        </div>
+
+        <!-- Date navigation -->
+        <div class="d-flex align-items-center gap-2">
+            {% set prev_date = (view_date - timedelta(days=1)) %}
+            {% set next_date = (view_date + timedelta(days=1)) %}
+
+            <a href="{{ url_for('presence_bp.day_view', date_str=prev_date.isoformat(), member_id=selected_member_id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+
+            <a href="{{ url_for('presence_bp.day_view', member_id=selected_member_id) }}" class="btn btn-sm btn-primary">
+                {{ _("Today") }}
+            </a>
+
+            <a href="{{ url_for('presence_bp.day_view', date_str=next_date.isoformat(), member_id=selected_member_id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+
+            <input type="date" class="form-control form-control-sm" style="width: auto;"
+                   value="{{ view_date.isoformat() }}"
+                   data-action="date-nav"
+                   data-url-prefix="{{ url_for('presence_bp.day_view', date_str='', member_id=selected_member_id) }}">
+        </div>
+    </div>
+
+    {% if viewing_other and punches %}
+    {% include "presence/desktop/partials/_clock_punches_table.html" %}
+    {% endif %}
+
+    <!-- Section header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 fw-semibold" style="font-size: 0.9rem; color: var(--color-gray-700)">
+            {% if viewing_other %}
+                {{ _("Hours for") }} {{ member.user.first_name }} - {{ view_date.strftime('%B %d, %Y') }}
+            {% elif view_date == today %}
+                {{ _("My hours for today") }}
+            {% else %}
+                {{ _("My hours for") }} {{ view_date.strftime('%B %d, %Y') }}
+            {% endif %}
+        </h5>
+        <button class="btn btn-sm btn-outline-success"
+                hx-get="{{ url_for('presence_bp.add_time_modal', week_start_str=week_start.isoformat(), return_to='day', day_date=view_date.isoformat(), member_id=selected_member_id) }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i> {{ _("Add Time") }}
+        </button>
+    </div>
+
+    <!-- Time entries list -->
+    <div id="time-entries-list"
+         {% if not viewing_other and entries and entries|selectattr('is_timer_running')|list %}
+         hx-get="{{ url_for('presence_bp.day_view', date_str=view_date.isoformat()) }}"
+         hx-trigger="every 60s"
+         hx-select="#time-entries-list"
+         hx-swap="outerHTML"
+         {% endif %}>
+    {% if entries %}
+        {% for entry in entries %}
+        <div class="time-entry-row p-3 mb-2 border rounded {% if entry.status.name == 'APPROVED' %}approved{% endif %}">
+            <div class="d-flex align-items-center justify-content-between">
+                <!-- Left: Job/Category Info -->
+                <div class="flex-grow-1" style="max-width: 45%;">
+                    {% if service_enabled and entry.job %}
+                    <div class="d-flex align-items-start gap-2 mb-1">
+                        <i class="fas fa-briefcase text-secondary mt-1 text-base"></i>
+                        <div>
+                            <div class="fw-bold">#{{ entry.job.job_number}} {{ entry.job.title }}{% if entry.clock_punch and entry.clock_punch.needs_review %} <i class="fas fa-flag text-warning text-xs" title="{{ _('Outside geofence') }}"></i>{% endif %}</div>
+                            {% if entry.category %}
+                            <small class="text-muted">{{ entry.category }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex align-items-center gap-2">
+                        {% set cat_icons = {"Break": "fa-mug-hot", "Clock": "fa-clock"} %}
+                        <i class="fas {{ cat_icons.get(entry.category, 'fa-tag') }} text-secondary text-base"></i>
+                        <span class="fw-bold">{{ entry.category or _("General") }}</span>
+                        {% if entry.clock_punch and entry.clock_punch.needs_review %}
+                        <i class="fas fa-flag text-warning text-xs" title="{{ _('Outside geofence') }}"></i>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if entry.timer_start and entry.timer_end and not entry.is_timer_running %}
+                    <div class="text-muted small ms-4 mt-1">{{ entry.timer_start|format_datetime("%I:%M %p") }} - {{ entry.timer_end|format_datetime("%I:%M %p") }}</div>
+                    {% endif %}
+                    {% if entry.description %}
+                    <div class="text-muted small ms-4 mt-1">{{ entry.description }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Center: Time Display -->
+                <div class="text-center px-3" style="min-width: 120px;">
+                    {% if entry.is_timer_running %}
+                    <div class="badge bg-danger mb-1">
+                        <i class="fas fa-circle fa-beat"></i> {{ _("Running") }}
+                    </div>
+                    <div class="small text-muted">{{ entry.timer_start|format_datetime("%I:%M %p") }}</div>
+                    {% elif entry.timer_start and entry.timer_end %}
+                    <div class="fs-5 fw-bold text-primary">{{ "%.2f"|format(entry.hours) }} <small class="text-muted">{{ _("hrs") }}</small></div>
+                    {% else %}
+                    <div class="fs-5 fw-bold text-primary">{{ "%.2f"|format(entry.hours) }} <small class="text-muted">{{ _("hrs") }}</small></div>
+                    {% endif %}
+                </div>
+
+                <!-- Right: Status & Actions -->
+                <div class="text-end" style="min-width: 250px;">
+                    <div class="d-flex align-items-center justify-content-end gap-2">
+                        <!-- Status Badges -->
+                        <div>
+                            {% if entry.status.name == 'SUBMITTED' %}
+                            <span class="badge bg-warning text-dark">{{ _("Pending") }}</span>
+                            {% elif entry.status.name == 'APPROVED' %}
+                            <span class="badge bg-success">{{ _("Approved") }}</span>
+                            {% elif entry.status.name == 'REJECTED' %}
+                            <span class="badge bg-danger">{{ _("Rejected") }}</span>
+                            {% endif %}
+                            {% if entry.is_billable %}
+                            <span class="badge bg-primary ms-1">{{ _("Billable") }}</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Action Buttons -->
+                        {% if entry.is_timer_running %}
+                        <div class="time-entry-actions d-flex gap-2">
+                            <form method="POST" action="{{ url_for('presence_bp.stop_timer', entry_id=entry.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-stop me-1"></i> {{ _("Stop") }}
+                                </button>
+                            </form>
+                        </div>
+                        {% elif entry.status.name != 'APPROVED' and entry.status.name != 'INVOICED' %}
+                        <div class="time-entry-actions d-flex gap-2">
+                            {% if not entry.all_punches_pending_correction %}
+                            <button class="btn btn-sm btn-primary"
+                                    hx-get="{{ url_for('presence_bp.edit_entry_modal', entry_id=entry.id) }}"
+                                    hx-target="#modals"
+                                    hx-swap="innerHTML">
+                                <i class="fas fa-edit me-1"></i> {{ _("Edit") }}
+                            </button>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('presence_bp.delete_entry', entry_id=entry.id) }}"
+                                  data-confirm="{{ _('Delete this entry?') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger btn-icon-only" title="{{ _('Delete') }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if entry.status.name == 'REJECTED' and entry.rejected_reason %}
+            <div class="mt-2 px-3">
+                <small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>{{ _("Rejected:") }} {{ entry.rejected_reason }}</small>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-clock fa-2x mb-3 d-block opacity-25"></i>
+            <p class="mb-0">{{ _("No time entries for this day") }}</p>
+        </div>
+    {% endif %}
+    </div>
+
+    <!-- Footer with total -->
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top: 1px solid var(--color-gray-200);">
+        <span class="fw-semibold text-muted text-base">{{ _("Total Hours:") }}</span>
+        <span class="fw-bold text-primary" style="font-size: 1.25rem;">{{ "%.2f"|format(total_hours) }}</span>
+    </div>
+</div>
+
+<!-- Modal container for HTMX (punch editing) -->
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+document.body.addEventListener('punchUpdated', function() {
+    window.location.reload();
+});
+</script>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('change', function(e) {
+    var t = e.target.closest('[data-action="date-nav"]');
+    if (t) window.location.href = t.dataset.urlPrefix + t.value;
+});
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+</script>
+{% endblock %}

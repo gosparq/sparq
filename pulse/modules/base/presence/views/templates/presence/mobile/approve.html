@@ -1,0 +1,171 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("Approve Timesheets") }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('presence_bp.day_view') }}" class="btn btn-sm btn-light">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{{ _("Approve Timesheets") }}</h5>
+</div>
+
+{% if entries_by_member %}
+<!-- Summary -->
+{% set total_pending = entries_by_member.values()|map(attribute='entries')|map('length')|sum %}
+<div class="summary-card summary-card-warning mb-3">
+    <div class="d-flex align-items-center gap-3">
+        <i class="fas fa-clipboard-list fa-2x"></i>
+        <div>
+            <div class="summary-card-value">{{ total_pending }}</div>
+            <div class="summary-card-label">{{ _("pending entry") if total_pending == 1 else _("pending entries") }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Entries by Person -->
+{% for member_id, data in entries_by_member.items() %}
+<div class="mobile-card" x-data="{ expanded: true }">
+    <!-- Person Header -->
+    <div class="mobile-card-body" @click="expanded = !expanded" role="button">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-bold">{{ data.member.user.first_name }} {{ data.member.user.last_name }}</div>
+                <small class="text-muted">{{ data.entries|length }} {{ _("entry") if data.entries|length == 1 else _("entries") }} &middot; {{ "%.2f"|format(data.total_hours) }} {{ _("hrs") }}</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="POST" action="{{ url_for('presence_bp.approve_all_for_person', member_id=member_id) }}" @click.stop="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-check-double me-1"></i>{{ _("All") }}
+                    </button>
+                </form>
+                <i class="fas fa-chevron-down text-muted" :class="{ 'fa-rotate-180': expanded }"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entries List -->
+    <div x-show="expanded" x-collapse>
+        {% for entry in data.entries %}
+        <div class="border-top">
+            <div class="p-3">
+                <!-- Entry Info -->
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            {% if entry.job %}
+                            <i class="fas fa-briefcase text-secondary small"></i>
+                            <span class="small fw-bold">#{{ entry.job.job_number }} {{ entry.job.title|truncate(30) }}</span>
+                            {% else %}
+                            <i class="fas fa-tag text-secondary small"></i>
+                            <span class="small fw-bold">{{ entry.category or _("General") }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-muted small">
+                            {{ entry.date.strftime('%b %d') }}
+                            {% if entry.timer_start and entry.timer_end and not entry.is_timer_running %}
+                            &middot; {{ entry.timer_start|format_datetime("%I:%M %p") }} - {{ entry.timer_end|format_datetime("%I:%M %p") }}
+                            {% endif %}
+                            {% if entry.description %}
+                            &middot; {{ entry.description|truncate(40) }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold module-color-text">{{ "%.2f"|format(entry.hours) }}</div>
+                        <div class="small text-muted">{{ _("hrs") }}</div>
+                    </div>
+                </div>
+
+                <!-- Entry Actions -->
+                <div class="d-flex gap-2">
+                    <form method="POST" action="{{ url_for('presence_bp.approve_entry', entry_id=entry.id) }}" class="flex-fill">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                            <i class="fas fa-check me-1"></i>{{ _("Approve") }}
+                        </button>
+                    </form>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-action="show-reject-modal" data-id="{{ entry.id }}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<!-- Reject Modal (Bottom Sheet) -->
+<div class="bottom-sheet-overlay" id="reject-modal" data-action="hide-reject-modal-overlay">
+    <div class="bottom-sheet" @click.stop="">
+        <div class="bottom-sheet-handle"></div>
+        <div class="px-4 pb-2 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ _("Reject Entry") }}</h5>
+            <button type="button" class="btn btn-sm btn-light" data-action="hide-reject-modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="bottom-sheet-content px-4">
+            <form method="POST" id="reject-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Reason for rejection") }} <span class="text-muted small">({{ _("optional") }})</span></label>
+                    <textarea name="reason" class="form-control" rows="3" id="reject-reason"
+                              placeholder="{{ _('Enter reason...') }}"></textarea>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-outline-danger btn-touch">
+                        <i class="fas fa-times me-2"></i>{{ _("Reject Entry") }}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-touch" data-action="hide-reject-modal">
+                        {{ _("Cancel") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+var currentRejectId = null;
+
+function showRejectModal(entryId) {
+    currentRejectId = entryId;
+    document.getElementById('reject-form').action = '/presence/reject/' + entryId;
+    document.getElementById('reject-reason').value = '';
+    document.getElementById('reject-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function hideRejectModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('reject-modal').classList.remove('open');
+    document.body.style.overflow = '';
+    currentRejectId = null;
+}
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="show-reject-modal"]');
+    if (t) { showRejectModal(parseInt(t.dataset.id)); return; }
+    t = e.target.closest('[data-action="hide-reject-modal"]');
+    if (t) { hideRejectModal(); return; }
+    t = e.target.closest('[data-action="hide-reject-modal-overlay"]');
+    if (t && e.target === t) hideRejectModal();
+});
+</script>
+
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-check-circle" style="color: var(--color-success);"></i>
+    <h5>{{ _("All caught up!") }}</h5>
+    <p>{{ _("No pending timesheets to review.") }}</p>
+    <a href="{{ url_for('presence_bp.day_view') }}" class="btn btn-primary btn-touch">
+        <i class="fas fa-arrow-left me-2"></i>{{ _("Back to Time") }}
+    </a>
+</div>
+{% endif %}
+{% endblock %}

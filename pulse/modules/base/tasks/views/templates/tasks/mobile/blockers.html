@@ -1,0 +1,97 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ _("Blockers") }}{% endblock %}
+
+{% block module_content %}
+<div class="blockers-mobile-page">
+    {# ── Header ── #}
+    <div class="blocker-mobile-header">
+        <div>
+            <h2 class="blocker-mobile-title">{{ _("Blockers") }}</h2>
+            <span class="text-muted" style="font-size:0.8125rem;">{{ _("Open blockers across the team") }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                hx-get="{{ url_for('tasks_bp.create_modal', is_blocker=1, next=url_for('tasks_bp.blockers')) }}"
+                hx-target="#modal-container"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("New") }}
+        </button>
+    </div>
+
+    {# ── Open Blockers ── #}
+    {% if items %}
+    <div class="blocker-mobile-section">
+        {% for item in items %}
+        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="blocker-mobile-card">
+            {% if item.assignee and item.assignee.user %}
+            <span class="blocker-mobile-avatar" style="background:{{ item.assignee.user.avatar_color|default('#6b7280') }};">
+                {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+            </span>
+            {% else %}
+            <span class="blocker-mobile-avatar" style="background:#9ca3af;">
+                <i class="fas fa-user blocker-mobile-avatar-icon"></i>
+            </span>
+            {% endif %}
+            <div class="blocker-mobile-body">
+                <div class="blocker-mobile-row">
+                    {% if item.assignee and item.assignee.user %}
+                    <span class="blocker-mobile-name">{{ item.assignee.user.first_name }}</span>
+                    {% else %}
+                    <span class="blocker-mobile-name--unassigned">{{ _("Unassigned") }}</span>
+                    {% endif %}
+                    <span class="badge blocker-mobile-badge">{{ _("Blocked") }}</span>
+                    <span class="text-muted blocker-mobile-time">{{ item.time_ago() }}</span>
+                </div>
+                <div class="blocker-mobile-item-title">{{ item.title }}</div>
+                {% if item.context_note %}
+                <div class="blocker-mobile-context">{{ item.context_note | truncate(80) }}</div>
+                {% endif %}
+                {% if item.raised_by and item.raised_by.user %}
+                <div class="blocker-mobile-raised">{{ _("Created by") }} {{ item.raised_by.user.first_name }}</div>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5" style="color:var(--color-gray-400);">
+        <i class="fas fa-hand fa-2x mb-3 d-block" style="opacity:0.5;"></i>
+        <p class="mb-0 text-base">{{ _("No open blockers.") }}</p>
+    </div>
+    {% endif %}
+
+    {# ── Recently Resolved ── #}
+    {% if resolved %}
+    <div class="blocker-mobile-resolved-section">
+        <div class="blocker-mobile-resolved-label">
+            {{ _("Recently Resolved") }}
+        </div>
+        {% for item in resolved %}
+        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="blocker-mobile-card blocker-mobile-resolved-card">
+            {% if item.assignee and item.assignee.user %}
+            <span class="blocker-mobile-avatar" style="background:{{ item.assignee.user.avatar_color|default('#6b7280') }};">
+                {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+            </span>
+            {% else %}
+            <span class="blocker-mobile-avatar" style="background:#9ca3af;">
+                <i class="fas fa-user blocker-mobile-avatar-icon"></i>
+            </span>
+            {% endif %}
+            <div class="blocker-mobile-body">
+                <div class="blocker-mobile-row">
+                    {% if item.assignee and item.assignee.user %}
+                    <span class="blocker-mobile-name">{{ item.assignee.user.first_name }}</span>
+                    {% endif %}
+                    <span class="badge blocker-mobile-badge--resolved">
+                        <i class="fas fa-check-circle me-1"></i>{{ _("Resolved") }}
+                    </span>
+                    <span class="text-muted blocker-mobile-time">{{ item.time_ago() }}</span>
+                </div>
+                <div class="blocker-mobile-item-title--resolved">{{ item.title }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

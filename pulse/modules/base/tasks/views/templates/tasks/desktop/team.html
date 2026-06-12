@@ -1,0 +1,99 @@
+{% extends "tasks/desktop/layout.html" %}
+
+{% block title %}{{ _("Team Actions") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Tasks") }}</h2>
+            <span class="text-muted text-base">{{ _("Open items across the team") }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                hx-get="{{ url_for('tasks_bp.create_modal') }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("New") }}
+        </button>
+    </div>
+
+    {# ── Back to Board ── #}
+    <div class="mb-4 pb-3" style="border-bottom:1px solid var(--color-gray-200);">
+        <a href="{{ url_for('tasks_bp.board') }}"
+           class="text-decoration-none small text-muted">
+            <i class="fas fa-arrow-left me-1 text-3xs"></i>{{ _("Back to Board") }}
+        </a>
+    </div>
+
+    {# ── Assignee Groups ── #}
+    {% if assignee_groups %}
+        {% for aid, group in assignee_groups.items() %}
+        <div class="mb-4">
+            {# Assignee header #}
+            <div class="d-flex align-items-center gap-2 mb-2">
+                {% if group["member"] and group["member"].user %}
+                <span class="avatar-circle" style="width:28px;height:28px;font-size:0.7rem;background:{{ group["member"].user.avatar_color|default('#6b7280') }};">
+                    {{ group["member"].user.first_name[0]|upper }}{{ group["member"].user.last_name[0]|upper }}
+                </span>
+                <span class="fw-semibold text-base" style="color:var(--color-gray-700)">
+                    {{ group["member"].user.first_name }} {{ group["member"].user.last_name }}
+                </span>
+                {% else %}
+                <span class="avatar-circle text-2xs" style="width:28px; height:28px; background:var(--color-gray-400)">
+                    <i class="fas fa-user-slash text-3xs"></i>
+                </span>
+                <span class="fw-semibold text-base" style="color:var(--color-gray-700)">
+                    {{ _("Unassigned") }}
+                </span>
+                {% endif %}
+                <span class="text-muted text-sm">({{ group["items"]|length }})</span>
+            </div>
+
+            {# Items for this assignee #}
+            {% for item in group["items"] %}
+            <div class="task-card task-card--tier{{ item.urgency_tier }} d-flex align-items-start gap-3 mb-2"
+                 style="margin-left:2.25rem;">
+                <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+                   class="stretched-link"
+                   aria-label="{{ item.title }}"></a>
+                <div class="flex-grow-1 min-w-0">
+                    <div class="task-card-title text-truncate">
+                        {% if item.is_blocker %}<i class="fas fa-hand text-danger me-1" title="{{ _('Blocker') }}"></i>{% endif %}{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}
+                    </div>
+                    <div class="task-card-meta">
+                        <span class="task-tier-badge" style="background:{{ tier_defaults[item.urgency_tier].color }}22;color:{{ tier_defaults[item.urgency_tier].color }};">
+                            {{ tier_defaults[item.urgency_tier].label }}
+                        </span>
+                        <span>&middot;</span>
+                        {% if item.is_system_raised %}
+                            <span>{{ _("System") }}</span>
+                        {% elif item.raised_by and item.raised_by.user %}
+                            <span>{{ _("from") }} {{ item.raised_by.user.first_name }}</span>
+                        {% endif %}
+                        <span>&middot;</span>
+                        <span>{{ item.time_ago() }}</span>
+                        {% if item.due_date %}
+                        <span>&middot;</span>
+                        <span {% if item.due_date < today %}class="text-danger"{% endif %}><i class="fas fa-calendar-day me-1 text-3xs"></i>{{ item.due_date.strftime('%b %d') }}</span>
+                        {% endif %}
+                        {% if item.project_id and item.project %}
+                        <a href="{{ url_for('projects_bp.detail', project_id=item.project.id) }}" class="project-badge-pill" onclick="event.stopPropagation();">{{ item.project.name[:20] }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-check-circle fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-1 fw-medium text-base">{{ _("All clear") }}</p>
+            <p class="mb-0 text-base">{{ _("No open action items across the team") }}</p>
+        </div>
+    {% endif %}
+</div>
+
+<div id="modals"></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+<div class="ai-receipt card mb-3" id="receipt-{{ action.id }}">
+    {% if cancelled %}
+    <div class="card-body text-muted">
+        <i class="fas fa-times-circle me-2"></i>
+        {{ _("Action cancelled.") }}
+    </div>
+    {% elif success %}
+    <div class="card-body text-success">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>{{ action.tool_name | replace('_', ' ') | title }}</strong> {{ _("completed successfully.") }}
+        {% if result %}
+        <p class="mb-0 mt-2 small">{{ result.message or result }}</p>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="card-body text-danger">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong>{{ _("Error") }}:</strong> {{ action.error or _('Action failed') }}
+    </div>
+    {% endif %}
+</div>

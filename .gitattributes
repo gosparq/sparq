@@ -1,0 +1,19 @@
+# Ensure shell scripts always have LF line endings (critical for Docker builds)
+*.sh text eol=lf
+
+# Common text files - normalize to LF
+*.py text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# Dockerfile should use LF
+Dockerfile text eol=lf

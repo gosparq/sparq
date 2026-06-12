@@ -1,0 +1,142 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ employee.user.full_name }} — {{ _("Profile") }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="mru-entry" hidden data-mru-type="person" data-mru-id="{{ employee.id }}" data-mru-name="{{ employee.user.full_name }}" data-mru-url="{{ url_for('people_bp.person_profile', member_id=employee.id) }}"></div>
+<div class="module-content-wrapper">
+    <div class="content-card">
+        <!-- Back link -->
+        <div class="mb-3">
+            <a href="{{ url_for('people_bp.people') }}" class="btn btn-sm btn-link text-muted ps-0">
+                <i class="fas fa-arrow-left me-1"></i>{{ _("People") }}
+            </a>
+        </div>
+
+        <!-- Profile header -->
+        <div class="d-flex align-items-center gap-4 mb-4 pb-3 border-bottom">
+            <!-- Avatar -->
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width:72px; height:72px; font-size:1.6rem">
+                {{ employee.user.first_name[0] }}{{ employee.user.last_name[0] }}
+            </div>
+            <div>
+                <h2 class="mb-0">{{ employee.user.full_name }}</h2>
+                <div class="text-muted">
+                    {% if employee.position %}
+                    <span>{{ employee.position }}</span>
+                    {% endif %}
+                    {% if employee.department %}
+                    <span class="mx-1">&middot;</span>
+                    <span>{{ employee.department }}</span>
+                    {% endif %}
+                </div>
+                <div class="mt-1">
+                    <!-- Status badge -->
+                    {% if employee.status.value == 'Active' %}
+                    <span class="badge bg-success me-1">{{ _("Active") }}</span>
+                    {% elif employee.status.value == 'On Leave' %}
+                    <span class="badge bg-warning text-dark me-1">{{ _("On Leave") }}</span>
+                    {% elif employee.status.value == 'Terminated' %}
+                    <span class="badge bg-danger me-1">{{ _("Terminated") }}</span>
+                    {% endif %}
+                    <!-- Flow/Free status -->
+                    {% if flow_status in ('flow', 'focus') %}
+                    <span class="badge" style="background:var(--color-focus);color:white;"><i class="fas fa-brain me-1"></i>{{ _("Focusing") }}</span>
+                    {% else %}
+                    <span class="badge" style="background:#059669;color:white;"><i class="fas fa-circle me-1" style="font-size:0.5rem;"></i>{{ _("Available") }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if current_user.is_admin %}
+            <div class="ms-auto">
+                <a href="{{ url_for('people_bp.person_detail', employee_id=employee.id) }}"
+                   class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-id-card me-1"></i>{{ _("Full Profile") }}
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="row g-4">
+            <!-- Left column: Bio, working style, contact -->
+            <div class="col-md-5">
+                <!-- Contact info -->
+                <div class="card border-0 bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-3"><i class="fas fa-address-card me-2"></i>{{ _("Contact") }}</h6>
+                        <div class="mb-1">
+                            <i class="fas fa-envelope me-2 text-muted" style="width:14px;"></i>
+                            <a href="mailto:{{ employee.user.email }}">{{ employee.user.email }}</a>
+                        </div>
+                        {% if employee.phone %}
+                        <div>
+                            <i class="fas fa-phone me-2 text-muted" style="width:14px;"></i>
+                            {{ employee.phone }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Bio -->
+                {% if employee.bio %}
+                <div class="card border-0 bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2"><i class="fas fa-user me-2"></i>{{ _("Bio") }}</h6>
+                        <p class="mb-0" style="white-space: pre-wrap;">{{ employee.bio }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Working style -->
+                {% if employee.working_style %}
+                <div class="card border-0 bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted mb-2"><i class="fas fa-laptop me-2"></i>{{ _("Working Style") }}</h6>
+                        <p class="mb-0" style="white-space: pre-wrap;">{{ employee.working_style }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if not employee.bio and not employee.working_style %}
+                <div class="text-muted small fst-italic">{{ _("No bio or working style added yet.") }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Right column: Recent posts -->
+            <div class="col-md-7">
+                <h6 class="text-muted mb-3"><i class="fas fa-stream me-2"></i>{{ _("Recent Posts") }}</h6>
+                {% if recent_posts %}
+                <div class="d-flex flex-column gap-2">
+                    {% for post in recent_posts %}
+                    <div class="card border-0 bg-light">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="badge {% if post.post_type == 'win' %}bg-warning text-dark{% else %}bg-primary{% endif %} mb-1 text-3xs">
+                                    {% if post.post_type == 'win' %}{{ _("Win") }} <i class="fas fa-trophy ms-1"></i>{% else %}{{ _("Update") }} <i class="fas fa-bullhorn ms-1"></i>{% endif %}
+                                </span>
+                                <small class="text-muted">
+                                    {{ post.created_at|format_datetime('%b %d, %Y') if post.created_at else '' }}
+                                </small>
+                            </div>
+                            <p class="mb-0 small">{{ post.preview_text() | truncate(150) }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-stream fa-2x mb-2 opacity-25"></i>
+                    <p class="mb-0 small">{{ _("No recent posts") }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

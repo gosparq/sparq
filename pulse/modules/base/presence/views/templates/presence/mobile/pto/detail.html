@@ -1,0 +1,140 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("Leave Request") }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('pto_bp.index') }}" class="btn btn-sm btn-light">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{{ _("Leave Request") }}</h5>
+</div>
+
+<!-- Status Card -->
+<div class="mobile-card mb-3">
+    <div class="mobile-card-body text-center py-4">
+        {% if leave_request.status.name == 'PENDING' %}
+        <span class="status-badge pending" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-hourglass-half me-2"></i>{{ _("Pending Approval") }}
+        </span>
+        {% elif leave_request.status.name == 'APPROVED' %}
+        <span class="status-badge approved" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-check-circle me-2"></i>{{ _("Approved") }}
+        </span>
+        {% elif leave_request.status.name == 'DENIED' %}
+        <span class="status-badge denied" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-times-circle me-2"></i>{{ _("Denied") }}
+        </span>
+        {% elif leave_request.status.name == 'DRAFT' %}
+        <span class="status-badge draft" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-file me-2"></i>{{ _("Draft") }}
+        </span>
+        {% elif leave_request.status.name == 'CANCELLED' %}
+        <span class="status-badge draft" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-ban me-2"></i>{{ _("Cancelled") }}
+        </span>
+        {% endif %}
+
+        {% if leave_request.status.name == 'APPROVED' and leave_request.reviewed_by %}
+        <div class="text-muted small mt-2">
+            {{ _("by") }} {{ leave_request.reviewed_by.first_name }} {{ _("on") }} {{ leave_request.reviewed_at|format_datetime('%b %d, %Y') }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Details Card -->
+<div class="mobile-card">
+    <div class="mobile-card-body">
+        <!-- Dates -->
+        <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+            <span class="text-muted">{{ _("Dates") }}</span>
+            <span class="fw-bold">
+                {{ leave_request.start_date.strftime('%b %d') }}{% if leave_request.start_date != leave_request.end_date %} - {{ leave_request.end_date.strftime('%b %d, %Y') }}{% else %}, {{ leave_request.start_date.strftime('%Y') }}{% endif %}
+            </span>
+        </div>
+
+        <!-- Total Days -->
+        <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+            <span class="text-muted">{{ _("Total Days") }}</span>
+            <span class="fw-bold">{{ leave_request.total_days }} {{ _("day") if leave_request.total_days == 1 else _("days") }}</span>
+        </div>
+
+        <!-- Leave Type -->
+        <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+            <span class="text-muted">{{ _("Type") }}</span>
+            <span class="fw-bold">{{ leave_request.leave_type.value }}</span>
+        </div>
+
+        <!-- Person -->
+        <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+            <span class="text-muted">{{ _("Person") }}</span>
+            <span class="fw-bold">{{ leave_request.member.user.first_name }} {{ leave_request.member.user.last_name }}</span>
+        </div>
+
+        <!-- Created -->
+        <div class="d-flex justify-content-between align-items-center py-3 {% if leave_request.employee_notes or leave_request.admin_notes %}border-bottom{% endif %}">
+            <span class="text-muted">{{ _("Requested") }}</span>
+            <span>{{ leave_request.created_at|format_datetime('%b %d, %Y') }}</span>
+        </div>
+
+        <!-- Person Notes -->
+        {% if leave_request.employee_notes %}
+        <div class="py-3 {% if leave_request.admin_notes %}border-bottom{% endif %}">
+            <div class="text-muted small mb-1">{{ _("Notes") }}</div>
+            <p class="mb-0">{{ leave_request.employee_notes }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Admin Notes -->
+        {% if leave_request.admin_notes %}
+        <div class="py-3">
+            <div class="text-muted small mb-1">{{ _("Manager Response") }}</div>
+            <div class="p-2 bg-light rounded">
+                <i class="fas fa-comment-dots text-warning me-1"></i>
+                {{ leave_request.admin_notes }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Owner Actions -->
+{% if is_owner %}
+<div class="mt-4">
+    {% if leave_request.is_editable_by_member %}
+    <div class="d-grid gap-2">
+        <button class="btn btn-primary btn-touch w-100"
+                hx-get="{{ url_for('pto_bp.edit_request_modal', request_id=leave_request.id) }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-edit me-2"></i>{{ _("Edit Request") }}
+        </button>
+        {% if leave_request.status.name == 'DRAFT' %}
+        <form method="POST" action="{{ url_for('pto_bp.submit_request', request_id=leave_request.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-primary btn-touch w-100">
+                <i class="fas fa-paper-plane me-2"></i>{{ _("Submit for Approval") }}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if leave_request.can_cancel %}
+    <form method="POST" action="{{ url_for('pto_bp.cancel_request', request_id=leave_request.id) }}"
+          data-confirm="{{ _('Are you sure you want to cancel this request?') }}"
+          class="mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-outline-danger btn-touch w-100">
+            <i class="fas fa-times me-2"></i>{{ _("Cancel Request") }}
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Modals container -->
+<div id="modals"></div>
+{% endblock %}

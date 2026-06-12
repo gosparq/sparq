@@ -1,0 +1,10 @@
+{# Chat DM FAB — opens a bottom sheet with the org member list for 1:1 DMs.
+   Hidden automatically on pages that render their own .fab element via CSS :has().
+   Expects `header_dm_unread_count` from the global context processor. #}
+<button type="button" class="chat-fab" aria-label="{{ _('Chat') }}"
+        @click="dmListOpen = true">
+    <i class="fas fa-comment-dots"></i>
+    {% if header_dm_unread_count and header_dm_unread_count > 0 %}
+    <span class="chat-fab-badge">{{ header_dm_unread_count if header_dm_unread_count < 100 else '99+' }}</span>
+    {% endif %}
+</button>

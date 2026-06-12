@@ -1,0 +1,5 @@
+<span id="notification-badge"{% if oob %} hx-swap-oob="true"{% endif %}>
+    {%- if notification_count and notification_count > 0 -%}
+    <span class="content-header-badge">{{ notification_count if notification_count < 100 else '99+' }}</span>
+    {%- endif -%}
+</span>

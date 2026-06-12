@@ -1,0 +1,142 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("PTO / Leave") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="content-heading">{{ _("PTO / Leave") }}</h2>
+        <button class="btn btn-sm btn-primary"
+                hx-get="{{ url_for('pto_bp.new_request_modal') }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("Request Time Off") }}
+        </button>
+    </div>
+
+    <!-- Sub-navigation -->
+    {% if current_user.is_admin %}
+    <div class="mb-3 border-bottom">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('pto_bp.index') }}">
+                    {{ _("My Requests") }}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('pto_bp.approval_queue') }}">
+                    {{ _("Approve Requests") }}
+                    {% if pending_count > 0 %}
+                    <span class="badge bg-warning text-dark ms-1">{{ pending_count }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('pto_bp.scheduled') }}">
+                    {{ _("Scheduled") }}
+                </a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Filter Pills -->
+    <div class="d-flex gap-1 mb-3">
+        <a href="{{ url_for('pto_bp.index', status='all') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="{% if status_filter == 'all' %}background:var(--color-primary-lightest);color:var(--color-primary-dark);{% else %}color:var(--color-gray-500);{% endif %}">
+            {{ _("All") }}
+        </a>
+        <a href="{{ url_for('pto_bp.index', status='pending') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="{% if status_filter == 'pending' %}background:var(--color-primary-lightest);color:var(--color-primary-dark);{% else %}color:var(--color-gray-500);{% endif %}">
+            {{ _("Pending") }}
+        </a>
+        <a href="{{ url_for('pto_bp.index', status='approved') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="{% if status_filter == 'approved' %}background:var(--color-primary-lightest);color:var(--color-primary-dark);{% else %}color:var(--color-gray-500);{% endif %}">
+            {{ _("Approved") }}
+        </a>
+        <a href="{{ url_for('pto_bp.index', status='denied') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="{% if status_filter == 'denied' %}background:var(--color-primary-lightest);color:var(--color-primary-dark);{% else %}color:var(--color-gray-500);{% endif %}">
+            {{ _("Denied") }}
+        </a>
+    </div>
+
+    {% if my_requests %}
+    <div x-data="{ nav(e, url) { e.ctrlKey || e.metaKey ? window.open(url, '_blank') : location.href = url } }">
+        {% for req in my_requests %}
+        <div class="d-flex justify-content-between align-items-start" style="padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--color-gray-200);{% endif %}cursor:pointer;" @click="nav($event, '{{ url_for('pto_bp.detail', request_id=req.id) }}')">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center mb-1">
+                    <span class="fw-semibold text-base">
+                        {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d, %Y') }}{% else %}, {{ req.start_date.strftime('%Y') }}{% endif %}
+                    </span>
+                    <span class="badge {{ req.status_badge_class }} ms-2 text-3xs">{{ req.status.value }}</span>
+                </div>
+                <div class="text-muted text-sm">
+                    {{ req.leave_type.value }} &middot; {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+                </div>
+                {% if req.employee_notes %}
+                <div class="mt-1 fst-italic text-sm">"{{ req.employee_notes|truncate(100) }}"</div>
+                {% endif %}
+                {% if req.admin_notes and req.status in [LeaveRequestStatus.PENDING, LeaveRequestStatus.DENIED] %}
+                <div class="mt-2 p-2 rounded text-sm" style="background:var(--color-gray-50)">
+                    <i class="fas fa-comment-dots text-warning me-1"></i>
+                    <strong>{{ _("Admin Note:") }}</strong> {{ req.admin_notes }}
+                </div>
+                {% endif %}
+                {% if req.status == LeaveRequestStatus.APPROVED and req.reviewed_by %}
+                <div class="text-muted mt-1 text-xs">
+                    {{ _("Approved by") }} {{ req.reviewed_by.first_name }} {{ _("on") }} {{ req.reviewed_at|format_datetime('%b %d, %Y') }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-1" @click.stop>
+                {% if req.is_editable_by_member %}
+                <button class="btn btn-sm btn-outline-secondary text-2xs" style="padding:0.15rem 0.4rem" title="{{ _('Edit') }}"
+                        hx-get="{{ url_for('pto_bp.edit_request_modal', request_id=req.id) }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML">
+                    <i class="fas fa-edit"></i>
+                </button>
+                {% endif %}
+                {% if req.can_cancel %}
+                <form method="POST" action="{{ url_for('pto_bp.cancel_request', request_id=req.id) }}" class="d-inline"
+                      data-confirm="{{ _('Are you sure you want to cancel this request?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger text-2xs" style="padding:0.15rem 0.4rem" title="{{ _('Cancel') }}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-umbrella-beach fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-1 text-base">{{ _("No requests found") }}</p>
+        <p class="mb-3 text-sm">{{ _("You haven't submitted any time off requests yet.") }}</p>
+        <button class="btn btn-sm btn-primary"
+                hx-get="{{ url_for('pto_bp.new_request_modal') }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("Request Time Off") }}
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+</script>
+{% endblock %}

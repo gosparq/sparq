@@ -1,0 +1,61 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% block title %}{{ _("Sync Settings") }}{% endblock %}
+
+{% block module_content %}
+<div class="p-3">
+    <!-- Header -->
+    <h1 class="h5 fw-semibold mb-4">{{ _("Sync Settings") }}</h1>
+
+    <!-- Settings Cards -->
+    <div class="d-flex flex-column gap-3">
+        <!-- Chat Settings -->
+        <div class="card rounded-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="connect-settings-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h6 class="mb-0">{{ _("Chat") }}</h6>
+                </div>
+                <div class="text-center py-3">
+                    <i class="fas fa-check-circle text-muted mb-2 fs-4"></i>
+                    <p class="text-muted mb-0 small">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Settings -->
+        <div class="card rounded-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="connect-settings-icon">
+                        <i class="fas fa-calendar-days"></i>
+                    </div>
+                    <h6 class="mb-0">{{ _("Calendar") }}</h6>
+                </div>
+                <div class="text-center py-3">
+                    <i class="fas fa-check-circle text-muted mb-2 fs-4"></i>
+                    <p class="text-muted mb-0 small">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Board Settings -->
+        <div class="card rounded-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="connect-settings-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h6 class="mb-0">{{ _("Board") }}</h6>
+                </div>
+                <div class="text-center py-3">
+                    <i class="fas fa-check-circle text-muted mb-2 fs-4"></i>
+                    <p class="text-muted mb-0 small">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

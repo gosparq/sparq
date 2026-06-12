@@ -1,0 +1,101 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Notifications") }}{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>{{ _("Notifications") }}</h2>
+            {% if notifications %}
+            <div class="d-flex gap-2">
+                <form method="POST" action="{{ url_for('core_bp.notifications_mark_all_read') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="redirect" value="page">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-check-double me-1"></i>{{ _("Mark all read") }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('core_bp.notifications_dismiss_all') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="redirect" value="page">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>{{ _("Dismiss all") }}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if notifications %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;"></th>
+                        <th>{{ _("Notification") }}</th>
+                        <th style="width: 120px;">{{ _("Time") }}</th>
+                        <th style="width: 100px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for notification in notifications %}
+                    <tr {% if notification.action_url %}data-href="{{ notification.action_url }}"{% endif %}
+                        class="{% if not notification.is_read %}notification-row-unread{% endif %} cursor-pointer"
+                        {% if notification.action_url %}{% endif %}>
+                        <td class="text-center" style="color: {{ notification.color }};">
+                            <i class="fas {{ notification.icon }}"></i>
+                        </td>
+                        <td>
+                            <div class="{% if not notification.is_read %}fw-bold{% else %}fw-semibold{% endif %}">
+                                {% if not notification.is_read %}<span class="notification-unread-dot"></span>{% endif %}{{ notification.title }}
+                            </div>
+                            {% if notification.message %}
+                            <div class="text-muted small">{{ notification.message }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ notification.time_ago() }}</td>
+                        <td class="text-end">
+                            {% if not notification.is_read %}
+                            <form method="POST" action="{{ url_for('core_bp.notification_mark_read', notification_id=notification.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="redirect" value="page">
+                                <button type="submit" class="btn btn-sm btn-primary" title="{{ _('Mark read') }}" @click.stop="">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('core_bp.notification_dismiss', notification_id=notification.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="redirect" value="page">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ _('Dismiss') }}" @click.stop="">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">{{ _("No notifications") }}</h5>
+            <p class="text-muted">{{ _("You're all caught up!") }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    var item = e.target.closest('[data-href]');
+    if (item && !e.target.closest('button') && !e.target.closest('form')) {
+        window.location.href = item.dataset.href;
+    }
+});
+</script>
+{% endblock %}

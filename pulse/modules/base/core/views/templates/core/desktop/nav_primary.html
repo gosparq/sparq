@@ -1,0 +1,69 @@
+{# Primary Nav — 52px icon rail on the far left #}
+{# Active section is determined by URL prefix matching #}
+
+{#
+  Phase 6 §5: organization-only members (OrganizationUser but no WorkspaceUser)
+  only see the modules that expose an Organization scope — People, Resources,
+  Updates. Workspace-only modules (Home, Work, Time) are hidden so clicks
+  never land on a route that requires g.workspace_id.
+#}
+{% set is_org_only_member = (user_workspaces|default([])|length) == 0 %}
+
+{% if is_org_only_member %}
+{% set primary_items = [
+    {"id": "updates",   "label": "Update",    "icon": "fas fa-arrows-rotate", "url": "/updates/organization/wins/",      "prefix": "/updates"},
+    {"id": "people",    "label": "People",    "icon": "fas fa-users",         "url": "/people/people/organization",      "prefix": "/people"},
+    {"id": "resources", "label": "Resources", "icon": "fas fa-file-lines",    "url": "/resources/docs/organization",     "prefix": "/resources"},
+] %}
+{% else %}
+{% set primary_items = [
+    {"id": "home",      "label": "Home",      "icon": "fas fa-house",           "url": "/dashboard/",      "prefix": "/dashboard"},
+    {"id": "updates",   "label": "Update",    "icon": "fas fa-arrows-rotate",   "url": "/updates/",        "prefix": "/updates"},
+    {"id": "actions",   "label": "Work",      "icon": "fas fa-list-check",      "url": "/tasks/board",   "prefix": "/tasks"},
+    {"id": "time",      "label": "Time",      "icon": "fas fa-clock",           "url": "/presence/clock",  "prefix": "/presence"},
+    {"id": "board",     "label": "Board",     "icon": "fas fa-clipboard-list",  "url": "/sync/board/",     "prefix": "/sync/board"},
+    {"id": "people",    "label": "People",    "icon": "fas fa-users",           "url": "/people/",         "prefix": "/people"},
+    {"id": "resources", "label": "Resources", "icon": "fas fa-file-lines",      "url": "/resources/docs/", "prefix": "/resources"},
+] %}
+{% endif %}
+
+<nav class="primary-nav" aria-label="Primary navigation">
+    {# Main nav items #}
+    <div class="primary-nav-items">
+        {% for item in primary_items %}
+        {% set is_active = request.path.startswith(item.prefix) and request.path not in ('/sync/settings', '/presence/timesheets/settings') %}
+        {# Updates also matches legacy /sync paths (except /sync/calendar, /sync/board, /sync/plans which belong to other tabs) #}
+        {% if item.id == 'updates' and (request.path.startswith('/sync')
+            and not request.path.startswith('/sync/calendar')
+            and not request.path.startswith('/sync/board')
+            and not request.path.startswith('/sync/plans')) %}{% set is_active = true %}{% endif %}
+        {# Actions also matches /projects paths #}
+        {% if item.id == 'actions' and request.path.startswith('/projects') %}{% set is_active = true %}{% endif %}
+        {# Time also matches /sync/calendar and PTO paths #}
+        {% if item.id == 'time' and request.path.startswith('/sync/calendar') %}{% set is_active = true %}{% endif %}
+        {% if item.id == 'time' and request.path.startswith('/presence/pto') %}{% set is_active = true %}{% endif %}
+        <a href="{{ item.url }}"
+           class="primary-nav-item{% if is_active %} active{% endif %}"
+           title="{{ _(item.label) }}">
+            <i class="{{ item.icon }}"></i>
+            <span class="primary-nav-label">{{ _(item.label) }}</span>
+            {# Tasks badge #}
+            {% if item.id == 'actions' %}
+            <span class="primary-nav-badge" data-tasks-badge style="{% if not tasks_open_count or tasks_open_count == 0 %}display:none{% endif %}"></span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    {# Bottom: Settings gear. Hidden for org-only members — /settings/company requires workspace context. #}
+    <div class="primary-nav-bottom">
+        {% if current_user.is_authenticated and current_user.is_admin and not is_org_only_member %}
+        <a href="{{ url_for('core_bp.settings') }}"
+           class="primary-nav-item{% if request.path.startswith('/settings') or request.path in ('/sync/settings', '/presence/timesheets/settings') %} active{% endif %}"
+           title="{{ _('Settings') }}">
+            <i class="fas fa-gear"></i>
+            <span class="primary-nav-label">{{ _("Settings") }}</span>
+        </a>
+        {% endif %}
+    </div>
+</nav>

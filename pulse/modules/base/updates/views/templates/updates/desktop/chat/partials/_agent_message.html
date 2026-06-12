@@ -1,0 +1,46 @@
+{# Agent channel message partial - uses dict data, not saved to DB #}
+{% set is_ai = message.get('is_ai', False) %}
+{% set content = message.get('content', '') %}
+
+<div class="message agent-message" data-temp-id="{{ message.get('temp_id', '') }}">
+    <div class="message-avatar {% if is_ai %}avatar-ai{% else %}{% endif %}"
+         {% if not is_ai %}style="background-color: {{ message.get('avatar_color', '') }}"{% endif %}>
+        <i class="fas {% if is_ai %}fa-robot{% else %}fa-user{% endif %}"></i>
+    </div>
+    <div class="message-body">
+        <div class="message-meta">
+            <span class="author">
+                {% if is_ai %}
+                    sparQy
+                {% else %}
+                    {{ message.get('author_name', 'User') }}
+                {% endif %}
+            </span>
+            <span class="timestamp">
+                {{ message.get('timestamp', 'now') }}
+            </span>
+        </div>
+        <div class="message-content">
+            {% if content.startswith('AI_PROPOSAL::') %}
+                {% set action_id = content.split('::')[1]|int %}
+                {% set action = get_pending_action(action_id) %}
+                {% if action %}
+                    {% include 'ai/desktop/partials/_proposal.html' %}
+                {% else %}
+                    <span class="text-muted"><i class="fas fa-robot me-1"></i> Action no longer available</span>
+                {% endif %}
+            {% elif content.startswith('AI_MESSAGE::') %}
+                {{ content[12:] | markdown | safe }}
+            {% elif content.startswith('AI_WARNING::') %}
+                <div class="alert alert-warning mb-0 d-flex align-items-center" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span>{{ content[12:] }}</span>
+                </div>
+            {% elif content.startswith('AI_CONTEXT_CLEAR::') %}
+                <span class="text-muted fst-italic"><i class="fas fa-broom me-1"></i> Context cleared</span>
+            {% else %}
+                {{ content }}
+            {% endif %}
+        </div>
+    </div>
+</div>

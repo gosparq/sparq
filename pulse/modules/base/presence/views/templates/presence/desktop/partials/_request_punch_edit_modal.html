@@ -1,0 +1,142 @@
+<!-- Request Punch Edit Modal -->
+<div class="modal fade show" id="requestPunchEditModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            {% if pending_request %}
+            <!-- Existing pending request -->
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clock me-2"></i>{{ _("Correction Request Pending") }}
+                </h5>
+                <button type="button" class="btn-close"
+                        hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-hourglass-half me-2"></i>{{ _("A correction request is already pending for this punch.") }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">{{ _("Requested Time") }}</label>
+                    <div><span class="local-time" data-utc="{{ pending_request.requested_time.isoformat() }}Z"></span></div>
+                </div>
+                {% if pending_request.reason %}
+                <div class="mb-3">
+                    <label class="form-label text-muted small">{{ _("Reason") }}</label>
+                    <div>{{ pending_request.reason }}</div>
+                </div>
+                {% endif %}
+                <div>
+                    <span class="badge {{ pending_request.status_badge_class }}">{{ pending_request.status.value }}</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary"
+                        hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML">
+                    {{ _("Close") }}
+                </button>
+            </div>
+            {% else %}
+            <!-- New request form -->
+            <form hx-post="{{ url_for('presence_bp.submit_punch_edit_request', punch_id=punch.id) }}"
+                  hx-target="#modals"
+                  hx-swap="innerHTML">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>{{ _("Request Time Correction") }}
+                    </h5>
+                    <button type="button" class="btn-close"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML"></button>
+                </div>
+                <div class="modal-body">
+                    {% if error %}
+                    <div class="alert alert-danger mb-3">
+                        <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Punch Type") }}</label>
+                        <div>
+                            {% if punch.punch_type.value == 'in' %}
+                            <span class="badge bg-success">{{ _("Clock IN") }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ _("Clock OUT") }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Current Time") }}</label>
+                        <div>{{ punch_local.strftime('%I:%M %p') }} ({{ punch_local.strftime('%b %d, %Y') }})</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_time" class="form-label">{{ _("New Time") }}</label>
+                        <input type="text"
+                               class="form-control"
+                               id="request_new_time"
+                               name="new_time"
+                               required>
+                        <div class="form-text">{{ _("Date will remain") }} {{ punch_local.strftime('%b %d, %Y') }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">{{ _("Reason for Correction") }}</label>
+                        <textarea class="form-control"
+                                  id="request_reason"
+                                  name="reason"
+                                  rows="2"
+                                  placeholder="{{ _('e.g., Forgot to clock in on time') }}"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>{{ _("Submit Request") }}
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+{% if not pending_request %}
+flatpickr("#request_new_time", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    altInput: true,
+    altFormat: "h:i K",
+    time_24hr: false,
+    minuteIncrement: 1,
+    defaultDate: "{{ punch_local.strftime('%H:%M') }}"
+});
+{% endif %}
+
+// Convert UTC times in modal
+document.querySelectorAll('#requestPunchEditModal .local-time').forEach(function(el) {
+    const utc = el.dataset.utc;
+    if (utc && typeof companyTimezone !== 'undefined') {
+        const date = new Date(utc);
+        el.textContent = date.toLocaleTimeString('en-US', {
+            timeZone: companyTimezone,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    }
+});
+</script>

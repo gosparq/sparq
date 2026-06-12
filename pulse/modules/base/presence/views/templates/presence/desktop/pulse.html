@@ -1,0 +1,166 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Check-ins") }}{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="content-heading">{{ active_template.name if active_template else _("Check-ins") }}</h2>
+            <p class="text-muted mb-0 mt-1 small">
+                {% if active_template %}
+                    <a href="{{ url_for('presence_flow_bp.pulse_index') }}" class="text-muted text-decoration-none"><i class="fas fa-arrow-left me-1"></i>{{ _("All Check-ins") }}</a>
+                {% else %}
+                    {{ _("Quick check-ins to share how things are going.") }}
+                {% endif %}
+            </p>
+        </div>
+        {% if active_template %}
+        <a href="{{ url_for('presence_flow_bp.pulse_new', template_id=active_template.id) }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>{{ _("Check In") }}
+        </a>
+        {% else %}
+        <div class="dropdown">
+            <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-plus me-1"></i>{{ _("Check In") }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% for tmpl in templates %}
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('presence_flow_bp.pulse_new', template_id=tmpl.id) }}">
+                        {{ tmpl.name }}
+                    </a>
+                </li>
+                {% else %}
+                <li><span class="dropdown-item text-muted">{{ _("No templates available") }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Template filter pills #}
+    {% if templates and templates|length > 1 %}
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+        <a href="{{ url_for('presence_flow_bp.pulse_index') }}" class="btn btn-sm {% if not active_template %}btn-dark{% else %}btn-outline-secondary{% endif %}">{{ _("All") }}</a>
+        {% for tmpl in templates %}
+        <a href="{{ url_for('presence_flow_bp.pulse_index', template=tmpl.id) }}" class="btn btn-sm {% if active_template and active_template.id == tmpl.id %}btn-dark{% else %}btn-outline-secondary{% endif %}">{{ tmpl.name }}</a>
+        {% endfor %}
+        <a href="{{ url_for('presence_flow_bp.health_index') }}" class="btn btn-sm btn-outline-secondary ms-auto"><i class="fas fa-chart-line me-1"></i>{{ _("Team Health") }}</a>
+    </div>
+    {% endif %}
+
+    {% if my_pulse_today %}
+    <div class="alert alert-light border mb-4">
+        <div class="fw-semibold mb-2"><i class="fas fa-check-circle text-success me-1"></i>{{ _("My check-ins today") }}</div>
+        {% for post in my_pulse_today %}
+        <div class="d-flex gap-2 align-items-center text-muted small mb-1">
+            <span class="badge bg-light text-secondary border">{{ post.template.name }}</span>
+            {% for field in post.template.fields %}
+                {% set val = post.payload.get(field.key) %}
+                {% if val %}
+                <span>{{ val | replace('_', ' ') | title }}</span>
+                {% endif %}
+            {% endfor %}
+            <span class="ms-auto">{{ post.created_at|format_datetime('%I:%M %p') }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if posts %}
+        {# Group posts by date #}
+        {% set ns = namespace(current_date=None) %}
+        {% for post in posts %}
+            {# Only show team-visible posts; 'leads' visibility filtered out for non-admins #}
+            {% if post.visibility == 'team' or current_user.is_admin %}
+            {% set post_date = post.created_at|format_datetime('%B %d, %Y') %}
+            {% if post_date != ns.current_date %}
+                {% if not loop.first %}</div>{% endif %}
+                {% set ns.current_date = post_date %}
+                <div class="mb-1 mt-4">
+                    <small class="text-muted fw-semibold text-uppercase">{{ post_date }}</small>
+                </div>
+                <div class="post-day-group">
+            {% endif %}
+
+            <div class="card mb-2">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center gap-3">
+                        {# Author #}
+                        <div class="flex-shrink-0">
+                            {% if not post.is_anonymous and post.member and post.member.user %}
+                                {% if post.member.user.avatar_url %}
+                                    <img src="{{ post.member.user.avatar_url }}" class="rounded-circle" width="30" height="30" alt="">
+                                {% else %}
+                                    <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white text-2xs" style="width:30px; height:30px">
+                                        {{ post.member.user.first_name[0] }}{{ post.member.user.last_name[0] }}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white text-2xs" style="width:30px; height:30px">
+                                    <i class="fas fa-user text-3xs"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex-grow-1 min-width-0">
+                            <span class="fw-semibold small">
+                                {% if not post.is_anonymous and post.member and post.member.user %}
+                                    {{ post.member.user.first_name }} {{ post.member.user.last_name }}
+                                {% else %}
+                                    {{ _("Anonymous") }}
+                                {% endif %}
+                            </span>
+                            <span class="text-muted small ms-2">{{ post.template.name }}</span>
+                        </div>
+
+                        {# Pulse values #}
+                        <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                            {% for field in post.template.fields %}
+                                {% set val = post.payload.get(field.key) %}
+                                {% if val %}
+                                    {% if field.type == 'scale' %}
+                                        <div>
+                                            {% for i in range(val | int) %}<i class="fas fa-circle text-primary" style="font-size:0.5rem;"></i>{% endfor %}
+                                            {% for i in range(5 - (val | int)) %}<i class="far fa-circle text-muted" style="font-size:0.5rem;"></i>{% endfor %}
+                                        </div>
+                                    {% elif field.type == 'choice' %}
+                                        {% set status_colors = {'on_track': 'success', 'off_track': 'danger', 'red': 'danger', 'amber': 'warning', 'green': 'success'} %}
+                                        <span class="badge bg-{{ status_colors.get(val, 'secondary') }}">{{ val | replace('_', ' ') | title }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">{{ val }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            <span class="text-muted text-xs">{{ post.created_at|format_datetime('%I:%M %p') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if loop.last %}</div>{% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-heartbeat fa-2x mb-3 d-block text-danger opacity-50"></i>
+            {% if active_template %}
+            <p class="mb-3">{{ _("No %(name)s check-ins yet.") % {"name": active_template.name} }}</p>
+            <a href="{{ url_for('presence_flow_bp.pulse_new', template_id=active_template.id) }}" class="btn btn-primary btn-sm">
+                {{ _("Submit check-in") }}
+            </a>
+            {% else %}
+            <p class="mb-3">{{ _("No pulse check-ins yet today.") }}</p>
+            {% if templates %}
+            <a href="{{ url_for('presence_flow_bp.pulse_new', template_id=templates[0].id) }}" class="btn btn-primary btn-sm">
+                {{ _("Submit first check-in") }}
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

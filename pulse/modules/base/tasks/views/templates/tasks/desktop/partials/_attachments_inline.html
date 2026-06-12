@@ -1,0 +1,8 @@
+{# Inline attachments for task detail — images preview, files listed #}
+{# Required: entity_type, entity_id #}
+
+<div id="attachments-list"
+     hx-get="{{ url_for('docs_blueprint.list_attachments', entity_type=entity_type, entity_id=entity_id) }}?preview=1"
+     hx-trigger="load"
+     hx-on::after-swap="var s=document.getElementById('attachments-section');if(s)s.style.display=this.innerHTML.trim()?'':'none'">
+</div>

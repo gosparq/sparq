@@ -1,0 +1,130 @@
+{% if folders or documents %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th style="width: 50%">{{ _("Name") }}</th>
+                <th>{{ _("Size") }}</th>
+                <th>{{ _("Modified") }}</th>
+                <th class="text-end">{{ _("Actions") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Parent folder link -->
+            {% if current_folder %}
+            <tr>
+                <td>
+                    <a href="{% if current_folder.parent_id %}{{ url_for('docs_blueprint.view_folder', folder_id=current_folder.parent_id) }}{% else %}{{ url_for('docs_blueprint.index') }}{% endif %}" class="text-decoration-none">
+                        <i class="fas fa-level-up-alt text-muted me-2"></i>
+                        <span class="text-muted">..</span>
+                    </a>
+                </td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            {% endif %}
+
+            <!-- Folders -->
+            {% for folder in folders %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('docs_blueprint.view_folder', folder_id=folder.id) }}" class="text-decoration-none">
+                        <i class="fas fa-folder text-warning me-2"></i>
+                        {{ folder.name }}
+                    </a>
+                </td>
+                <td class="text-muted">{{ _("Folder") }}</td>
+                <td class="text-muted">{{ folder.updated_at|format_datetime('%b %d, %Y') if folder.updated_at else '-' }}</td>
+                <td class="text-end">
+                    {% if current_user.is_admin %}
+                    <div class="btn-group btn-group-sm">
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#renameModal"
+                                data-item-type="folder"
+                                data-item-id="{{ folder.id }}"
+                                data-item-name="{{ folder.name }}"
+                                title="{{ _('Rename') }}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button"
+                                class="btn btn-outline-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteModal"
+                                data-item-type="folder"
+                                data-item-id="{{ folder.id }}"
+                                data-item-name="{{ folder.name }}"
+                                title="{{ _('Delete') }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Documents -->
+            {% for doc in documents %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('docs_blueprint.download', doc_id=doc.id) }}" class="text-decoration-none">
+                        <i class="fas fa-file text-secondary me-2"></i>
+                        {{ doc.filename }}
+                    </a>
+                </td>
+                <td class="text-muted">{{ doc.size_display }}</td>
+                <td class="text-muted">{{ doc.updated_at|format_datetime('%b %d, %Y') if doc.updated_at else '-' }}</td>
+                <td class="text-end">
+                    <div class="btn-group btn-group-sm">
+                        <a href="{{ url_for('docs_blueprint.download', doc_id=doc.id) }}"
+                           class="btn btn-outline-secondary"
+                           title="{{ _('Download') }}">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        {% if current_user.is_admin %}
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#renameModal"
+                                data-item-type="document"
+                                data-item-id="{{ doc.id }}"
+                                data-item-name="{{ doc.filename }}"
+                                title="{{ _('Rename') }}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button"
+                                class="btn btn-outline-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteModal"
+                                data-item-type="document"
+                                data-item-id="{{ doc.id }}"
+                                data-item-name="{{ doc.filename }}"
+                                title="{{ _('Delete') }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+    <p class="text-muted">{{ _("This folder is empty") }}</p>
+    <div class="d-flex justify-content-center gap-2">
+        {% if current_user.is_admin %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#newFolderModal">
+            <i class="fas fa-folder-plus me-1"></i> {{ _("New Folder") }}
+        </button>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="fas fa-upload me-1"></i> {{ _("Upload Files") }}
+        </button>
+    </div>
+</div>
+{% endif %}

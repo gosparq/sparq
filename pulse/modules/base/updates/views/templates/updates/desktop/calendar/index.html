@@ -1,0 +1,35 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Calendar") }} - {{ _("Sync") }}{% endblock %}
+
+{% block app_class %}calendar-app{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/calendar.css') }}">
+{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="chat-header">
+        <h2 class="content-heading"><i class="fas fa-calendar-days me-2"></i>{{ _("Team Calendar") }}</h2>
+    </div>
+
+    <!-- Calendar Container (nav + content) - HTMX target for view switching -->
+    <div id="calendar-container">
+        {% include 'updates/desktop/calendar/_calendar_container.html' %}
+    </div>
+</div>
+
+<!-- Modal Container -->
+<div id="modal-container"></div>
+
+{% if open_event_id %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    htmx.ajax('GET', '{{ url_for("sync_bp.event_detail", event_id=open_event_id, view=view) }}', '#modal-container');
+});
+</script>
+{% endif %}
+{% endblock %}

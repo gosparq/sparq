@@ -1,0 +1,132 @@
+<div class="msa-card-header">
+    <span class="msa-card-title">
+        <i class="{{ provider_display.get(provider, ('', 'fas fa-envelope'))[1] }} msa-email-header-icon"></i>
+        {{ provider_display.get(provider, ("", ""))[0] }} {{ _("Configuration") }}
+    </span>
+</div>
+<div class="msa-card-body">
+<form method="POST" action="{{ url_for('msa_bp.email_config_save') }}" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="provider" value="{{ provider }}">
+
+    {% if provider == 'gmail' %}
+    <div class="msa-email-steps">
+        <div class="msa-email-step">
+            <span class="msa-email-step-num">1</span>
+            <span>{{ _("Enable <strong>2-Step Verification</strong> on your Google account")|safe }}</span>
+        </div>
+        <div class="msa-email-step">
+            <span class="msa-email-step-num">2</span>
+            <span>{{ _("Generate an <strong>App Password</strong> at myaccount.google.com/apppasswords")|safe }}</span>
+        </div>
+        <div class="msa-email-step">
+            <span class="msa-email-step-num">3</span>
+            <span>{{ _("Use the 16-character app password below, not your regular password") }}</span>
+        </div>
+    </div>
+    {% elif provider == 'sendgrid' %}
+    <div class="msa-flash msa-flash-info msa-email-provider-note">
+        <i class="fas fa-info-circle"></i>
+        <span>{{ _("Username must be <code>apikey</code> (literal). Password is your SendGrid API key.")|safe }}</span>
+    </div>
+    {% elif preset.get('notes') %}
+    <div class="msa-flash msa-flash-info msa-email-provider-note">
+        <i class="fas fa-info-circle"></i>
+        {{ _(preset['notes']) }}
+    </div>
+    {% endif %}
+
+    <!-- Username -->
+    <div class="msa-form-group">
+        <label class="msa-label">{{ _("Username") }}</label>
+        <input type="text" name="username" class="msa-input"
+               value="{{ settings.email_username or '' }}"
+               placeholder="{% if provider == 'sendgrid' %}apikey{% elif provider == 'gmail' %}you@gmail.com{% elif provider == 'aws_ses' %}AKIA...{% else %}{{ _('SMTP username') }}{% endif %}"
+               {{ 'readonly' if env_overrides.get('email_username') }}>
+        {% if env_overrides.get('email_username') %}
+        <span class="msa-field-hint"><i class="fas fa-lock msa-field-hint-icon"></i> {{ _("Set via SMTP_USERNAME env var") }}</span>
+        {% endif %}
+    </div>
+
+    <!-- Password -->
+    <div class="msa-form-group" x-data="{ show: false }">
+        <label class="msa-label">
+            {% if provider == 'gmail' %}{{ _("App Password") }}
+            {% elif provider == 'sendgrid' %}{{ _("API Key") }}
+            {% else %}{{ _("Password") }}
+            {% endif %}
+        </label>
+        <div class="msa-email-password-wrap">
+            <input :type="show ? 'text' : 'password'" name="password" class="msa-input msa-email-password-input"
+                   value=""
+                   placeholder="{{ _('Enter to update') if settings.email_password else (_('16-character app password') if provider == 'gmail' else _('SMTP password or API key')) }}"
+                   {{ 'readonly' if env_overrides.get('email_password') }}>
+            <button type="button" @click="show = !show" class="msa-email-password-toggle">
+                <i class="fas" :class="show ? 'fa-eye-slash' : 'fa-eye'"></i>
+            </button>
+        </div>
+        {% if settings.email_password and not env_overrides.get('email_password') %}
+        <span class="msa-field-hint"><i class="fas fa-check msa-field-hint-icon msa-text-accent"></i> {{ _("Password is set. Leave blank to keep current.") }}</span>
+        {% elif env_overrides.get('email_password') %}
+        <span class="msa-field-hint"><i class="fas fa-lock msa-field-hint-icon"></i> {{ _("Set via SMTP_PASSWORD env var") }}</span>
+        {% endif %}
+    </div>
+
+    <!-- From Email -->
+    <div class="msa-form-group">
+        <label class="msa-label">{{ _("From Email") }}</label>
+        <input type="email" name="from_email" class="msa-input"
+               value="{{ settings.email_from or '' }}"
+               placeholder="{% if provider == 'gmail' %}you@gmail.com{% else %}noreply@yourdomain.com{% endif %}"
+               {{ 'readonly' if env_overrides.get('email_from') }}>
+        {% if env_overrides.get('email_from') %}
+        <span class="msa-field-hint"><i class="fas fa-lock msa-field-hint-icon"></i> {{ _("Set via SMTP_FROM_EMAIL env var") }}</span>
+        {% endif %}
+    </div>
+
+    {% if provider == 'custom' %}
+    <div class="msa-email-divider"></div>
+
+    <div class="msa-form-group">
+        <label class="msa-label">{{ _("SMTP Host") }}</label>
+        <input type="text" name="host" class="msa-input"
+               value="{{ settings.email_host or '' }}"
+               placeholder="smtp.example.com"
+               {{ 'readonly' if env_overrides.get('email_host') }}>
+        {% if env_overrides.get('email_host') %}
+        <span class="msa-field-hint"><i class="fas fa-lock msa-field-hint-icon"></i> {{ _("Set via SMTP_HOST env var") }}</span>
+        {% endif %}
+    </div>
+
+    <div class="msa-email-custom-row">
+        <div class="msa-form-group msa-email-port-field">
+            <label class="msa-label">{{ _("Port") }}</label>
+            <input type="number" name="port" class="msa-input"
+                   value="{{ settings.email_port or 587 }}"
+                   {{ 'readonly' if env_overrides.get('email_port') }}>
+        </div>
+        <div class="msa-form-group msa-email-tls-field">
+            <label class="msa-label">{{ _("Encryption") }}</label>
+            <label class="msa-toggle msa-email-tls-toggle">
+                <input type="checkbox" name="use_tls" value="1"
+                       {{ 'checked' if settings.email_use_tls != false }}>
+                <span class="msa-toggle-track"></span>
+                <span class="msa-email-tls-label">{{ _("STARTTLS") }}</span>
+            </label>
+        </div>
+    </div>
+    {% else %}
+    <div class="msa-email-server-info">
+        <i class="fas fa-server"></i>
+        <span>{{ preset.get('host', '') }}:{{ preset.get('port', 587) }}</span>
+        {% if preset.get('use_tls') %}<span class="msa-badge msa-badge-active msa-email-tls-badge">{{ _("TLS") }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="msa-email-form-actions">
+        <button type="submit" class="msa-btn msa-btn-primary">
+            <i class="fas fa-check"></i> {{ _("Save Configuration") }}
+        </button>
+    </div>
+</form>
+</div>

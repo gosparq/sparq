@@ -1,0 +1,14 @@
+{# DM messages for the popup widget — compact bubble style #}
+{% for message in messages %}
+<div class="dm-popup-msg {% if message.author_id == current_member_id %}dm-popup-msg--mine{% else %}dm-popup-msg--theirs{% endif %}">
+    {% if message.author_id != current_member_id %}
+    <div class="dm-popup-msg-author">{{ other_user.first_name }}</div>
+    {% endif %}
+    <div class="dm-popup-msg-bubble">{{ message.content }}</div>
+    <div class="dm-popup-msg-time">{{ message.created_at|format_datetime('%I:%M %p') }}</div>
+</div>
+{% else %}
+<div class="text-center text-muted py-4 text-sm">
+    {{ _("No messages yet. Say hi!") }}
+</div>
+{% endfor %}

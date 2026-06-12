@@ -1,0 +1,740 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ employee.user.first_name }} {{ employee.user.last_name }} - {{ _("Person") }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="mru-entry" hidden data-mru-type="person" data-mru-id="{{ employee.id }}" data-mru-name="{{ employee.user.first_name }} {{ employee.user.last_name }}" data-mru-url="{{ url_for('people_bp.person_detail', employee_id=employee.id) }}"></div>
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('people_bp.people') }}">{{ _("People") }}</a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        {{ employee.user.first_name }} {{ employee.user.last_name }}
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Sidebar + Content Layout -->
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-3">
+                    <div class="person-sidebar card">
+                        <div class="card-body">
+                            <!-- Avatar -->
+                            <div class="text-center mb-3">
+                                <div class="person-avatar mx-auto" style="background-color: {{ employee.user.avatar_color or 'var(--color-focus)' }}">
+                                    {{ employee.user.avatar_initials }}
+                                </div>
+                            </div>
+
+                            <!-- Name -->
+                            <h5 class="mb-0 text-center">
+                                {{ employee.user.first_name }} {{ employee.user.last_name }}
+                            </h5>
+                            {% if display_name_extra %}
+                            <div class="text-muted small text-center">"{{ display_name_extra }}"</div>
+                            {% endif %}
+                            <p class="text-muted small text-center mb-2">
+                                {{ employee.position or _("Team Member") }}
+                            </p>
+
+                            <!-- Status Badges -->
+                            {% if employee.status.value == 'Terminated' %}
+                            <div class="text-center mb-2">
+                                <span class="badge bg-danger">{{ _("Terminated") }}</span>
+                                {% if employee.termination_date %}
+                                <div class="text-danger small mt-1">
+                                    {{ employee.termination_date|format_date }}
+                                    {% if employee.termination_reason %}
+                                    ({{ employee.termination_reason.value }})
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% elif employee.status.value == 'On Leave' %}
+                            <div class="text-center mb-2">
+                                <span class="badge bg-warning text-dark">{{ _("On Leave") }}</span>
+                            </div>
+                            {% endif %}
+
+                            <hr class="my-2">
+
+                            <!-- Contact -->
+                            <div class="mb-2">
+                                <div class="small">
+                                    <i class="fas fa-phone text-muted me-2"></i>{{ employee.phone or _('Not provided') }}
+                                </div>
+                                <div class="small">
+                                    <i class="fas fa-envelope text-muted me-2"></i>{{ employee.user.email }}
+                                </div>
+                            </div>
+
+                            <hr class="my-2">
+
+                            <!-- Key Info -->
+                            <div class="mb-1">
+                                <div class="text-muted small">{{ _("Department") }}</div>
+                                <div class="small">{{ employee.department or _('Not set') }}</div>
+                            </div>
+                            {% if is_admin or is_own_profile %}
+                            <div class="mb-1">
+                                <div class="text-muted small">{{ _("Hire Date") }}</div>
+                                <div class="small">{{ employee.start_date|format_date if employee.start_date else _('Not set') }}</div>
+                            </div>
+                            <div class="mb-1">
+                                <div class="text-muted small">{{ _("Type") }}</div>
+                                <div class="small">{{ employee.type.value if employee.type else _('Not set') }}</div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Quick Access -->
+                            {% if is_admin or is_own_profile %}
+                            {% if time_stats or expense_stats %}
+                            <hr class="my-2">
+                            <div class="d-flex flex-column gap-1">
+                                {% if time_stats %}
+                                <a href="{{ url_for('presence_bp.week_view') }}" class="btn btn-sm btn-outline-secondary text-start">
+                                    <i class="fas fa-clock text-info me-1"></i>{{ _("Time") }}
+                                    <span class="badge bg-light text-dark float-end">{{ "%.1f"|format(time_stats.hours_this_week) }}h</span>
+                                </a>
+                                {% if is_admin and time_stats.pending_approval > 0 %}
+                                <a href="{{ url_for('presence_bp.approve_timesheets') }}" class="btn btn-sm btn-outline-secondary text-start">
+                                    <i class="fas fa-hourglass-half text-warning me-1"></i>{{ _("Pending") }}
+                                    <span class="badge bg-light text-dark float-end">{{ time_stats.pending_approval }}</span>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('pto_bp.index') }}" class="btn btn-sm btn-outline-secondary text-start">
+                                    <i class="fas fa-umbrella-beach text-primary me-1"></i>{{ _("PTO") }}
+                                    {% if pto_stats and pto_stats.pending_count > 0 %}
+                                    <span class="badge bg-light text-dark float-end">{{ pto_stats.pending_count }}</span>
+                                    {% endif %}
+                                </a>
+                                {% endif %}
+                                {% if expense_stats %}
+                                <a href="{{ url_for('finance_bp.expenses') }}" class="btn btn-sm btn-outline-secondary text-start">
+                                    <i class="fas fa-receipt text-success me-1"></i>{{ _("Expenses") }}
+                                    {% if expense_stats.pending_count > 0 %}
+                                    <span class="badge bg-light text-dark float-end">{{ expense_stats.pending_count }}</span>
+                                    {% elif expense_stats.awaiting_reimbursement > 0 %}
+                                    <span class="badge bg-light text-dark float-end">{{ expense_stats.awaiting_reimbursement }}</span>
+                                    {% endif %}
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Area -->
+                <div class="col-md-9" x-data="{ editingPersonal: false }">
+                    <!-- Tabs + Actions -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <ul class="nav nav-tabs mb-0" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="person-main-tab" data-bs-toggle="tab" data-bs-target="#person-main-content"
+                                        type="button" role="tab" aria-controls="person-main-content" aria-selected="true">{{ _("Main") }}</button>
+                            </li>
+                            {% if is_admin or is_own_profile %}
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="person-personal-tab" data-bs-toggle="tab" data-bs-target="#person-personal-content"
+                                        type="button" role="tab" aria-controls="person-personal-content" aria-selected="false">{{ _("Personal") }}</button>
+                            </li>
+                            {% endif %}
+                        </ul>
+                        <div class="d-flex gap-2">
+                            {% if is_admin %}
+                            <a href="{{ url_for('people_bp.edit_person', employee_id=employee.id) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit me-1"></i>{{ _("Edit") }}
+                            </a>
+                            {% if current_user.workspace_membership.id != employee.id %}
+                                {% if employee.status.value == 'Terminated' %}
+                                <a href="{{ url_for('people_bp.person_offboarding', employee_id=employee.id) }}"
+                                   class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-clipboard-check me-1"></i>{{ _("Offboarding") }}
+                                </a>
+                                <form action="{{ url_for('people_bp.rehire_person', employee_id=employee.id) }}"
+                                      method="POST" class="d-inline"
+                                      data-confirm="{{ _('Are you sure you want to rehire this employee?') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-user-plus me-1"></i>{{ _("Rehire") }}
+                                    </button>
+                                </form>
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#removeModal">
+                                    <i class="fas fa-user-minus me-1"></i>{{ _("Remove") }}
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                    <i class="fas fa-trash me-1"></i>{{ _("Delete") }}
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#terminateModal">
+                                    <i class="fas fa-user-slash me-1"></i>{{ _("Terminate") }}
+                                </button>
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#removeModal">
+                                    <i class="fas fa-user-minus me-1"></i>{{ _("Remove") }}
+                                </button>
+                                {% endif %}
+                            {% endif %}
+                            {% elif is_own_profile %}
+                            <button x-show="!editingPersonal" @click="editingPersonal = true; document.getElementById('person-personal-tab').click()" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit me-1"></i>{{ _("Edit") }}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- Main Tab -->
+                        <div class="tab-pane fade show active" id="person-main-content" role="tabpanel" aria-labelledby="person-main-tab">
+                            <div class="row">
+                                <!-- Employment Details -->
+                                <div class="col-md-6">
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Employment") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <table class="table table-borderless mb-0">
+                                                {% if is_admin or is_own_profile %}
+                                                <tr>
+                                                    <th class="text-muted person-col-40">{{ _("Hire Date") }}</th>
+                                                    <td>{{ employee.start_date|format_date if employee.start_date else _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Employment Type") }}</th>
+                                                    <td>{{ employee.type.value if employee.type else _('Not set') }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                <tr>
+                                                    <th class="text-muted person-col-40" {% if not (is_admin or is_own_profile) %}{% endif %}>{{ _("Department") }}</th>
+                                                    <td>{{ employee.department or _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Position") }}</th>
+                                                    <td>{{ employee.position or _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Manager") }}</th>
+                                                    <td>
+                                                        {% if employee.manager %}
+                                                        <a href="{{ url_for('people_bp.person_detail', employee_id=employee.manager.id) }}"
+                                                           class="text-decoration-none">
+                                                            {{ employee.manager.user.first_name }} {{ employee.manager.user.last_name }}
+                                                        </a>
+                                                        {% else %}
+                                                        <span class="text-muted">{{ _('Not assigned') }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% if is_admin %}
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Compensation") }}</th>
+                                                    <td>{{ employee.formatted_salary if employee.salary else _('Not set') }}</td>
+                                                </tr>
+                                                {% endif %}
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Secondary Cards -->
+                                <div class="col-md-6">
+                                    {% if work_schedule %}
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Work Schedule") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% set day_names = [_("Mon"), _("Tue"), _("Wed"), _("Thu"), _("Fri"), _("Sat"), _("Sun")] %}
+                                            {% for i in range(7) %}
+                                            {% if work_schedule.get(i) %}
+                                            {% set row = work_schedule[i] %}
+                                            <div class="d-flex justify-content-between{% if not loop.last %} mb-1{% endif %} text-sm">
+                                                <span class="fw-medium">{{ day_names[i] }}</span>
+                                                <span class="text-muted">{{ row.start_time.strftime("%-I:%M %p") }} – {{ row.end_time.strftime("%-I:%M %p") }}</span>
+                                            </div>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if is_admin %}
+                                    <!-- Admin: Notes -->
+                                    {% include 'people/desktop/people/_notes_card.html' %}
+
+                                    <!-- Admin: Documents (standalone) -->
+                                    {% with entity_type='employee', entity_id=employee.id %}
+                                        {% include 'resources/desktop/docs/_attachments.html' %}
+                                    {% endwith %}
+
+                                    {% if employee.reports %}
+                                    <!-- Admin: Direct Reports -->
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Direct Reports") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% for report in employee.reports %}
+                                            <div class="{% if not loop.last %}mb-2{% endif %}">
+                                                <a href="{{ url_for('people_bp.person_detail', employee_id=report.id) }}"
+                                                   class="text-decoration-none">
+                                                    {{ report.user.first_name }} {{ report.user.last_name }}
+                                                </a>
+                                                <div class="text-muted small">{{ report.position or '-' }}</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if employee.type and employee.type.value == 'Contractor' %}
+                                    <!-- Tax Forms for contractors -->
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Tax Forms") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <button class="btn btn-sm btn-primary w-100"
+                                                    data-bs-toggle="modal" data-bs-target="#create1099Modal">
+                                                <i class="fas fa-file-invoice-dollar me-1"></i>{{ _("Generate 1099-NEC") }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    {% elif employee.reports %}
+                                    <!-- Non-admin: Team Members if manager -->
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Team Members") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% for report in employee.reports %}
+                                            <div class="{% if not loop.last %}mb-2{% endif %}">
+                                                <a href="{{ url_for('people_bp.person_detail', employee_id=report.id) }}"
+                                                   class="text-decoration-none">
+                                                    {{ report.user.first_name }} {{ report.user.last_name }}
+                                                </a>
+                                                <div class="text-muted small">{{ report.position or '-' }}</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if is_own_profile %}
+                                    <!-- Self view: Time Clock -->
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Time Clock") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="text-muted small">{{ _("Kiosk PIN") }}</div>
+                                            {% if employee.clock_pin %}
+                                            <span x-data="{ show: false }" @mouseenter="show = true" @mouseleave="if(!$el._clicked) show = false">
+                                                <code class="fs-5" x-text="show ? '{{ employee.clock_pin }}' : '****'"></code>
+                                                <i class="fas fa-eye text-muted ms-1 cursor-pointer text-xs"
+                                                   @click="show = !show; $el.closest('[x-data]')._clicked = show"></i>
+                                            </span>
+                                            <div class="text-muted small mt-1">{{ _("Use this PIN at kiosk terminals") }}</div>
+                                            {% else %}
+                                            <span class="text-muted">{{ _('Not set') }}</span>
+                                            <div class="text-muted small mt-1">{{ _("Set your PIN in the Personal tab") }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Personal Tab -->
+                        {% if is_admin or is_own_profile %}
+                        <div class="tab-pane fade" id="person-personal-content" role="tabpanel" aria-labelledby="person-personal-tab">
+                            {% if is_own_profile and not is_admin %}
+                            <!-- Self view: read-only by default, edit on toggle -->
+                            <div>
+                                <!-- Read-only view -->
+                                <div x-show="!editingPersonal">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="card mb-4">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">{{ _("Contact Information") }}</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <table class="table table-borderless mb-0">
+                                                        <tr>
+                                                            <th class="text-muted person-col-40">{{ _("Phone") }}</th>
+                                                            <td>{{ employee.phone or _('Not set') }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th class="text-muted">{{ _("Address") }}</th>
+                                                            <td>{{ employee.user.full_address if employee.user.address else _('Not set') }}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            <div class="card mb-4">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">{{ _("Time Clock") }}</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <table class="table table-borderless mb-0">
+                                                        <tr>
+                                                            <th class="text-muted person-col-40">{{ _("Kiosk PIN") }}</th>
+                                                            <td>
+                                                                {% if employee.clock_pin %}
+                                                                <span x-data="{ show: false }" @mouseenter="show = true" @mouseleave="if(!$el._clicked) show = false">
+                                                                    <code class="fs-5" x-text="show ? '{{ employee.clock_pin }}' : '****'"></code>
+                                                                    <i class="fas fa-eye text-muted ms-1 cursor-pointer text-xs"
+                                                                       @click="show = !show; $el.closest('[x-data]')._clicked = show"></i>
+                                                                </span>
+                                                                {% else %}
+                                                                <span class="text-muted">{{ _('Not set') }}</span>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card mb-4">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">{{ _("Emergency Contact") }}</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <table class="table table-borderless mb-0">
+                                                        <tr>
+                                                            <th class="text-muted person-col-40">{{ _("Name") }}</th>
+                                                            <td>{{ employee.user.emergency_contact_name or _('Not set') }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th class="text-muted">{{ _("Phone") }}</th>
+                                                            <td>{{ employee.user.emergency_contact_phone or _('Not set') }}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th class="text-muted">{{ _("Relationship") }}</th>
+                                                            <td>{{ employee.user.emergency_contact_relationship or _('Not set') }}</td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Edit form -->
+                                <div x-show="editingPersonal" x-cloak>
+                                    <form id="self-edit-form" hx-post="{{ url_for('people_bp.update_self_profile', employee_id=employee.id) }}"
+                                          hx-swap="none" hx-indicator="#save-indicator">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card mb-4">
+                                                    <div class="card-header">
+                                                        <h6 class="mb-0">{{ _("Contact Information") }}</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-3">
+                                                            <label for="phone" class="form-label">{{ _("Phone") }}</label>
+                                                            <input type="tel" class="form-control" id="phone" name="phone"
+                                                                   value="{{ employee.phone or '' }}">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="address" class="form-label">{{ _("Street Address") }}</label>
+                                                            <input type="text" class="form-control" id="address" name="address"
+                                                                   value="{{ employee.user.address or '' }}">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="address_2" class="form-label">{{ _("Address Line 2") }}</label>
+                                                            <input type="text" class="form-control" id="address_2" name="address_2"
+                                                                   value="{{ employee.user.address_2 or '' }}">
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-6 mb-0">
+                                                                <label for="city" class="form-label">{{ _("City") }}</label>
+                                                                <input type="text" class="form-control" id="city" name="city"
+                                                                       value="{{ employee.user.city or '' }}">
+                                                            </div>
+                                                            <div class="col-md-3 mb-0">
+                                                                <label for="state" class="form-label">{{ _("State") }}</label>
+                                                                <input type="text" class="form-control" id="state" name="state"
+                                                                       value="{{ employee.user.state or '' }}">
+                                                            </div>
+                                                            <div class="col-md-3 mb-0">
+                                                                <label for="zip_code" class="form-label">{{ _("Zip") }}</label>
+                                                                <input type="text" class="form-control" id="zip_code" name="zip_code"
+                                                                       value="{{ employee.user.zip_code or '' }}">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="card mb-4">
+                                                    <div class="card-header">
+                                                        <h6 class="mb-0">{{ _("Time Clock") }}</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <label for="clock_pin" class="form-label">{{ _("Kiosk PIN") }}</label>
+                                                        <input type="text" class="form-control" id="clock_pin" name="clock_pin"
+                                                               value="{{ employee.clock_pin or '' }}"
+                                                               pattern="[0-9]{4}|" maxlength="4"
+                                                               placeholder="{{ _('4-digit PIN') }}">
+                                                        <div class="form-text">{{ _("Use this PIN to clock in/out at a kiosk terminal.") }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card mb-4">
+                                                    <div class="card-header">
+                                                        <h6 class="mb-0">{{ _("Emergency Contact") }}</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-3">
+                                                            <label for="emergency_contact_name" class="form-label">{{ _("Name") }}</label>
+                                                            <input type="text" class="form-control" id="emergency_contact_name"
+                                                                   name="emergency_contact_name"
+                                                                   value="{{ employee.user.emergency_contact_name or '' }}">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="emergency_contact_phone" class="form-label">{{ _("Phone") }}</label>
+                                                            <input type="tel" class="form-control" id="emergency_contact_phone"
+                                                                   name="emergency_contact_phone"
+                                                                   value="{{ employee.user.emergency_contact_phone or '' }}">
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label for="emergency_contact_relationship" class="form-label">{{ _("Relationship") }}</label>
+                                                            <input type="text" class="form-control" id="emergency_contact_relationship"
+                                                                   name="emergency_contact_relationship"
+                                                                   value="{{ employee.user.emergency_contact_relationship or '' }}"
+                                                                   placeholder="{{ _('e.g., Spouse, Parent, Sibling') }}">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Actions -->
+                                        <div class="d-flex justify-content-end gap-2 mt-4">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <span id="save-indicator" class="htmx-indicator">
+                                                    <i class="fas fa-spinner fa-spin me-1"></i>
+                                                </span>
+                                                <i class="fas fa-save me-1"></i>{{ _("Save") }}
+                                            </button>
+                                            <button type="button" @click="editingPersonal = false" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-times me-1"></i>{{ _("Cancel") }}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            {% else %}
+                            <!-- Admin read-only view of personal info -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Personal Information") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <table class="table table-borderless mb-0">
+                                                <tr>
+                                                    <th class="text-muted person-col-40">{{ _("Birthday") }}</th>
+                                                    <td>{{ employee.user.birthday|format_date if employee.user.birthday else _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Gender") }}</th>
+                                                    <td>{{ employee.user.gender.value if employee.user.gender else _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Address") }}</th>
+                                                    <td>{{ employee.user.full_address if employee.user.address else _('Not set') }}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Other") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <table class="table table-borderless mb-0">
+                                                <tr>
+                                                    <th class="text-muted person-col-40">{{ _("Social Media") }}</th>
+                                                    <td>{{ employee.user.social_media or _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Kiosk PIN") }}</th>
+                                                    <td>
+                                                        {% if employee.clock_pin %}
+                                                        <span x-data="{ show: false }" @mouseenter="show = true" @mouseleave="if(!$el._clicked) show = false">
+                                                            <code class="fs-5" x-text="show ? '{{ employee.clock_pin }}' : '****'"></code>
+                                                            <i class="fas fa-eye text-muted ms-1 cursor-pointer text-xs"
+                                                               @click="show = !show; $el.closest('[x-data]')._clicked = show"></i>
+                                                        </span>
+                                                        {% else %}
+                                                        <span class="text-muted">{{ _('Not set') }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">{{ _("Emergency Contact") }}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <table class="table table-borderless mb-0">
+                                                <tr>
+                                                    <th class="text-muted person-col-40">{{ _("Name") }}</th>
+                                                    <td>{{ employee.user.emergency_contact_name or _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Phone") }}</th>
+                                                    <td>{{ employee.user.emergency_contact_phone or _('Not set') }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted">{{ _("Relationship") }}</th>
+                                                    <td>{{ employee.user.emergency_contact_relationship or _('Not set') }}</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terminate Modal (Admin only, for active employees) -->
+{% if is_admin and current_user.workspace_membership.id != employee.id and employee.status.value != 'Terminated' %}
+<div class="modal fade" id="terminateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+             hx-get="{{ url_for('people_bp.terminate_modal', employee_id=employee.id) }}"
+             hx-trigger="show.bs.modal from:#terminateModal"
+             hx-swap="innerHTML">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Modal (Admin only) -->
+{% if is_admin and current_user.workspace_membership.id != employee.id %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+             hx-get="{{ url_for('people_bp.delete_modal', employee_id=employee.id) }}"
+             hx-trigger="show.bs.modal from:#deleteModal"
+             hx-swap="innerHTML">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Remove from Workspace Modal (Admin only, not self) -->
+{% if is_admin and current_user.workspace_membership.id != employee.id %}
+<div class="modal fade" id="removeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+             hx-get="{{ url_for('people_bp.remove_modal', employee_id=employee.id) }}"
+             hx-trigger="show.bs.modal from:#removeModal"
+             hx-swap="innerHTML">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Generate 1099-NEC Modal (Admin only, for contractors) -->
+{% if is_admin and employee.type and employee.type.value == 'Contractor' %}
+<div class="modal fade" id="create1099Modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content"
+             hx-get="{{ url_for('people_bp.create_1099_modal', employee_id=employee.id) }}"
+             hx-trigger="show.bs.modal from:#create1099Modal"
+             hx-swap="innerHTML">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+// Persist active tab in URL hash
+document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
+    tab.addEventListener('shown.bs.tab', function(e) {
+        history.replaceState(null, null, '#' + e.target.id.replace('-tab', ''));
+    });
+});
+
+// Restore active tab from URL hash on page load
+if (window.location.hash) {
+    var tabId = window.location.hash.substring(1) + '-tab';
+    var tab = document.getElementById(tabId);
+    if (tab) { new bootstrap.Tab(tab).show(); }
+}
+
+// Handle HTMX success for self-profile updates — reload to show updated read-only view
+document.body.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.successful && event.detail.pathInfo.requestPath.includes('update-self')) {
+        window.location.reload();
+    }
+});
+
+// data-confirm handler
+document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        if (!confirm(this.dataset.confirm)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

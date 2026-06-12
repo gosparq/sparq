@@ -1,0 +1,93 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Permissions") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-users-cog"></i>{% endblock %}
+{% block page_title_display %}{{ _("Permissions") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Manage user roles and permission areas") }}</p>{% endblock %}
+
+{% block settings_content %}
+<div class="settings-section">
+    <h5 class="settings-section-title">{{ _("User Permissions") }}</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>{{ _("User") }}</th>
+                    <th>{{ _("Email") }}</th>
+                    <th>{{ _("Role") }}</th>
+                    <th>{{ _("Permissions") }}</th>
+                    <th>{{ _("Actions") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                <tr>
+                    <td>{{ member.user.first_name }} {{ member.user.last_name }}</td>
+                    <td>{{ member.user.email }}</td>
+                    <td>
+                        {% if member.user.is_admin %}
+                        <span class="badge bg-danger">{{ _("Workspace Admin") }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ _("Member") }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex" style="flex-wrap: wrap; gap: 0.25rem">
+                            {% if member.user.is_admin %}
+                            <span class="text-muted small">{{ _("All access") }}</span>
+                            {% else %}
+                                {% for area in member.permission_set %}
+                                <span class="badge bg-primary">{{ area | upper }}</span>
+                                {% else %}
+                                <span class="text-muted small">{{ _("No extra permissions") }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% set is_org_admin = member.user.organization_membership and member.user.organization_membership.is_organization_admin %}
+                        <div class="d-flex gap-1 align-items-center">
+                            {% if is_org_admin %}
+                            {% elif member.role == 'admin' %}
+                                {% if member.user.is_sole_admin %}
+                                <button class="btn btn-sm btn-outline-secondary" disabled
+                                        title="{{ _('Cannot remove the only administrator') }}">
+                                    <i class="fas fa-shield-alt me-1"></i>{{ _("Sole Admin") }}
+                                </button>
+                                {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('core_bp.update_user_permissions', user_id=member.user_id) }}"
+                                      hx-post="{{ url_for('core_bp.update_user_permissions', user_id=member.user_id) }}"
+                                      hx-confirm="{{ _('Remove admin role from this user?') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="role" value="member">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-user-minus me-1"></i>{{ _("Remove Admin") }}
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                                <form method="POST"
+                                      action="{{ url_for('core_bp.update_user_permissions', user_id=member.user_id) }}"
+                                      hx-post="{{ url_for('core_bp.update_user_permissions', user_id=member.user_id) }}"
+                                      hx-confirm="{{ _('Grant admin role to this user?') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="role" value="admin">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-user-shield me-1"></i>{{ _("Make Admin") }}
+                                    </button>
+                                </form>
+                            {% endif %}
+                            <a href="{{ url_for('people_bp.edit_person', employee_id=member.id) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

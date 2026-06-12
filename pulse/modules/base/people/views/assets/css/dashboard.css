@@ -1,0 +1,16 @@
+/* extends: base.css, desktop.css */
+/* Team Dashboard Styles
+ *
+ * All dashboard styles are now inherited from base.css:
+ * - .section-title, .dashboard-*, .widgets-row
+ * - .pipeline-*, .stage-*
+ * - .stat-card, .stat-icon, .stat-value, .stat-label
+ * - .widget-card, .chart-card, .activity-card
+ * - .activity-list, .activity-item, .activity-*
+ * - .quick-actions-*, .chart-*
+ * - Responsive breakpoints
+ *
+ * This file only contains team-dashboard-specific overrides (if any).
+ */
+
+/* Currently no team-specific dashboard overrides needed */

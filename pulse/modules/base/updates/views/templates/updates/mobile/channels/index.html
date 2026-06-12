@@ -1,0 +1,71 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% block title %}{{ _("Channels") }} - {{ _("Status") }}{% endblock %}
+
+{% block module_content %}
+<div style="padding:1rem;padding-bottom:calc(80px + var(--safe-area-bottom));">
+    {% set project_ch_ids = nav_project_channel_ids|default([]) %}
+
+    {# ── CHANNELS section ── #}
+    <div style="font-size:0.6875rem;font-weight:700;color:var(--color-gray-400);letter-spacing:0.05em;text-transform:uppercase;padding:0.5rem 0;">{{ _("Channels") }}</div>
+    {% set has_regular = [] %}
+    {% for ch in nav_channels|default([]) %}
+    {% if ch.id not in project_ch_ids %}
+    {% if has_regular.append(1) %}{% endif %}
+    <a href="{{ url_for('updates_bp.channel_feed', slug=ch.name) }}"
+       class="d-flex align-items-center gap-3 text-decoration-none"
+       style="padding:0.75rem 0;border-bottom:1px solid var(--color-gray-100);">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--color-gray-100);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fas fa-hashtag text-base" style="color:var(--color-gray-500)"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:0.9375rem;color:var(--color-gray-800);">{{ ch.name }}</div>
+            {% if ch.description %}
+            <div style="font-size:0.8125rem;color:var(--color-gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ch.description }}</div>
+            {% endif %}
+        </div>
+        {% if current_member_id and UpdateChannelReadState is defined %}
+            {% set uc = UpdateChannelReadState.get_unread_count(current_member_id, ch.id) %}
+            {% if uc > 0 %}
+            <span class="badge rounded-pill badge-primary-solid text-2xs">{{ uc }}</span>
+            {% endif %}
+        {% endif %}
+        <i class="fas fa-chevron-right" style="font-size:0.6875rem;color:var(--color-gray-300);"></i>
+    </a>
+    {% endif %}
+    {% endfor %}
+    {% if not has_regular %}
+    <div style="text-align:center;padding:1.5rem 1rem;color:var(--color-gray-400);">
+        <p style="font-size:0.8125rem;margin:0;">{{ _("No channels yet") }}</p>
+    </div>
+    {% endif %}
+
+    {# ── PROJECTS section ── #}
+    {% if nav_project_channels|default([]) %}
+    <div style="font-size:0.6875rem;font-weight:700;color:var(--color-gray-400);letter-spacing:0.05em;text-transform:uppercase;padding:0.5rem 0;margin-top:0.75rem;">{{ _("Projects") }}</div>
+    {% for pc in nav_project_channels %}
+    <a href="{{ url_for('updates_bp.channel_feed', slug=pc.channel.name) }}"
+       class="d-flex align-items-center gap-3 text-decoration-none"
+       style="padding:0.75rem 0;border-bottom:1px solid var(--color-gray-100);">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--color-gray-100);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fas fa-hashtag text-base" style="color:var(--color-gray-500)"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:0.9375rem;color:var(--color-gray-800);">{{ pc.channel.name }}</div>
+            {% if pc.channel.description %}
+            <div style="font-size:0.8125rem;color:var(--color-gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ pc.channel.description }}</div>
+            {% endif %}
+        </div>
+        <i class="fas fa-chevron-right" style="font-size:0.6875rem;color:var(--color-gray-300);"></i>
+    </a>
+    {% endfor %}
+    {% endif %}
+
+    {% if not nav_channels|default([]) %}
+    <div style="text-align:center;padding:3rem 1rem;color:var(--color-gray-400);">
+        <i class="fas fa-hashtag" style="font-size:2rem;margin-bottom:0.75rem;display:block;"></i>
+        <p class="text-base">{{ _("No channels yet") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

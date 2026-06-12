@@ -1,0 +1,30 @@
+{# Mobile user list for new DM picker #}
+{% for user in users %}
+<button class="user-item"
+        data-user-id="{{ user.id }}">
+    <div class="user-avatar" style="background-color: {{ user.avatar_color }}">
+        <i class="fas fa-user"></i>
+    </div>
+    <span class="user-name">{{ user.full_name }}</span>
+</button>
+{% endfor %}
+{% if not users %}
+<div class="text-center text-muted py-3 small">
+    {{ _('No other users yet') }}
+</div>
+{% endif %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var container = document.querySelector('.mobile-user-list');
+    if (!container) return;
+    container.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-user-id]');
+        if (!t) return;
+        var c = document.querySelector('.mobile-chat-container');
+        var data = c && Alpine.$data(c);
+        if (!data) return;
+        data.showUserPicker = false;
+        data.selectDm(parseInt(t.dataset.userId), null);
+    });
+})();
+</script>

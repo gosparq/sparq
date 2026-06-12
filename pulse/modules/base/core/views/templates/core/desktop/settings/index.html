@@ -1,0 +1,14 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Settings") }}{% endblock %}
+
+{% block app_class %}settings-app{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <h2 class="content-heading mb-1">{{ _("Settings") }}</h2>
+    <div class="d-flex align-items-center justify-content-center" style="min-height:400px;">
+        <span class="text-muted text-base">{{ _("Select an item from the navigation") }}</span>
+    </div>
+</div>
+{% endblock %}

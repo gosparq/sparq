@@ -1,0 +1,102 @@
+{# Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0. #}
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Unowned GitHub Issues") }}{% endblock %}
+{% block app_class %}integrations-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('integrations_bp.static', filename='css/integrations.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <a href="{{ url_for('github_bp.github_settings') }}" class="text-muted text-decoration-none text-base">
+                <i class="fas fa-arrow-left me-1 text-xs"></i>{{ _("GitHub Settings") }}
+            </a>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="mb-0 fw-semibold">
+                    <i class="fa-brands fa-github me-2"></i>{{ _("Unowned GitHub Issues") }}
+                </h5>
+                {% if connection %}
+                <p class="text-muted mb-0 text-base">{{ connection.external_repo }}</p>
+                {% endif %}
+            </div>
+            {% if orphans %}
+            <span class="badge bg-secondary rounded-pill">{{ orphans | length }}</span>
+            {% endif %}
+        </div>
+
+        {% if not connection %}
+        <div class="text-center text-muted py-5">
+            <i class="fa-brands fa-github fa-2x mb-2 opacity-50"></i>
+            <p class="mb-0">{{ _("GitHub is not connected.") }}</p>
+            <a href="{{ url_for('github_bp.github_settings') }}" class="btn btn-sm btn-outline-secondary mt-2">{{ _("Connect GitHub") }}</a>
+        </div>
+
+        {% elif not orphans %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-check-circle fa-2x mb-2 opacity-50 text-success"></i>
+            <p class="mb-0">{{ _("No unowned issues — everything is linked.") }}</p>
+        </div>
+
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle text-base">
+                <thead>
+                    <tr class="text-muted text-uppercase text-xs" style="letter-spacing:.04em">
+                        <th style="width:60px;">#</th>
+                        <th>{{ _("Title") }}</th>
+                        <th style="width:100px;">{{ _("Age") }}</th>
+                        <th style="width:130px;">{{ _("Assignee") }}</th>
+                        <th style="width:160px;">{{ _("Labels") }}</th>
+                        <th style="width:80px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in orphans %}
+                    <tr>
+                        <td class="text-muted">#{{ issue.number }}</td>
+                        <td>
+                            <a href="{{ issue.html_url }}" target="_blank" rel="noopener"
+                               class="text-decoration-none text-body">{{ issue.title | truncate(80) }}</a>
+                        </td>
+                        <td class="text-muted">{{ issue.age_days }}d</td>
+                        <td class="text-muted">
+                            {% if issue.assignee_login %}
+                            <i class="fas fa-user me-1 text-2xs"></i>{{ issue.assignee_login }}
+                            {% else %}
+                            <span class="opacity-50">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for lbl in issue.labels %}
+                            <span class="badge rounded-pill text-bg-secondary text-2xs" style="font-weight:400">{{ lbl }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary text-xs" style="padding:0.15rem 0.5rem"
+                                    hx-get="{{ url_for('github_bp.github_issues_new_modal') }}?context={{ issue.title | urlencode }}&object_type=orphan&object_id=0&external_id={{ issue.number }}"
+                                    hx-target="#gh-modal-container"
+                                    hx-swap="innerHTML">
+                                {{ _("Claim") }}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{# Modal injection target #}
+<div id="gh-modal-container"></div>
+{% endblock %}

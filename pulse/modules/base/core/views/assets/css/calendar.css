@@ -1,0 +1,603 @@
+/* -----------------------------------------------------------------------------
+ * sparQ - Shared Calendar Styles
+ * Normalized calendar component system using cal- prefix.
+ * Loaded on-demand by modules that need calendar views.
+ * Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+ * -------------------------------------------------------------------------- */
+
+/* ============================================
+   Month View Grid
+   ============================================ */
+
+.cal-month {
+    border: 1px solid var(--color-gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cal-month .cal-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--color-gray-100);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.cal-month .cal-header-cell {
+    padding: 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.cal-month .cal-week-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-month .cal-day-cell {
+    min-height: 100px;
+    padding: 8px;
+    border-right: 1px solid var(--color-gray-200);
+    border-bottom: 1px solid var(--color-gray-200);
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.cal-month .cal-day-cell:hover {
+    background: var(--color-gray-50);
+}
+
+.cal-month .cal-day-cell:nth-child(7n) {
+    border-right: none;
+}
+
+.cal-month .cal-day-cell.other-month {
+    background: var(--color-gray-50);
+    opacity: 0.6;
+}
+
+.cal-month .cal-day-cell.empty {
+    background: var(--color-gray-50);
+}
+
+.cal-month .cal-day-cell.today {
+    background: rgba(14, 165, 233, 0.05);
+}
+
+.cal-month .cal-day-cell.today .cal-day-number {
+    background: var(--workspace-color);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cal-month .cal-day-number {
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 4px;
+}
+
+.cal-month .cal-day-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cal-month .cal-month-item {
+    display: block;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.cal-month .cal-more-items {
+    font-size: 0.7rem;
+    color: var(--workspace-color);
+    cursor: pointer;
+    padding: 2px 4px;
+}
+
+.cal-month .cal-more-items:hover {
+    text-decoration: underline;
+}
+
+/* ============================================
+   Week Column View (no time axis)
+   ============================================ */
+
+.cal-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: var(--color-gray-200);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cal-week .cal-day-column {
+    background: white;
+    min-height: 300px;
+}
+
+.cal-week .cal-day-column.today {
+    background: rgba(14, 165, 233, 0.03);
+}
+
+.cal-week .cal-day-column .cal-column-header {
+    padding: 12px;
+    text-align: center;
+    background: var(--color-gray-50);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.cal-week .cal-day-column.today .cal-column-header {
+    background: var(--workspace-color);
+    color: white;
+}
+
+.cal-week .cal-day-column .cal-day-name {
+    font-weight: 600;
+    font-size: 14px;
+    display: block;
+}
+
+.cal-week .cal-day-column .cal-day-number {
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.cal-week .cal-day-column .cal-day-items {
+    padding: 8px;
+}
+
+.cal-week .cal-week-item {
+    display: block;
+    font-size: 12px;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    text-decoration: none;
+    color: white;
+    background: var(--workspace-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-week .cal-item-time {
+    font-weight: 600;
+}
+
+.cal-week .cal-item-label {
+    font-size: 13px;
+}
+
+/* ============================================
+   Week Schedule Grid (hourly time axis)
+   ============================================ */
+
+.cal-schedule {
+    display: grid;
+    grid-template-columns: 70px repeat(7, 1fr);
+    border: 1px solid var(--color-gray-300);
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.cal-schedule-header {
+    display: contents;
+}
+
+.cal-schedule-header .cal-day-header {
+    background: var(--color-gray-100);
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-gray-300);
+    font-size: 0.875rem;
+}
+
+.cal-schedule-header .cal-day-header.today {
+    background: var(--color-primary);
+    color: var(--color-white);
+}
+
+.cal-schedule-header .cal-time-header {
+    background: var(--color-gray-100);
+    border-bottom: 1px solid var(--color-gray-300);
+}
+
+.cal-schedule-row {
+    display: contents;
+}
+
+.cal-schedule .cal-time-label {
+    background: var(--color-gray-100);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+    text-align: right;
+    border-right: 1px solid var(--color-gray-300);
+    border-bottom: 1px solid var(--color-gray-200);
+    white-space: nowrap;
+}
+
+.cal-schedule-cell {
+    min-height: 50px;
+    border-right: 1px solid var(--color-gray-100);
+    border-bottom: 1px solid var(--color-gray-100);
+    padding: 2px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.cal-schedule-cell:hover {
+    background: var(--color-primary-lighter);
+}
+
+.cal-schedule-cell:last-child {
+    border-right: none;
+}
+
+.cal-schedule .cal-schedule-item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 4px 6px;
+    margin-bottom: 2px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+/* Anytime Row */
+.cal-anytime-row {
+    background: var(--color-warning-light);
+}
+
+.cal-anytime-row .cal-time-label {
+    background: var(--color-warning-light);
+}
+
+/* ============================================
+   Day Schedule Grid (single day, hourly)
+   ============================================ */
+
+.cal-day-schedule {
+    border: 1px solid var(--color-gray-300);
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.cal-day-schedule-header {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+}
+
+.cal-day-schedule-header .cal-day-header {
+    background: var(--color-gray-100);
+    padding: 1rem;
+    text-align: center;
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-gray-300);
+    font-size: 1rem;
+}
+
+.cal-day-schedule-header .cal-day-header.today {
+    background: var(--color-primary);
+    color: var(--color-white);
+}
+
+.cal-day-schedule-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+}
+
+.cal-day-schedule-row .cal-time-label {
+    background: var(--color-gray-100);
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--color-gray-500);
+    text-align: right;
+    border-right: 1px solid var(--color-gray-300);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.cal-day-schedule-cell {
+    min-height: 60px;
+    padding: 4px;
+    border-bottom: 1px solid var(--color-gray-100);
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.cal-day-schedule-cell:hover {
+    background: var(--color-primary-lighter);
+}
+
+.cal-day-schedule-row.cal-anytime-row {
+    background: var(--color-warning-light);
+}
+
+.cal-day-schedule-row.cal-anytime-row .cal-time-label {
+    background: var(--color-warning-light);
+}
+
+.cal-day-schedule .cal-schedule-item {
+    display: flex;
+    gap: 0.5rem;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+.cal-day-schedule .cal-item-time {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cal-day-schedule .cal-item-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================
+   Day List / Card View
+   ============================================ */
+
+.cal-day-list .cal-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cal-day-list .cal-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    background: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.2s;
+}
+
+.cal-day-list .cal-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cal-day-list .cal-card-time {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--workspace-color);
+    min-width: 100px;
+}
+
+.cal-day-list .cal-card-details {
+    flex-grow: 1;
+}
+
+.cal-day-list .cal-card-title {
+    font-weight: 500;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+/* ============================================
+   Item Type Colors (Schedule Items)
+   ============================================ */
+
+.cal-schedule-item.visit,
+.cal-month-item.visit {
+    background: rgba(32, 201, 151, 0.4);
+    border-left: 3px solid var(--color-success);
+    color: #0a3622;
+}
+
+/* Pending Visit Modifier */
+.cal-schedule-item.pending,
+.cal-month-item.pending {
+    background: rgba(32, 201, 151, 0.15);
+    border-left: 3px dashed var(--color-success);
+    color: var(--color-gray-500);
+    font-style: italic;
+}
+
+.cal-schedule-item.task,
+.cal-month-item.task {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid var(--color-warning);
+    color: #664d03;
+}
+
+.cal-schedule-item.event,
+.cal-month-item.event {
+    background: rgba(13, 110, 253, 0.2);
+    border-left: 3px solid var(--color-info);
+    color: #084298;
+}
+
+.cal-schedule-item.leave,
+.cal-month-item.leave {
+    background: rgba(139, 92, 246, 0.2);
+    border-left: 3px solid #8b5cf6;
+    color: #5b21b6;
+}
+
+.cal-schedule-item.company-event,
+.cal-month-item.company-event {
+    background: rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--color-info);
+    color: #1e40af;
+}
+
+/* ============================================
+   Item Status Colors (Appointment Items)
+   ============================================ */
+
+/* Month/Week item status (solid background) */
+.cal-month-item,
+.cal-week-item {
+    color: white;
+    background: var(--workspace-color);
+}
+
+.cal-month-item.status-cancelled,
+.cal-week-item.status-cancelled {
+    background: var(--color-danger);
+    text-decoration: line-through;
+}
+
+.cal-month-item.status-completed,
+.cal-week-item.status-completed {
+    background: var(--color-gray-500);
+}
+
+.cal-month-item.status-no_show,
+.cal-week-item.status-no_show {
+    background: var(--color-warning);
+}
+
+/* Day card status (left border) */
+.cal-day-list .cal-card.status-confirmed {
+    border-left: 4px solid var(--color-success);
+}
+
+.cal-day-list .cal-card.status-cancelled {
+    border-left: 4px solid var(--color-danger);
+    opacity: 0.7;
+}
+
+.cal-day-list .cal-card.status-completed {
+    border-left: 4px solid var(--color-gray-500);
+}
+
+.cal-day-list .cal-card.status-no_show {
+    border-left: 4px solid var(--color-warning);
+}
+
+/* ============================================
+   View Toggle
+   ============================================ */
+
+.cal-view-toggle {
+    display: flex;
+    background: var(--color-gray-100);
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.cal-view-toggle .cal-view-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--color-gray-600);
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.cal-view-toggle .cal-view-btn:hover {
+    color: var(--color-gray-800);
+}
+
+.cal-view-toggle .cal-view-btn.active {
+    background: var(--workspace-color);
+    color: white;
+}
+
+/* View Switcher (Bootstrap btn-group variant) */
+.cal-view-switcher .btn {
+    padding: 0.375rem 0.75rem;
+}
+
+.cal-view-switcher .btn.active {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+}
+
+/* ============================================
+   Legend
+   ============================================ */
+
+.cal-legend {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+}
+
+.cal-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.cal-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.cal-legend-dot.visit { background: var(--color-success); }
+.cal-legend-dot.pending { border: 2px dashed var(--color-success); background: transparent; }
+.cal-legend-dot.task { background: var(--color-warning); }
+.cal-legend-dot.event { background: var(--color-info); }
+.cal-legend-dot.leave { background: #8b5cf6; }
+.cal-legend-dot.company-event { background: var(--color-info); }
+
+/* ============================================
+   Filter
+   ============================================ */
+
+.cal-filter {
+    width: 140px;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-color: var(--color-gray-300);
+    border-radius: 6px;
+}
+
+.cal-filter:focus {
+    border-color: var(--workspace-color);
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
+}
+
+/* ============================================
+   Dark Mode
+   ============================================ */
+
+body.dark .cal-month .cal-header-cell {
+    color: var(--color-gray-700);
+}
+body.dark .cal-month .cal-day-number {
+    color: var(--color-gray-800);
+}
+body.dark .cal-time-label,
+body.dark .cal-day-schedule-row .cal-time-label {
+    color: var(--color-gray-600);
+}
+body.dark .cal-view-toggle .cal-view-btn {
+    color: var(--color-gray-600);
+}
+body.dark .cal-view-toggle .cal-view-btn:hover {
+    color: var(--color-gray-800);
+}

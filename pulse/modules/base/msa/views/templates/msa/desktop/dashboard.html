@@ -1,0 +1,76 @@
+{% extends "msa/desktop/_base.html" %}
+
+{% block title %}{{ _("Dashboard") }} - MSA{% endblock %}
+
+{% block breadcrumb %}
+<span class="current">{{ _("Dashboard") }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="msa-stats">
+    <div class="msa-stat-card">
+        <div class="msa-stat-label">{{ _("Total Organizations") }}</div>
+        <div class="msa-stat-value">{{ total_organizations }}</div>
+    </div>
+    <div class="msa-stat-card">
+        <div class="msa-stat-label">{{ _("Total Workspaces") }}</div>
+        <div class="msa-stat-value">{{ total_workspaces }}</div>
+    </div>
+    <div class="msa-stat-card">
+        <div class="msa-stat-label">{{ _("Active") }}</div>
+        <div class="msa-stat-value accent">{{ active_workspaces }}</div>
+    </div>
+    <div class="msa-stat-card">
+        <div class="msa-stat-label">{{ _("Inactive") }}</div>
+        <div class="msa-stat-value warning">{{ inactive_workspaces }}</div>
+    </div>
+    <div class="msa-stat-card">
+        <div class="msa-stat-label">{{ _("Total Users") }}</div>
+        <div class="msa-stat-value">{{ total_users }}</div>
+    </div>
+</div>
+
+<!-- Recent Workspaces -->
+<div class="msa-card">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("Recent Workspaces") }}</span>
+        <a href="{{ url_for('msa_bp.workspace_list') }}" class="msa-btn msa-btn-secondary msa-btn-sm">{{ _("View All") }}</a>
+    </div>
+    <table class="msa-table">
+        <thead>
+            <tr>
+                <th>{{ _("Slug") }}</th>
+                <th>{{ _("Name") }}</th>
+                <th>{{ _("Status") }}</th>
+                <th>{{ _("Created") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in recent_workspaces %}
+            <tr class="row-link" onclick="location.href='{{ url_for('msa_bp.workspace_detail', workspace_id=t.id) }}'">
+                <td class="mono">{{ t.slug }}</td>
+                <td>{{ t.name }}</td>
+                <td>
+                    {% if t.is_active %}
+                    <span class="msa-badge msa-badge-active">{{ _("Active") }}</span>
+                    {% else %}
+                    <span class="msa-badge msa-badge-inactive">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </td>
+                <td class="dim">{{ t.created_at|format_datetime('%b %d, %Y') if t.created_at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">
+                    <div class="msa-empty">
+                        <i class="fas fa-building"></i>
+                        {{ _("No workspaces yet. Create one from the Workspaces page.") }}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

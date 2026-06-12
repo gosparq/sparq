@@ -1,0 +1,45 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ channel.name }} — {{ _("Channel") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="content-heading mb-0">
+                <i class="fas fa-hashtag text-sm sync-text-subtle"></i>
+                {{ channel.name }}
+            </h2>
+            {% if channel.description %}
+            <span class="text-muted text-sm">{{ channel.description }}</span>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if is_organization_channel %}
+            <a href="{{ url_for('updates_bp.organization_channel_new_thread', slug=channel.name) }}"
+               class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1 text-3xs"></i>{{ _("New Post") }}
+            </a>
+            {% else %}
+            <a href="{{ url_for('updates_bp.channel_new_thread', slug=channel.name) }}"
+               class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1 text-3xs"></i>{{ _("New Post") }}
+            </a>
+            {% if message_count > 0 %}
+            <a href="{{ url_for('updates_bp.channel_archive', slug=channel.name) }}"
+               class="btn btn-sm btn-outline-secondary" title="{{ _('View channel archive') }}">
+                <i class="fas fa-clock-rotate-left me-1"></i>{{ _("Archive") }}
+                <span class="badge bg-secondary ms-1">{{ message_count }}</span>
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Thread List ── #}
+    {% set load_more_url = url_for('updates_bp.organization_channel_feed', slug=channel.name, offset=next_offset) if is_organization_channel else url_for('updates_bp.channel_feed', slug=channel.name, offset=next_offset) %}
+    {% set start_thread_url = url_for('updates_bp.organization_channel_new_thread', slug=channel.name) if is_organization_channel else url_for('updates_bp.channel_new_thread', slug=channel.name) %}
+    {% include "updates/desktop/partials/_channel_thread_list.html" %}
+</div>
+{% endblock %}

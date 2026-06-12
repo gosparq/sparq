@@ -1,0 +1,64 @@
+<nav class="side-nav">
+    <div class="nav-module-header" style="--section-color: {{ g.workspace_color }}">
+        <a href="{{ url_for('dashboard_bp.index') }}" class="nav-module-back">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <span class="nav-module-name">{{ _("Time") }}</span>
+    </div>
+    <ul class="nav-menu">
+        {% if time_clock_enabled %}
+        <li class="nav-item">
+            <a href="{{ url_for('clock_bp.index') }}" class="nav-link {% if active_page == 'clock' %}active{% endif %}">
+                <i class="fas fa-user-clock"></i>{{ _("Time Clock") }}
+            </a>
+        </li>
+        {% endif %}
+        {% if board_visible %}
+        <li class="nav-item">
+            <a href="{{ url_for('board_bp.index') }}" class="nav-link {% if active_page == 'board' %}active{% endif %}">
+                <i class="fas fa-users"></i>{{ _("In/Out Board") }}
+            </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+            <a href="{{ url_for('presence_bp.day_view') }}" class="nav-link {% if active_page == 'day' %}active{% endif %}">
+                <i class="fas fa-clock"></i>{{ _("Timesheets") }}
+                {% if current_user.is_admin and pending_approval_count %}
+                <span class="chat-activity-dot"></span>
+                {% endif %}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('pto_bp.index') }}" class="nav-link {% if active_page == 'pto' %}active{% endif %}">
+                <i class="fas fa-umbrella-beach"></i>{{ _("PTO / Leave") }}
+                {% if current_user.is_admin and pending_pto_count %}
+                <span class="chat-activity-dot"></span>
+                {% endif %}
+            </a>
+        </li>
+        {% if current_user.is_admin %}
+        {% if time_clock_enabled %}
+        <li class="nav-divider"></li>
+        <li class="nav-header">{{ _("Display") }}</li>
+        <li class="nav-item">
+            <a href="{{ url_for('kiosk_bp.index') }}" class="nav-link" target="_blank">
+                <i class="fas fa-tablet-alt"></i>{{ _("Kiosk Mode") }}
+                <i class="fas fa-external-link-alt ms-auto small"></i>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ url_for('board_bp.public_board', token=public_board_token) }}" class="nav-link" target="_blank">
+                <i class="fas fa-tv"></i>{{ _("TV Display") }}
+                <i class="fas fa-external-link-alt ms-auto small"></i>
+            </a>
+        </li>
+        {% endif %}
+        <li class="nav-divider"></li>
+        <li class="nav-item">
+            <a href="{{ url_for('presence_bp.settings') }}" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>{{ _("Settings") }}
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>

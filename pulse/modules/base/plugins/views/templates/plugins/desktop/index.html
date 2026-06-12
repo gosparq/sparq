@@ -1,0 +1,59 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Plugins") }}{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="content-heading">{{ _("Plugins") }}</h2>
+            </div>
+
+            <p class="text-muted mb-4">{{ _("Extend sparQ with additional features. Each plugin adds new functionality to the core application.") }}</p>
+
+            <!-- Plugins Grid -->
+            <div class="row g-4">
+                {% for plugin in plugins %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 {% if not plugin.enabled %}opacity-50{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="plugin-icon me-3" style="color: {{ plugin.color|default('#6c757d') }}">
+                                    <i class="{{ plugin.icon_class|default('fas fa-puzzle-piece') }} fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h5 class="card-title mb-0">{{ plugin.name }}</h5>
+                                    <small class="text-muted">v{{ plugin.version }}</small>
+                                </div>
+                            </div>
+                            <p class="card-text text-muted">{{ plugin.description }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                {% if plugin.enabled %}
+                                <span class="badge bg-success">{{ _("Enabled") }}</span>
+                                <a href="{{ url_for('plugins_bp.plugin_info', slug=plugin.slug) }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-info-circle me-1"></i> {{ _("Info") }}
+                                </a>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ _("Disabled") }}</span>
+                                <a href="{{ url_for('plugins_bp.plugin_info', slug=plugin.slug) }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-info-circle me-1"></i> {{ _("Info") }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-puzzle-piece fa-3x mb-3"></i>
+                        <h5>{{ _("No plugins installed") }}</h5>
+                        <p>{{ _("Plugins will appear here when installed.") }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+</div>
+{% endblock %}

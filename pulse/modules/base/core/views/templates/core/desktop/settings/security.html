@@ -1,0 +1,142 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Security") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-shield-alt"></i>{% endblock %}
+{% block page_title_display %}{{ _("Security") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Manage your login methods and security settings") }}</p>{% endblock %}
+
+{% block settings_content %}
+<!-- Connected Accounts (OAuth) -->
+{% if available_providers %}
+<div class="settings-section">
+    <h5 class="settings-section-title">{{ _("Connected Accounts") }}</h5>
+    <p class="text-muted mb-3">{{ _("Link accounts for easier sign-in") }}</p>
+
+    <ul class="list-unstyled">
+        {% for provider in available_providers %}
+        <li class="mb-3 p-3 border rounded d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="{{ provider.config.icon_class }} text-center" style="font-size: 1.25rem; width: 24px"></i>
+                <strong>{{ provider.config.display_name }}</strong>
+                {% if provider.connected %}
+                <span class="badge bg-success ms-1">{{ _("Linked") }}</span>
+                {% endif %}
+            </div>
+            {% if provider.connected %}
+                {# Only allow unlink if user has another login method #}
+                {% set other_connections = available_providers|selectattr('connected')|list|length %}
+                {% if other_connections > 1 or has_password %}
+                <form method="POST" action="{{ url_for('oauth_bp.disconnect', provider=provider.name) }}"
+                      onsubmit="return confirm('{{ _("Unlink") }} {{ provider.config.display_name }}? {{ _("You can re-link at any time.") }}')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">{{ _("Unlink") }}</button>
+                </form>
+                {% else %}
+                <button class="btn btn-sm btn-outline-secondary" disabled title="{{ _("Cannot unlink your only login method") }}">
+                    {{ _("Unlink") }}
+                </button>
+                {% endif %}
+            {% else %}
+            <a href="{{ url_for('oauth_bp.login', provider=provider.name) }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-link me-1"></i> {{ _("Connect") }}
+            </a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Phone Number Section (for SMS login) -->
+{% if auth_settings.sms_enabled %}
+<div class="settings-section">
+    <h5 class="settings-section-title">{{ _("Phone Number") }}</h5>
+    <p class="text-muted mb-3">{{ _("Add a phone number to enable SMS login") }}</p>
+
+    {% if current_user.phone_number %}
+    <div class="phone-status mb-3 p-3 border rounded">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <strong>{{ current_user.phone_number }}</strong>
+                {% if current_user.phone_verified %}
+                <span class="badge bg-success ms-2">
+                    <i class="fas fa-check-circle"></i> {{ _("Verified") }}
+                </span>
+                {% else %}
+                <span class="badge bg-warning ms-2">
+                    <i class="fas fa-clock"></i> {{ _("Not verified") }}
+                </span>
+                {% endif %}
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#phone-form">
+                <i class="fas fa-edit"></i> {{ _("Change") }}
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="{% if current_user.phone_number %}collapse{% endif %}" id="phone-form">
+        <form method="POST" action="{{ url_for('core_bp.settings_security_phone') }}" style="max-width: 400px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label for="phone" class="form-label">{{ _("Phone Number") }}</label>
+                <input type="tel" class="form-control" id="phone" name="phone"
+                       value="{{ current_user.phone_number or '' }}"
+                       placeholder="+1 (555) 123-4567">
+                <div class="form-text">{{ _("Include country code for best results") }}</div>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-save"></i> {{ _("Save Phone Number") }}
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Login Methods Info -->
+<div class="settings-section">
+    <h5 class="settings-section-title">{{ _("Available Login Methods") }}</h5>
+    <p class="text-muted mb-3">{{ _("These are the login methods enabled for your account") }}</p>
+
+    <ul class="list-unstyled">
+        {% for provider in available_providers %}
+        {% if provider.connected %}
+        <li class="mb-2">
+            <i class="{{ provider.config.icon_class }} me-2 text-center" style="width: 20px"></i>
+            <strong>{{ provider.config.display_name }}</strong>
+            <span class="badge bg-success ms-2">{{ _("Active") }}</span>
+            <small class="text-muted d-block ms-4">{{ _("Login via") }} {{ provider.config.display_name }}</small>
+        </li>
+        {% endif %}
+        {% endfor %}
+
+        <li class="mb-2">
+            <i class="fas fa-magic text-success me-2"></i>
+            <strong>{{ _("Magic Link") }}</strong>
+            <span class="badge bg-success ms-2">{{ _("Active") }}</span>
+            <small class="text-muted d-block ms-4">{{ _("Login via email link") }}</small>
+        </li>
+
+        {% if auth_settings.sms_enabled %}
+        <li class="mb-2">
+            <i class="fas fa-sms text-info me-2"></i>
+            <strong>{{ _("SMS Code") }}</strong>
+            {% if current_user.phone_number and current_user.phone_verified %}
+            <span class="badge bg-success ms-2">{{ _("Active") }}</span>
+            {% elif current_user.phone_number %}
+            <span class="badge bg-warning ms-2">{{ _("Phone not verified") }}</span>
+            {% else %}
+            <span class="badge bg-secondary ms-2">{{ _("No phone number") }}</span>
+            {% endif %}
+            <small class="text-muted d-block ms-4">{{ _("Login via phone verification code") }}</small>
+        </li>
+        {% endif %}
+    </ul>
+</div>
+
+<style>
+.phone-status {
+    background: #f8f9fa;
+}
+</style>
+{% endblock %}

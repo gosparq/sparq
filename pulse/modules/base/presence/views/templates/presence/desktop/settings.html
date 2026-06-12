@@ -1,0 +1,379 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Time Tracking Settings") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-clock"></i>{% endblock %}
+{% block page_title_display %}{{ _("Time Tracking Settings") }}{% endblock %}
+{% block page_description %}<p>{{ _("Configure time clock, timesheets, and PTO settings") }}</p>{% endblock %}
+
+{% block settings_content %}
+    <!-- Horizontal Tabs for Features -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if not active_tab or active_tab == 'timeclock' %}active{% endif %}"
+                    id="timeclock-tab" data-bs-toggle="tab" data-bs-target="#timeclock-content"
+                    type="button" role="tab">
+                <i class="fas fa-user-clock me-1"></i>{{ _("Time Clock") }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'timesheets' %}active{% endif %}"
+                    id="timesheets-tab" data-bs-toggle="tab" data-bs-target="#timesheets-content"
+                    type="button" role="tab">
+                <i class="fas fa-clock me-1"></i>{{ _("Timesheets") }}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Time Clock Tab -->
+        <div class="tab-pane fade {% if not active_tab or active_tab == 'timeclock' %}show active{% endif %}"
+             id="timeclock-content" role="tabpanel">
+    <form method="POST" action="{{ url_for('presence_bp.settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <!-- Geofencing Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>{{ _("Geofencing") }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    {{ _("When enabled, employees can still clock in/out from any location, but punches outside the geofence will be flagged for review.") }}
+                </p>
+
+                <!-- Current Status -->
+                {% if settings.geofence_enabled %}
+                <div class="alert {% if geofence_coords %}alert-success{% else %}alert-warning{% endif %} mb-4">
+                    <strong>{{ _("Status:") }}</strong>
+                    {% if geofence_coords %}
+                        <i class="fas fa-check-circle me-1"></i>
+                        {{ _("Geofencing active") }} - {{ _("Center:") }} {{ "%.6f"|format(geofence_coords[0]) }}, {{ "%.6f"|format(geofence_coords[1]) }}
+                        ({{ _("Radius:") }} {{ settings.geofence_radius_meters }}m)
+                    {% else %}
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        {{ _("Geofencing enabled but no coordinates configured!") }}
+                        {% if settings.geofence_use_company_address %}
+                            {{ _("Please geocode the company address below.") }}
+                        {% else %}
+                            {{ _("Please geocode the custom address below.") }}
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Enable Geofencing -->
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="geofence_enabled" name="geofence_enabled"
+                               {% if settings.geofence_enabled %}checked{% endif %}
+                               data-action="toggle-geofence">
+                        <label class="form-check-label" for="geofence_enabled">
+                            {{ _("Enable Geofencing") }}
+                        </label>
+                    </div>
+                </div>
+
+                <div id="geofence-settings" style="{% if not settings.geofence_enabled %}display: none;{% endif %}">
+                    <!-- Enforcement Mode -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{{ _("Enforcement Mode") }}</label>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="geofence_enforcement" id="enforcement_soft"
+                                   value="soft" {% if settings.geofence_enforcement != 'hard' %}checked{% endif %}>
+                            <label class="form-check-label" for="enforcement_soft">
+                                <strong>{{ _("Soft Enforcement") }}</strong>
+                                <span class="text-muted d-block small">
+                                    {{ _("People can clock in/out from anywhere. Punches outside the geofence are allowed but flagged for review with a warning message.") }}
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="geofence_enforcement" id="enforcement_hard"
+                                   value="hard" {% if settings.geofence_enforcement == 'hard' %}checked{% endif %}>
+                            <label class="form-check-label" for="enforcement_hard">
+                                <strong>{{ _("Hard Enforcement") }}</strong>
+                                <span class="text-muted d-block small">
+                                    {{ _("People must be within the geofence to clock in/out. Punches outside the geofence are blocked completely.") }}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Location Source -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{{ _("Geofence Location") }}</label>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="geofence_location" id="location_company"
+                                   value="company" {% if settings.geofence_use_company_address %}checked{% endif %}
+                                   data-action="toggle-location">
+                            <label class="form-check-label" for="location_company">
+                                {{ _("Use Company Address") }}
+                            </label>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="geofence_location" id="location_custom"
+                                   value="custom" {% if not settings.geofence_use_company_address %}checked{% endif %}
+                                   data-action="toggle-location">
+                            <label class="form-check-label" for="location_custom">
+                                {{ _("Use Custom Address") }}
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Organization Address Section -->
+                    <div id="company-address-section" class="mb-4 p-3 bg-light rounded"
+                         style="{% if not settings.geofence_use_company_address %}display: none;{% endif %}">
+                        <h6 class="mb-3">{{ _("Organization Address") }}</h6>
+
+                        {% if organization and organization.address %}
+                        <p class="mb-2">
+                            {{ organization.address }}<br>
+                            {{ organization.city }}, {{ organization.state }} {{ organization.zip_code }}<br>
+                            {{ organization.country }}
+                        </p>
+                        {% else %}
+                        <p class="text-warning mb-2">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {{ _("No organization address configured.") }}
+                            <a href="{{ url_for('core_bp.settings_organization') }}">{{ _("Configure now") }}</a>
+                        </p>
+                        {% endif %}
+
+                        <!-- Coordinates display (HTMX target) -->
+                        <div id="company-coords">
+                            {% include "presence/desktop/partials/_company_coords.html" %}
+                        </div>
+
+                        <!-- Geocode Button - pure HTMX -->
+                        <div class="mb-3">
+                            <label class="form-label">{{ _("Geocoding Provider") }}</label>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select class="form-select" name="provider" id="geocode_provider" style="width: auto;">
+                                    <option value="openstreetmap">OpenStreetMap (Worldwide)</option>
+                                    <option value="census">US Census (US Only)</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        hx-post="{{ url_for('presence_bp.geocode_address') }}"
+                                        hx-vals='{"type": "company"}'
+                                        hx-include="#geocode_provider"
+                                        hx-target="#company-coords"
+                                        hx-swap="innerHTML"
+                                        hx-indicator="#geocode-spinner">
+                                    <i class="fas fa-search-location me-1"></i>{{ _("Geocode Address") }}
+                                </button>
+                                <span id="geocode-spinner" class="htmx-indicator">
+                                    <i class="fas fa-spinner fa-spin"></i> {{ _("Geocoding...") }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Address Section -->
+                    <div id="custom-coords-section" class="mb-4 p-3 bg-light rounded"
+                         style="{% if settings.geofence_use_company_address %}display: none;{% endif %}">
+                        <h6 class="mb-3">{{ _("Custom Address") }}</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">{{ _("Street Address") }}</label>
+                            <input type="text" class="form-control" name="custom_address" id="custom_address"
+                                   value="{{ settings.geofence_address or '' }}"
+                                   placeholder="e.g., 123 Main St">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ _("City") }}</label>
+                                <input type="text" class="form-control" name="custom_city" id="custom_city"
+                                       value="{{ settings.geofence_city or '' }}"
+                                       placeholder="e.g., Minneapolis">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ _("State") }}</label>
+                                <input type="text" class="form-control" name="custom_state" id="custom_state"
+                                       value="{{ settings.geofence_state or '' }}"
+                                       placeholder="e.g., MN">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">{{ _("ZIP Code") }}</label>
+                                <input type="text" class="form-control" name="custom_zip" id="custom_zip"
+                                       value="{{ settings.geofence_zip or '' }}"
+                                       placeholder="e.g., 55401">
+                            </div>
+                        </div>
+
+                        <!-- Coordinates display (HTMX target) - includes hidden fields -->
+                        <div id="custom-coords">
+                            {% include "presence/desktop/partials/_custom_coords.html" with context %}
+                        </div>
+
+                        <!-- Geocode Button for Custom Address - pure HTMX -->
+                        <div class="mb-3">
+                            <label class="form-label">{{ _("Geocoding Provider") }}</label>
+                            <div class="d-flex gap-2 align-items-center">
+                                <select class="form-select" name="custom_geocode_provider" id="custom_geocode_provider" style="width: auto;">
+                                    <option value="openstreetmap">OpenStreetMap (Worldwide)</option>
+                                    <option value="census">US Census (US Only)</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        hx-post="{{ url_for('presence_bp.geocode_address') }}"
+                                        hx-vals='{"type": "custom"}'
+                                        hx-include="#custom_address, #custom_city, #custom_state, #custom_zip, #custom_geocode_provider"
+                                        hx-target="#custom-coords"
+                                        hx-swap="innerHTML"
+                                        hx-indicator="#custom-geocode-spinner">
+                                    <i class="fas fa-search-location me-1"></i>{{ _("Geocode Address") }}
+                                </button>
+                                <span id="custom-geocode-spinner" class="htmx-indicator">
+                                    <i class="fas fa-spinner fa-spin"></i> {{ _("Geocoding...") }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Geofence Radius -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{{ _("Geofence Radius") }}</label>
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="geofence_radius" id="geofence_radius"
+                                           value="{{ settings.geofence_radius_meters }}"
+                                           min="10" max="10000" step="10">
+                                    <span class="input-group-text">{{ _("meters") }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="range" class="form-range" id="radius_slider"
+                                       min="10" max="1000" step="10"
+                                       value="{{ settings.geofence_radius_meters }}"
+                                       data-action="sync-radius">
+                            </div>
+                        </div>
+                        <p class="text-muted small mt-2">
+                            {{ _("Common values: 50m (small office), 100m (building), 500m (campus), 1000m (large site)") }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-save me-2"></i>{{ _("Save Settings") }}
+            </button>
+        </div>
+    </form>
+        </div>
+
+        <!-- Timesheets Tab -->
+        <div class="tab-pane fade {% if active_tab == 'timesheets' %}show active{% endif %}"
+             id="timesheets-content" role="tabpanel">
+            {% if email_configured %}
+            <form method="POST" action="{{ url_for('presence_bp.settings') }}?tab=timesheets">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bell me-2"></i>{{ _("Submission Notifications") }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-4">
+                            {{ _("Send email notifications when employees submit timesheets for approval.") }}
+                        </p>
+
+                        <!-- Enable Notifications -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notify_on_submission"
+                                       name="notify_on_submission"
+                                       {% if settings.notify_on_submission %}checked{% endif %}
+                                       data-action="toggle-notifications">
+                                <label class="form-check-label" for="notify_on_submission">
+                                    {{ _("Enable submission notifications") }}
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Recipient Selection -->
+                        <div id="notification-settings" style="{% if not settings.notify_on_submission %}display: none;{% endif %}">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">{{ _("Notify these approvers:") }}</label>
+                                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                    {% for user in eligible_users %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="notification_recipients" value="{{ user.id }}"
+                                               id="recipient_{{ user.id }}"
+                                               {% if user in settings.notification_recipients %}checked{% endif %}>
+                                        <label class="form-check-label" for="recipient_{{ user.id }}">
+                                            {{ user.first_name }} {{ user.last_name }}
+                                            <span class="text-muted">({{ user.email }})</span>
+                                        </label>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted mb-0">{{ _("No eligible users found.") }}</p>
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted">{{ _("Users with Admin or HR access are shown.") }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="d-flex justify-content-end mt-3">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-2"></i>{{ _("Save Settings") }}
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-envelope text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-0">{{ _("Email notifications require email to be configured in System Settings.") }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+<script nonce="{{ csp_nonce }}">
+function toggleGeofenceSettings() {
+    var enabled = document.getElementById('geofence_enabled').checked;
+    document.getElementById('geofence-settings').style.display = enabled ? 'block' : 'none';
+}
+
+function toggleLocationSource() {
+    var useCompany = document.getElementById('location_company').checked;
+    document.getElementById('company-address-section').style.display = useCompany ? 'block' : 'none';
+    document.getElementById('custom-coords-section').style.display = useCompany ? 'none' : 'block';
+}
+
+function toggleNotificationSettings() {
+    var enabled = document.getElementById('notify_on_submission').checked;
+    document.getElementById('notification-settings').style.display = enabled ? 'block' : 'none';
+}
+
+// Sync radius slider with input
+document.getElementById('geofence_radius').addEventListener('input', function() {
+    document.getElementById('radius_slider').value = this.value;
+});
+
+// Wire up data-action handlers
+document.addEventListener('change', function(e) {
+    if (e.target.closest('[data-action="toggle-geofence"]')) toggleGeofenceSettings();
+    if (e.target.closest('[data-action="toggle-location"]')) toggleLocationSource();
+    if (e.target.closest('[data-action="toggle-notifications"]')) toggleNotificationSettings();
+});
+document.addEventListener('input', function(e) {
+    var t = e.target.closest('[data-action="sync-radius"]');
+    if (t) document.getElementById('geofence_radius').value = t.value;
+});
+</script>
+{% endblock %}

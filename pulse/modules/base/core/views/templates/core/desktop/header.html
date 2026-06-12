@@ -1,0 +1,11 @@
+<!-- Inside the apps dropdown menu -->
+<div class="apps-dropdown dropdown-menu">
+    <div class="apps-grid">
+        {% for app in g.installed_modules %}
+        <a href="{{ url_for(app.home_route) }}" class="app-item {{ app.name|lower }}-app" data-app="{{ app.name }}">
+            <i class="{{ app.icon }}"></i>
+            <span>{{ app.name }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div> 

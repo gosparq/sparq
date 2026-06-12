@@ -1,0 +1,23 @@
+# -----------------------------------------------------------------------------
+# sparQ
+#
+# Description:
+#     Dashboard module controllers.
+#
+# Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+#
+# -----------------------------------------------------------------------------
+
+from flask import Blueprint
+
+# Create blueprint
+blueprint = Blueprint(
+    "dashboard_bp",
+    __name__,
+    template_folder="../views/templates",
+    static_folder="../views/assets",
+    static_url_path="/assets",
+)
+
+# Import routes after blueprint creation
+from . import routes  # noqa: E402, F401

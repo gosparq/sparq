@@ -1,0 +1,53 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Verify Phone") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-mobile-alt"></i>{% endblock %}
+{% block page_title_display %}{{ _("Verify Phone Number") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Enter the verification code sent to your phone") }}</p>{% endblock %}
+
+{% block settings_content %}
+<div class="settings-section">
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-sms me-2"></i>
+        {{ _("We sent a 6-digit code to") }} <strong>{{ current_user.phone_number }}</strong>
+    </div>
+
+    <form method="POST" style="max-width: 400px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3">
+            <label for="otp" class="form-label">{{ _("Verification Code") }}</label>
+            <input type="text" class="form-control text-center otp-input" id="otp" name="otp"
+                   maxlength="6" pattern="[0-9]{6}"
+                   required autofocus autocomplete="one-time-code"
+                   inputmode="numeric">
+            <div class="form-text">{{ _("Enter the 6-digit code from your phone") }}</div>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="fas fa-check me-2"></i> {{ _("Verify") }}
+        </button>
+        <a href="{{ url_for('core_bp.settings_security') }}" class="btn btn-sm btn-outline-secondary ms-2">
+            {{ _("Cancel") }}
+        </a>
+    </form>
+
+    <div class="mt-4">
+        <p class="text-muted mb-2">{{ _("Didn't receive the code?") }}</p>
+        <form method="POST" action="{{ url_for('core_bp.settings_security_phone') }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="phone" value="{{ current_user.phone_number }}">
+            <button type="submit" class="btn btn-link p-0">
+                <i class="fas fa-redo"></i> {{ _("Resend code") }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+.otp-input {
+    font-size: 1.5rem;
+    letter-spacing: 0.5rem;
+    font-weight: 600;
+    padding: 0.75rem;
+}
+</style>
+{% endblock %}

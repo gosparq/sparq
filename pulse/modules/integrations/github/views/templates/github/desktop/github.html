@@ -1,0 +1,123 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("GitHub Integration") }}{% endblock %}
+{% block page_icon %}<i class="fa-brands fa-github"></i>{% endblock %}
+{% block page_title_display %}{{ _("GitHub Integration") }}{% endblock %}
+{% block page_description %}
+<p class="text-muted">{{ _("Connect external apps to your workspace") }}</p>
+{% endblock %}
+
+{% block settings_back %}
+<a href="{{ url_for('integrations_bp.settings_index') }}" class="d-inline-flex align-items-center gap-1 text-muted mb-3 text-decoration-none text-base">
+    <i class="fas fa-arrow-left text-xs"></i> {{ _("Back") }}
+</a>
+{% endblock %}
+
+{% block settings_content %}
+
+{% if connection %}
+{# ── Connected state ── #}
+<div class="d-flex flex-column gap-3" style="max-width:480px;">
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge rounded-pill text-bg-success">{{ _("Connected") }}</span>
+        <span class="badge rounded-pill text-bg-secondary">
+            {% if connection.auth_type == 'pat' %}{{ _("Personal Token") }}{% else %}{{ _("GitHub App") }}{% endif %}
+        </span>
+        <span class="text-muted text-base">{{ connection.external_repo }}</span>
+    </div>
+
+    {% if connection.connected_by %}
+    <div>
+        <div class="text-muted text-uppercase text-xs" style="letter-spacing:.05em; margin-bottom:2px">{{ _("Connected by") }}</div>
+        <div class="text-base">{{ connection.connected_by.user.full_name }}</div>
+    </div>
+    {% endif %}
+
+    {% if connection.connected_at %}
+    <div>
+        <div class="text-muted text-uppercase text-xs" style="letter-spacing:.05em; margin-bottom:2px">{{ _("Connected repository") }}</div>
+        <div class="text-base">{{ connection.external_repo }}</div>
+    </div>
+    {% endif %}
+
+    {% if connection.last_synced_at %}
+    <div class="text-muted text-sm">
+        Last synced {{ connection.last_synced_at.strftime('%b %d, %Y %H:%M') }} UTC
+    </div>
+    {% endif %}
+
+    <hr class="my-2">
+
+    <div class="d-flex flex-column gap-2">
+        <div>
+            <button id="sync-refs-btn" class="btn btn-sm btn-outline-secondary"
+                    onclick="syncGitHubRefs(this)">
+                <i class="fas fa-rotate me-1"></i>{{ _("Sync issue status") }}
+            </button>
+            <span id="sync-refs-msg" class="ms-2 text-muted text-sm"></span>
+        </div>
+
+        <div>
+            <a href="{{ url_for('github_bp.github_change_repo') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-code-branch me-1"></i>{{ _("Change repository") }}
+            </a>
+        </div>
+
+        <div>
+            <a href="{{ url_for('github_bp.issues_unowned') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-circle-exclamation me-1"></i>{{ _("Orphaned issues") }}
+            </a>
+        </div>
+
+        <div>
+            <a href="{{ url_for('github_bp.github_people') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-user-group me-1"></i>{{ _("Match GitHub people") }}
+            </a>
+        </div>
+
+        <form method="POST" action="{{ url_for('github_bp.github_disconnect') }}"
+              onsubmit="return confirm('{{ _("Are you sure you want to disconnect GitHub?") }}');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                {{ _("Disconnect GitHub") }}
+            </button>
+        </form>
+    </div>
+
+    <script>
+    function syncGitHubRefs(btn) {
+        btn.disabled = true;
+        const msg = document.getElementById('sync-refs-msg');
+        msg.textContent = '{{ _("Syncing…") }}';
+        fetch('{{ url_for("github_bp.github_sync_refs") }}', {
+            method: 'POST',
+            headers: {'X-CSRF-Token': '{{ csrf_token }}'},
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) {
+                msg.textContent = d.error;
+            } else {
+                msg.textContent = d.updated + ' {{ _("issues updated") }}';
+                setTimeout(() => { msg.textContent = ''; }, 4000);
+            }
+        })
+        .catch(() => { msg.textContent = '{{ _("Request failed") }}'; })
+        .finally(() => { btn.disabled = false; });
+    }
+    </script>
+</div>
+
+{% else %}
+{# ── Not connected state ── #}
+<div class="d-flex flex-column gap-3" style="max-width:480px;">
+    <p class="text-muted mb-0">{{ _("GitHub is not connected.") }}</p>
+    <div>
+        <a href="{{ url_for('github_bp.github_connect') }}" class="btn btn-dark btn-sm">
+            <i class="fa-brands fa-github me-1"></i>{{ _("Connect GitHub") }}
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

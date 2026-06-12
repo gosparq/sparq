@@ -1,0 +1,311 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ plan.display_name }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="{{ url_for('tasks_bp.plans_history') }}" class="text-muted text-decoration-none text-xs">
+                    <i class="fas fa-arrow-left"></i> {{ _("All Plans") }}
+                </a>
+            </div>
+            <h2 class="content-heading">{{ plan.display_name }}</h2>
+            <span class="text-muted text-sm">{{ plan.date_range_display }}, {{ plan.year }}</span>
+            {% if plan.is_current_week %}
+            <span class="badge text-icon badge-primary-solid ms-1" style="vertical-align:middle">{{ _("Current Week") }}</span>
+            {% endif %}
+        </div>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('tasks_bp.plan_edit', year=plan.year, week=plan.week_number) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-pen"></i>
+        </a>
+        {% endif %}
+    </div>
+
+    {# ── Two-column: Goals + Stats ── #}
+    <div class="card mb-4 sync-card">
+        <div class="card-body py-3 px-4">
+            <div class="row g-4">
+                {# Left: Goals #}
+                <div class="col-md-7">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ _("Goals") }}</span>
+                        {% if goals %}
+                        <span class="text-muted text-2xs">{{ plan.goals_complete_count }}/{{ plan.goals_total_count }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if goals %}
+                    <div class="plan-goals-list">
+                        {% for goal in goals[:6] %}
+                        {% include "updates/desktop/weekly_plan/_goal_item.html" %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-muted text-sm">
+                        {{ _("No goals set.") }}
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('tasks_bp.plan_edit', year=plan.year, week=plan.week_number) }}" class="text-decoration-none">{{ _("Add goals") }}</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# Right: Week in Review + Stats #}
+                <div class="col-md-5">
+                    <div class="mb-2">
+                        <span class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ _("Week in Review") }}</span>
+                    </div>
+
+                    {# Stats #}
+                    <div class="d-flex gap-3 flex-wrap mb-3">
+                        <div class="plan-stat-box">
+                            <span class="plan-stat-value">{{ week_posts|selectattr('post_type', 'equalto', 'update')|list|length }}</span>
+                            <span class="plan-stat-label">{{ _("Updates") }}</span>
+                        </div>
+                        <div class="plan-stat-box">
+                            <span class="plan-stat-value" style="color:var(--color-danger);">{{ week_blockers|length }}</span>
+                            <span class="plan-stat-label">{{ _("Blockers") }}</span>
+                        </div>
+                        <div class="plan-stat-box">
+                            <span class="plan-stat-value">{{ week_actions|length }}</span>
+                            <span class="plan-stat-label">{{ _("Tasks") }}</span>
+                        </div>
+                        <div class="plan-stat-box">
+                            <span class="plan-stat-value">{{ week_posts|selectattr('post_type', 'equalto', 'win')|list|length }}</span>
+                            <span class="plan-stat-label">{{ _("Wins") }}</span>
+                        </div>
+                    </div>
+
+                    {# Review content or generate #}
+                    {% if week_review and week_review.status == 'sent' %}
+                    <div class="text-muted text-sm sync-pre-wrap" style="max-height:120px; overflow:hidden">{{ week_review.content[:300] }}{% if week_review.content|length > 300 %}...{% endif %}</div>
+                    <a href="{{ url_for('sync_bp.week_review_detail', review_id=week_review.id) }}" class="d-inline-block mt-2 text-xs">{{ _("View full review") }}</a>
+                    {% elif week_review and week_review.status == 'draft' and current_user.is_admin %}
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-warning text-dark text-icon">{{ _("Draft") }}</span>
+                        <a class="text-xs" href="{{ url_for('sync_bp.week_review_detail', review_id=week_review.id) }}">{{ _("Edit & Send") }}</a>
+                    </div>
+                    {% elif current_user.is_admin %}
+                    <form method="POST" action="{{ url_for('sync_bp.week_review_generate') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-wand-magic-sparkles me-1"></i>{{ _("Generate Review") }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="text-muted text-sm">{{ _("No review for this week yet.") }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Activity Feed — 2×2 Grid ── #}
+    <div class="mb-3">
+        <span class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ _("Activity This Week") }}</span>
+    </div>
+
+    {% set updates = week_posts|selectattr('post_type', 'ne', 'win')|list %}
+    {% set wins = week_posts|selectattr('post_type', 'equalto', 'win')|list %}
+
+    {% if week_posts or week_blockers or week_actions %}
+    <div class="activity-grid">
+        {# Updates (top-left) #}
+        <div class="activity-quadrant">
+            <div class="activity-quadrant-header">
+                <span class="text-muted fw-semibold text-uppercase text-3xs sync-tracking">{{ _("Updates") }}</span>
+                <span class="text-muted text-3xs">{{ updates|length }}</span>
+            </div>
+            <div class="activity-quadrant-body">
+                {% for post in updates[:8] %}
+                <div class="activity-row">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if post.member and post.member.user %}
+                        <span class="avatar-circle" style="width:22px;height:22px;font-size:0.55rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                            {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                        </span>
+                        <span class="fw-medium text-sm">{{ post.member.user.first_name }}</span>
+                        {% endif %}
+                        {% if post.template %}
+                        <span class="badge text-icon bg-secondary">{{ post.template.name }}</span>
+                        {% endif %}
+                        <span class="text-muted ms-auto text-3xs">{{ post.created_at|format_datetime('%-I:%M%p %a')|lower }}</span>
+                    </div>
+                    {% set preview = post.preview_text() %}
+                    {% if preview %}
+                    <div class="text-muted mt-1 text-sm">{{ preview | truncate(100) }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if not updates %}
+                <div class="text-muted text-sm">{{ _("No updates this week.") }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Blockers (top-right) #}
+        <div class="activity-quadrant">
+            <div class="activity-quadrant-header">
+                <span class="text-muted fw-semibold text-uppercase text-3xs sync-tracking">{{ _("Blockers") }}</span>
+                <span class="text-muted text-3xs">{{ week_blockers|length }}</span>
+            </div>
+            <div class="activity-quadrant-body">
+                {% for blocker in week_blockers %}
+                <div class="d-flex align-items-start gap-2 py-1 text-sm">
+                    <i class="fas fa-hand text-icon" style="color:#f59e0b; margin-top:4px"></i>
+                    <span class="flex-grow-1">{{ blocker.title }}</span>
+                    {% if blocker.resolved %}
+                    <span class="badge flex-shrink-0 text-icon" style="background:#d1fae5; color:#059669">{{ _("Resolved") }}</span>
+                    {% endif %}
+                    <span class="text-muted flex-shrink-0 text-3xs">{{ blocker.author.user.first_name if blocker.author and blocker.author.user else '' }}</span>
+                </div>
+                {% endfor %}
+                {% if not week_blockers %}
+                <div class="text-muted text-sm">{{ _("No blockers this week.") }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Actions (bottom-left) #}
+        <div class="activity-quadrant">
+            <div class="activity-quadrant-header">
+                <span class="text-muted fw-semibold text-uppercase text-3xs sync-tracking">{{ _("Tasks") }}</span>
+                <span class="text-muted text-3xs">{{ week_actions|length }}</span>
+            </div>
+            <div class="activity-quadrant-body">
+                {% for item in week_actions[:10] %}
+                <div class="d-flex align-items-center gap-2 py-1 text-sm">
+                    <span style="background:{{ item.tier_color() }};width:7px;height:7px;border-radius:50%;flex-shrink:0;"></span>
+                    <span class="flex-grow-1">{{ item.title }}</span>
+                    {% if item.status == 'resolved' %}
+                    <span class="badge flex-shrink-0 text-icon" style="background:#d1fae5; color:#059669">{{ _("Resolved") }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if not week_actions %}
+                <div class="text-muted text-sm">{{ _("No action items this week.") }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Wins (bottom-right) #}
+        <div class="activity-quadrant">
+            <div class="activity-quadrant-header">
+                <span class="text-muted fw-semibold text-uppercase text-3xs sync-tracking">{{ _("Wins") }}</span>
+                <span class="text-muted text-3xs">{{ wins|length }}</span>
+            </div>
+            <div class="activity-quadrant-body">
+                {% for post in wins[:8] %}
+                <div class="activity-row">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if post.member and post.member.user %}
+                        <span class="avatar-circle" style="width:22px;height:22px;font-size:0.55rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                            {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                        </span>
+                        <span class="fw-medium text-sm">{{ post.member.user.first_name }}</span>
+                        {% endif %}
+                        <span class="badge text-icon" style="background:var(--color-warning-light); color:var(--color-warning-dark)">🏆</span>
+                        <span class="text-muted ms-auto text-3xs">{{ post.created_at|format_datetime('%-I:%M%p %a')|lower }}</span>
+                    </div>
+                    {% set preview = post.preview_text() %}
+                    {% if preview %}
+                    <div class="text-muted mt-1 text-sm">{{ preview | truncate(100) }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if not wins %}
+                <div class="text-muted text-sm">{{ _("No wins this week.") }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">
+        <i class="fas fa-stream fa-lg mb-2 d-block opacity-50"></i>
+        <p class="mb-0 text-sm">{{ _("No activity recorded for this week yet.") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.plan-goals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.plan-goal-item {
+    padding: 0.375rem 0;
+}
+.plan-goal-check {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    line-height: 1;
+    margin-top: 2px;
+}
+.plan-goal-check:hover i {
+    color: var(--color-primary) !important;
+}
+.plan-stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.625rem;
+    min-width: 64px;
+}
+.plan-stat-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.plan-stat-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray-500, #6b7280);
+}
+.activity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+.activity-quadrant {
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.625rem;
+    overflow: hidden;
+}
+.activity-quadrant-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-gray-50, #f9fafb);
+    border-bottom: 1px solid var(--color-gray-200, #e5e7eb);
+}
+.activity-quadrant-body {
+    padding: 0.5rem 0.75rem;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.activity-row {
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--color-gray-100, #f3f4f6);
+}
+.activity-row:last-child {
+    border-bottom: none;
+}
+@media (max-width: 768px) {
+    .activity-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

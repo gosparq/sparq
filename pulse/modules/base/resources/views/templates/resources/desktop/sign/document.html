@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _("Sign Document") }} - {{ request.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            min-height: 100vh;
+        }
+        .header {
+            background-color: #1a365d;
+            color: white;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .document-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .pdf-page {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .pdf-page img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .signature-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 2rem;
+            margin-top: 2rem;
+            border-top: 4px solid #2563eb;
+        }
+        .signature-input {
+            font-family: 'Brush Script MT', cursive;
+            font-size: 1.5rem;
+            border: none;
+            border-bottom: 2px solid #d1d5db;
+            padding: 0.5rem 0;
+            background: transparent;
+        }
+        .signature-input:focus {
+            outline: none;
+            border-bottom-color: #2563eb;
+        }
+        .signature-preview {
+            font-family: 'Brush Script MT', cursive;
+            font-size: 2rem;
+            color: #1a365d;
+            min-height: 3rem;
+            padding: 0.5rem;
+            background: #f9fafb;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .intent-checkbox {
+            background: #fffbeb;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.5rem 0;
+        }
+        .btn-sign {
+            background-color: #2563eb;
+            border-color: #2563eb;
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+        }
+        .btn-sign:hover {
+            background-color: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+        .page-indicator {
+            text-align: center;
+            color: #6b7280;
+            font-size: var(--font-size-base);
+            margin-bottom: 0.5rem;
+        }
+        .no-pdf-preview {
+            background: #f9fafb;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 3rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h5 mb-0">{{ company_name }}</h1>
+            </div>
+            <div class="text-end">
+                <small>{{ _("Signing as:") }} {{ recipient.email }}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Container -->
+    <div class="document-container">
+        <!-- Document Title -->
+        <div class="text-center mb-4">
+            <h2 class="h4">{{ request.title }}</h2>
+            {% if request.message %}
+            <p class="text-muted">{{ request.message }}</p>
+            {% endif %}
+        </div>
+
+        <!-- PDF Pages -->
+        {% if page_images %}
+        <div class="pdf-pages">
+            {% for img in page_images %}
+            <div class="page-indicator">{{ _("Page") }} {{ loop.index }} {{ _("of") }} {{ page_count }}</div>
+            <div class="pdf-page">
+                <img src="data:image/png;base64,{{ img }}" alt="{{ _('Page') }} {{ loop.index }}">
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- No PDF preview available -->
+        <div class="no-pdf-preview">
+            <i class="fas fa-file-pdf text-muted mb-3" style="font-size: 4rem;"></i>
+            <h5 class="text-muted">{{ _("Document Preview Not Available") }}</h5>
+            <p class="text-muted mb-3">{{ _("Please download the document to review it before signing.") }}</p>
+            <a href="{{ url_for('resources_sign_bp.download_document', token=token) }}" class="btn btn-primary">
+                <i class="fas fa-download me-2"></i>{{ _("Download Document") }}
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Signature Section -->
+        <div class="signature-section" x-data="signatureForm()" x-init="init()">
+            <h4 class="mb-4"><i class="fas fa-signature text-primary me-2"></i>{{ _("Sign Document") }}</h4>
+
+            <form method="POST" action="{{ url_for('resources_sign_bp.submit_signature', token=token) }}" id="signForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <!-- Hidden fields for device/geo data -->
+                <input type="hidden" name="device_info" :value="deviceInfo">
+                <input type="hidden" name="geo_latitude" :value="geoLatitude">
+                <input type="hidden" name="geo_longitude" :value="geoLongitude">
+                <input type="hidden" name="geo_accuracy" :value="geoAccuracy">
+
+                <!-- Signature Preview -->
+                <div class="mb-4">
+                    <label class="form-label text-muted">{{ _("Signature Preview") }}</label>
+                    <div class="signature-preview" id="signaturePreview">
+                        {{ _("Your signature will appear here") }}
+                    </div>
+                </div>
+
+                <!-- Name Input -->
+                <div class="mb-4">
+                    <label for="signed_name" class="form-label">{{ _("Full Legal Name") }} <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control signature-input" id="signed_name" name="signed_name"
+                           placeholder="{{ _('Enter your full legal name') }}" required autocomplete="off"
+                           data-action="update-preview">
+                    <small class="text-muted">{{ _("Type your full legal name as it should appear on the signed document.") }}</small>
+                </div>
+
+                <!-- Intent Checkbox -->
+                <div class="intent-checkbox">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="agree_intent" name="agree_intent" required>
+                        <label class="form-check-label" for="agree_intent">
+                            <strong>{{ _("I agree that my typed name above constitutes my legally binding electronic signature on this document.") }}</strong>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Location Status -->
+                <div class="mb-3">
+                    <!-- Loading -->
+                    <div x-show="locationState === 'loading'" class="small text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>
+                        <span>{{ _("Requesting location...") }}</span>
+                    </div>
+                    <!-- Success -->
+                    <div x-show="locationState === 'success'" class="small text-success">
+                        <i class="fas fa-check-circle me-1"></i>
+                        <span>{{ _("Location captured") }}</span>
+                    </div>
+                    <!-- Permission Denied - no retry button (browser caches denial) -->
+                    <div x-show="locationState === 'denied'" class="alert alert-warning py-2 mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>{{ _("Location Required") }}</strong>
+                        <p class="mb-0 small">{{ _("Please allow location access to sign this document. Location is required for legal compliance.") }}</p>
+                        <p class="mb-0 small mt-1 text-muted">{{ _("Enable location in your browser settings and refresh the page.") }}</p>
+                    </div>
+                    <!-- Other error (timeout, unavailable) - can retry -->
+                    <div x-show="locationState === 'error'" class="alert alert-warning py-2 mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>{{ _("Location Required") }}</strong>
+                        <p class="mb-0 small">{{ _("Please allow location access to sign this document. Location is required for legal compliance.") }}</p>
+                        <button type="button" class="btn btn-sm btn-outline-warning mt-2" @click="requestLocation()">
+                            <i class="fas fa-redo me-1"></i>{{ _("Try Again") }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <form action="{{ url_for('resources_sign_bp.decline_signature', token=token) }}" method="POST" class="d-inline"
+                          data-confirm="{{ _('Are you sure you want to decline signing this document?') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            {{ _("Decline") }}
+                        </button>
+                    </form>
+                    <button type="submit" class="btn btn-primary btn-sign"
+                            :disabled="locationState !== 'success'"
+                            :class="{ 'opacity-50': locationState !== 'success' }">
+                        <i class="fas fa-check me-2"></i>{{ _("Sign Document") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 text-muted">
+            <small>
+                <i class="fas fa-shield-alt me-1"></i>
+                {{ _("This signature is legally binding and compliant with the ESIGN Act.") }}
+            </small>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script nonce="{{ csp_nonce }}">
+        function updatePreview(value) {
+            const preview = document.getElementById('signaturePreview');
+            if (value.trim()) {
+                preview.textContent = value;
+                preview.style.color = '#1a365d';
+            } else {
+                preview.textContent = '{{ _("Your signature will appear here") }}';
+                preview.style.color = '#9ca3af';
+            }
+        }
+
+        function getBrowserInfo() {
+            const ua = navigator.userAgent;
+            let browser = 'Unknown';
+            let version = '';
+
+            if (ua.indexOf('Firefox') > -1) {
+                browser = 'Firefox';
+                version = ua.match(/Firefox\/(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('SamsungBrowser') > -1) {
+                browser = 'Samsung Browser';
+                version = ua.match(/SamsungBrowser\/(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) {
+                browser = 'Opera';
+                version = ua.match(/(?:Opera|OPR)\/(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('Trident') > -1) {
+                browser = 'Internet Explorer';
+                version = ua.match(/rv:(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('Edge') > -1) {
+                browser = 'Edge (Legacy)';
+                version = ua.match(/Edge\/(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('Edg') > -1) {
+                browser = 'Edge';
+                version = ua.match(/Edg\/(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('Chrome') > -1) {
+                browser = 'Chrome';
+                version = ua.match(/Chrome\/(\d+)/)?.[1] || '';
+            } else if (ua.indexOf('Safari') > -1) {
+                browser = 'Safari';
+                version = ua.match(/Version\/(\d+)/)?.[1] || '';
+            }
+
+            return version ? `${browser} ${version}` : browser;
+        }
+
+        function getOSInfo() {
+            const ua = navigator.userAgent;
+            let os = 'Unknown';
+
+            if (ua.indexOf('Win') > -1) {
+                if (ua.indexOf('Windows NT 10') > -1) os = 'Windows 10/11';
+                else if (ua.indexOf('Windows NT 6.3') > -1) os = 'Windows 8.1';
+                else if (ua.indexOf('Windows NT 6.2') > -1) os = 'Windows 8';
+                else if (ua.indexOf('Windows NT 6.1') > -1) os = 'Windows 7';
+                else os = 'Windows';
+            } else if (ua.indexOf('Mac') > -1) {
+                os = 'macOS';
+            } else if (ua.indexOf('Linux') > -1) {
+                if (ua.indexOf('Android') > -1) {
+                    const match = ua.match(/Android (\d+(?:\.\d+)?)/);
+                    os = match ? `Android ${match[1]}` : 'Android';
+                } else {
+                    os = 'Linux';
+                }
+            } else if (ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) {
+                const match = ua.match(/OS (\d+)_(\d+)/);
+                os = match ? `iOS ${match[1]}.${match[2]}` : 'iOS';
+            } else if (ua.indexOf('CrOS') > -1) {
+                os = 'Chrome OS';
+            }
+
+            return os;
+        }
+
+        // Event delegation
+        document.addEventListener('input', function(e) {
+            var el = e.target.closest('[data-action="update-preview"]');
+            if (el) { updatePreview(el.value); }
+        });
+        document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+            form.addEventListener('submit', function(e) {
+                if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+            });
+        });
+
+        // Alpine.js component for signature form
+        function signatureForm() {
+            return {
+                locationState: 'loading',  // 'loading' | 'success' | 'denied' | 'error'
+                deviceInfo: '',
+                geoLatitude: '',
+                geoLongitude: '',
+                geoAccuracy: '',
+
+                init() {
+                    // Collect device info immediately
+                    this.deviceInfo = JSON.stringify(this.collectDeviceInfo());
+
+                    // Request geolocation
+                    this.requestLocation();
+                },
+
+                collectDeviceInfo() {
+                    return {
+                        browser: getBrowserInfo(),
+                        os: getOSInfo(),
+                        screen_width: window.screen.width,
+                        screen_height: window.screen.height,
+                        viewport_width: window.innerWidth,
+                        viewport_height: window.innerHeight,
+                        pixel_ratio: window.devicePixelRatio || 1,
+                        color_depth: window.screen.colorDepth,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        timezone_offset: new Date().getTimezoneOffset(),
+                        language: navigator.language,
+                        languages: navigator.languages ? Array.from(navigator.languages) : [navigator.language],
+                        platform: navigator.platform,
+                        touch_support: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+                        cookies_enabled: navigator.cookieEnabled,
+                        online: navigator.onLine,
+                        device_memory: navigator.deviceMemory || null,
+                        hardware_concurrency: navigator.hardwareConcurrency || null,
+                        connection_type: navigator.connection ? navigator.connection.effectiveType : null,
+                        collected_at: new Date().toISOString()
+                    };
+                },
+
+                requestLocation() {
+                    if (!('geolocation' in navigator)) {
+                        this.locationState = 'error';
+                        return;
+                    }
+
+                    this.locationState = 'loading';
+
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.geoLatitude = position.coords.latitude;
+                            this.geoLongitude = position.coords.longitude;
+                            this.geoAccuracy = position.coords.accuracy;
+                            this.locationState = 'success';
+                        },
+                        (error) => {
+                            console.log('Geolocation error:', error.message);
+                            // PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3
+                            if (error.code === 1) {
+                                this.locationState = 'denied';
+                            } else {
+                                this.locationState = 'error';
+                            }
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                }
+            };
+        }
+    </script>
+</body>
+</html>

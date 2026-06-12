@@ -1,0 +1,492 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% block title %}{{ _("Updates") }} - {{ _("Sync") }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+/* Action-item link pill (lightning bolt) — matches desktop .ai-feed-pill */
+.ai-feed-pill {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: var(--color-gray-100, #f3f4f6);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    font-size: 0.7rem; font-weight: 500;
+    color: var(--color-gray-600, #4b5563);
+    line-height: 1.3;
+    text-decoration: none;
+    vertical-align: middle;
+}
+.ai-feed-pill:active { background: var(--color-gray-200, #e5e7eb); }
+.ai-feed-pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* Structured-list project badge — matches desktop .sl-feed-project-badge */
+.sl-feed-project-badge {
+    display: inline-block;
+    font-size: 0.65rem; font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 0.25rem;
+    background: var(--color-gray-100, #f3f4f6);
+    color: var(--color-gray-500, #6b7280);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    text-decoration: none;
+    vertical-align: middle;
+}
+.sl-feed-project-badge:active { background: var(--color-gray-200, #e5e7eb); }
+
+/* Post kebab menu */
+.post-kebab { flex-shrink: 0; }
+.post-kebab-btn {
+    font-size: 0.8125rem; line-height: 1;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+}
+.post-kebab .dropdown-menu { font-size: 0.8125rem; }
+.post-kebab .dropdown-item i { font-size: 0.75rem; }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div style="padding:1rem;padding-bottom:calc(80px + var(--safe-area-bottom));">
+    {# ── Header ── #}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <h2 style="font-size:1.25rem;font-weight:700;margin:0;">{{ _("Status Updates") }}</h2>
+    </div>
+    <p style="font-size:0.8125rem;color:var(--color-gray-500);margin-bottom:1rem;">{{ _("What the team is working on") }}</p>
+
+    {# ── Filter chips — use shared .filter-pill styling (blue pill for active, matches PTO / People). ── #}
+    {% if templates %}
+    <div id="sync-filter-chips" class="filter-pills"
+         style="padding-bottom:0.25rem;scroll-behavior:smooth;">
+        <a href="{{ url_for('updates_bp.updates_index', member=filter_member_id) }}"
+           class="filter-pill{% if not filter_template_id %} active filter-chip-active{% endif %}"
+           style="white-space:nowrap;">
+            {{ _("All") }}
+        </a>
+        {% for tmpl in templates %}
+        <a href="{{ url_for('updates_bp.updates_index', template=tmpl.id, member=filter_member_id) }}"
+           class="filter-pill{% if filter_template_id == tmpl.id %} active filter-chip-active{% endif %}"
+           style="white-space:nowrap;">
+            {{ tmpl.name }}
+        </a>
+        {% endfor %}
+    </div>
+    <script nonce="{{ csp_nonce }}">
+    (function () {
+        var scroller = document.getElementById('sync-filter-chips');
+        if (!scroller) return;
+        var active = scroller.querySelector('.filter-chip-active');
+        if (!active) return;
+        // Center the active chip in the horizontal scroller
+        var target = active.offsetLeft - (scroller.clientWidth / 2) + (active.clientWidth / 2);
+        scroller.scrollTo({ left: Math.max(0, target), behavior: 'auto' });
+    })();
+    </script>
+    {% endif %}
+
+    {# Member filter removed — template pills are sufficient on mobile #}
+
+    {# ── Digest view (when is_digest is truthy) ── #}
+    {% if is_digest %}
+    <div class="d-flex gap-2 mb-3">
+        <div style="flex:1;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.875rem;">
+            <div class="text-muted text-uppercase" style="font-size:0.65rem;letter-spacing:0.04em;">{{ _("Responded") }}</div>
+            <div style="font-size:1.125rem;font-weight:600;color:#059669;">{{ digest_responses|length if digest_responses else 0 }}</div>
+        </div>
+        <div style="flex:1;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.625rem 0.875rem;">
+            <div class="text-muted text-uppercase" style="font-size:0.65rem;letter-spacing:0.04em;">{{ _("Pending") }}</div>
+            <div style="font-size:1.125rem;font-weight:600;color:#d97706;">{{ digest_pending|length if digest_pending else 0 }}</div>
+        </div>
+    </div>
+    {% if digest_pending %}
+    <div class="mb-1 mt-3">
+        <small class="text-muted fw-semibold text-uppercase" style="font-size:0.65rem;letter-spacing:0.04em;">{{ _("Waiting On") }}</small>
+    </div>
+    <div style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.5rem 0.875rem;margin-bottom:0.75rem;">
+        {% for member in digest_pending %}
+        <div class="d-flex align-items-center gap-2 {% if not loop.last %}border-bottom{% endif %}" style="padding:0.375rem 0;">
+            <span class="avatar-circle" style="width:24px;height:24px;font-size:0.6rem;background:{{ member.user.avatar_color|default('#6b7280') }};opacity:0.6;">
+                {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+            </span>
+            <span style="font-size:0.8125rem;color:var(--color-gray-500);">{{ member.user.full_name }}</span>
+            <span class="ms-auto badge" style="font-size:0.6rem;background:var(--color-gray-100);color:var(--color-gray-500);">{{ _("Pending") }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── Posts Feed ── #}
+    {% if posts %}
+        {% set ns = namespace(current_date=None) %}
+        {% for post in posts %}
+            {% set post_date = post.created_at|format_datetime('%B %d, %Y') %}
+            {% if post_date != ns.current_date %}
+                {% set ns.current_date = post_date %}
+                <p style="font-size:0.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-gray-500);margin:1rem 0 0.5rem;">{{ post_date }}</p>
+            {% endif %}
+            {% set blocker_ai = feed_task_map.get((post.payload or {}).get('action_item_id')) if post.template_name == "I'm blocked" else none %}
+            <div style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:12px;padding:0.75rem 1rem;margin-bottom:0.5rem;">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:var(--color-primary);color:white;display:flex;align-items:center;justify-content:center;font-size:0.6875rem;font-weight:600;flex-shrink:0;">
+                        {% if post.member_first_name %}{{ post.member_first_name[:1]|upper }}{{ post.member_last_name[:1]|upper if post.member_last_name else '' }}{% else %}?{% endif %}
+                    </div>
+                    <span class="text-base" style="font-weight:600">{{ post.member_full_name if post.member_first_name else _("Anonymous") }}</span>
+                    <span style="font-size:0.75rem;color:var(--color-gray-400);margin-left:auto;">{{ post.created_at|format_datetime('%I:%M %p') }}</span>
+                    {# ── Three-dot actions menu ── #}
+                    {% if post.member_user_id == current_user.id %}
+                    <div class="dropdown post-kebab">
+                        <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none post-kebab-btn" type="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                {% if blocker_ai and blocker_ai.status == 'open' %}
+                                <button type="button" class="dropdown-item"
+                                        hx-get="{{ url_for('sync_bp.blockers_modal_edit', task_id=blocker_ai.id) }}"
+                                        hx-target="#modal-container"
+                                        hx-swap="innerHTML">
+                                    <i class="fas fa-pen me-2"></i>{{ _("Edit") }}
+                                </button>
+                                {% else %}
+                                <a class="dropdown-item" href="{{ url_for('sync_bp.post_edit', post_id=post.id) }}">
+                                    <i class="fas fa-pen me-2"></i>{{ _("Edit") }}
+                                </a>
+                                {% endif %}
+                            </li>
+                            {% if post.post_type in ('update', 'win') and post.template_name != 'Async - Standup' %}
+                            <li>
+                                <form method="POST" action="{{ url_for('sync_bp.post_bump', post_id=post.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="fas fa-arrow-rotate-right me-2"></i>{{ _("Bump") }}
+                                    </button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            <li>
+                                <button type="button" class="dropdown-item"
+                                        data-action="copy-post-link"
+                                        data-url="/sync/posts/{{ post.id }}">
+                                    <i class="fas fa-link me-2"></i>{{ _("Copy link") }}
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('sync_bp.post_delete', post_id=post.id) }}"
+                                      data-confirm="{{ _('Delete this update? This cannot be undone.') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-trash-alt me-2"></i>{{ _("Delete") }}
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="dropdown post-kebab">
+                        <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none post-kebab-btn" type="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <button type="button" class="dropdown-item"
+                                        data-action="copy-post-link"
+                                        data-url="/sync/posts/{{ post.id }}">
+                                    <i class="fas fa-link me-2"></i>{{ _("Copy link") }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if post.template_name %}
+                <span class="{% if post.template_name == "I'm blocked" %}sync-badge-blocked{% elif post.template_name == 'Heads up' %}sync-badge-headsup{% elif post.post_type == 'win' %}sync-badge-win{% else %}sync-badge-update{% endif %}" style="font-size:0.6875rem;padding:0.125rem 0.5rem;border-radius:999px;font-weight:600;display:inline-block;margin-bottom:0.375rem;">{{ post.template_name }}</span>
+                {% if post.payload.get('_bumped_from') %}
+                <span class="sync-badge-bumped" style="font-size:0.6875rem;padding:0.125rem 0.5rem;border-radius:999px;font-weight:600;display:inline-block;margin-bottom:0.375rem;">
+                    <i class="fas fa-arrow-rotate-right" style="font-size:0.55rem;margin-right:2px;"></i>{{ _("Bumped") }}
+                </span>
+                {% endif %}
+                {% endif %}
+                <div class="text-base" style="color:var(--color-gray-700)">
+                    {% for field in post.template_fields %}
+                        {% set val = post.payload.get(field.key) %}
+                        {% if val %}
+                            {% if field.type == 'structured_list' %}
+                                {% if val is iterable and val is not string %}
+                                <ul class="mb-1 ps-3 text-base" style="list-style:none">
+                                    {% for item in val %}
+                                        {% if item is mapping %}
+                                        <li class="mb-1">
+                                            <span>{{ item.text|urlize(target="_blank") }}</span>
+                                            {% if item.project_id and feed_project_map is defined %}
+                                                {% set proj = feed_project_map.get(item.project_id) %}
+                                                {% if proj %}
+                                                <a href="{{ url_for('projects_bp.detail', project_id=proj.id) }}" class="sl-feed-project-badge">{{ proj.name[:15] }}</a>
+                                                {% endif %}
+                                            {% endif %}
+                                            {% if item.action_item_id and feed_task_map is defined %}
+                                                {% set ai = feed_task_map.get(item.action_item_id) %}
+                                                {% if ai %}
+                                                <a href="{{ url_for('tasks_bp.detail', item_id=ai.id) }}" class="task-feed-pill" title="{{ ai.title }}">
+                                                    <span class="task-feed-pill-dot" style="background:{{ ai.tier_color() }};"></span>
+                                                    <i class="fas fa-bolt" style="font-size:0.55rem;"></i>
+                                                </a>
+                                                {% endif %}
+                                            {% endif %}
+                                            {% if field.get('blocker') %}
+                                            <span class="badge" style="font-size:0.6rem;background:#fef2f2;color:var(--color-danger);border:1px solid #fecaca;">
+                                                <i class="fas fa-hand me-1" style="font-size:0.55rem;"></i>{{ _("Blocker") }}
+                                            </span>
+                                            {% endif %}
+                                        </li>
+                                        {% else %}
+                                        <li>{{ item|urlize(target="_blank") }}</li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p style="white-space:pre-wrap;margin-bottom:0.25rem;">{{ val|urlize(target="_blank") }}</p>
+                                {% endif %}
+                            {% elif field.type == 'bullets' %}
+                            <ul style="margin:0 0 0.25rem;padding-left:1.25rem;">
+                                {% for item in val %}<li>{{ item|urlize(target="_blank") }}</li>{% endfor %}
+                            </ul>
+                            {% elif field.type == 'scale' %}
+                            <div style="margin-bottom:0.25rem;">
+                                <span style="color:var(--color-gray-500);font-size:0.8125rem;">{{ field.label }}:</span>
+                                {% for i in range(val | int) %}<i class="fas fa-star" style="color:var(--color-warning);"></i>{% endfor %}
+                            </div>
+                            {% elif field.type == 'text_audio' %}
+                            <p style="white-space:pre-wrap;margin-bottom:0.25rem;">{{ val|urlize(target="_blank") }}</p>
+                            {% set audio_uuid = post.payload.get(field.key ~ '_audio_uuid') %}
+                            {% if audio_uuid %}
+                            {% set audio_dur = post.payload.get(field.key ~ '_audio_duration', 0) %}
+                            <div class="audio-playback-pill d-inline-flex align-items-center mt-1 mb-1" data-duration="{{ audio_dur }}">
+                                <button type="button" class="btn btn-sm audio-play-btn" data-action="audio-toggle">
+                                    <i class="fas fa-play" style="font-size:0.7rem;"></i>
+                                </button>
+                                <div class="audio-progress-wrap" data-action="audio-seek">
+                                    <div class="audio-progress-bar"></div>
+                                </div>
+                                <span class="audio-time">{% if audio_dur %}{{ '%d:%02d' | format(audio_dur // 60, audio_dur % 60) }}{% else %}0:00{% endif %}</span>
+                                <audio preload="metadata" src="{{ url_for('sync_bp.download_attachment', uuid=audio_uuid) }}"></audio>
+                            </div>
+                            {% endif %}
+                            {% elif field.type == 'title' %}
+                            <p style="font-weight:600;margin-bottom:0.25rem;">{{ val|urlize(target="_blank") }}</p>
+                            {% elif field.type == 'choice' %}
+                            {% else %}
+                            <p style="white-space:pre-wrap;margin-bottom:0.25rem;">{{ val|urlize(target="_blank") }}</p>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Legacy fallback: render payload keys not covered by current template fields #}
+                    {% set _tpl_keys = post.template_fields | map(attribute='key') | list %}
+                    {% for key, val in (post.payload or {}).items() if key not in _tpl_keys and not key.startswith('_') and '_audio_uuid' not in key and key not in ('focus', 'progress') and val %}
+                        {% if val is iterable and val is not string and val is not mapping %}
+                        <ul class="mb-1 ps-3 text-base" style="list-style:none">
+                            {% for item in val %}
+                                {% if item is mapping %}
+                                <li class="mb-1">
+                                    <span>{{ item.text|urlize(target="_blank") }}</span>
+                                    {% if item.project_id and feed_project_map is defined %}
+                                        {% set proj = feed_project_map.get(item.project_id) %}
+                                        {% if proj %}
+                                        <a href="{{ url_for('projects_bp.detail', project_id=proj.id) }}" class="sl-feed-project-badge">{{ proj.name[:15] }}</a>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if item.action_item_id and feed_task_map is defined %}
+                                        {% set ai = feed_task_map.get(item.action_item_id) %}
+                                        {% if ai %}
+                                        <a href="{{ url_for('tasks_bp.detail', item_id=ai.id) }}" class="task-feed-pill" title="{{ ai.title }}">
+                                            <span class="task-feed-pill-dot" style="background:{{ ai.tier_color() }};"></span>
+                                            <i class="fas fa-bolt" style="font-size:0.55rem;"></i>
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </li>
+                                {% else %}
+                                <li>{{ item|urlize(target="_blank") }}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                        {% elif val is string and val | length > 2 %}
+                        <p style="white-space:pre-wrap;margin-bottom:0.25rem;">{{ val|urlize(target="_blank") }}</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {# 10-4 acknowledgment grid #}
+                {% if not post.is_anonymous and post.member_id and UpdatePostAck is defined and UpdatePostAck %}
+                {% set ack_data = UpdatePostAck.get_for_post(post.id, current_member_id) %}
+                <div class="ten4-inline" id="post-ten4-{{ post.id }}" data-post-id="{{ post.id }}" data-post-member-id="{{ post.member_id }}" style="margin-top:6px;">
+                    {% for m in ack_data.acked %}
+                    <span class="ten4-check-item acked" title="{{ m.name }}">✓ {{ m.initials }}</span>
+                    {% endfor %}
+                    {% for m in ack_data.pending %}
+                    <span class="ten4-check-item pending" title="{{ m.name }}">· {{ m.initials }}</span>
+                    {% endfor %}
+                    {% if not ack_data.current_user_acked and current_member_id and post.member_id != current_member_id %}
+                    <button class="ten4-inline-btn" style="opacity:1;"
+                            hx-post="{{ url_for('sync_bp.acknowledge_post', post_id=post.id) }}"
+                            hx-target="#post-ten4-{{ post.id }}"
+                            hx-swap="outerHTML"
+                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                        10-4
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align:center;padding:3rem 1rem;color:var(--color-gray-400);">
+            <i class="far fa-paper-plane" style="font-size:2.5rem;display:block;margin-bottom:0.75rem;color:var(--color-gray-300);"></i>
+            <p class="text-base" style="color:var(--color-gray-500)">{{ _("No updates yet.") }}</p>
+            <p style="font-size:0.8125rem;color:var(--color-gray-500);margin-top:0.25rem;">{{ _("Post your first update") }}</p>
+        </div>
+    {% endif %}
+
+    {% if posts %}
+    <script nonce="{{ csp_nonce }}">
+    // Audio playback with progress
+    function _fmtTime(s) {
+        if (!isFinite(s) || isNaN(s)) return '0:00';
+        var m = Math.floor(s / 60); s = Math.floor(s % 60);
+        return m + ':' + String(s).padStart(2, '0');
+    }
+    function _getDur(pill, audio) {
+        if (audio.duration && isFinite(audio.duration)) return audio.duration;
+        var d = parseInt(pill.dataset.duration, 10);
+        return d > 0 ? d : 0;
+    }
+    function _audioToggle(btn) {
+        var pill = btn.closest('.audio-playback-pill');
+        var audio = pill ? pill.querySelector('audio') : null;
+        if (!audio) return;
+        var icon = btn.querySelector('i');
+        var bar = pill.querySelector('.audio-progress-bar');
+        var timeEl = pill.querySelector('.audio-time');
+        if (audio.paused) {
+            audio.play();
+            if (icon) icon.classList.replace('fa-play', 'fa-pause');
+            audio.ontimeupdate = function() {
+                var dur = _getDur(pill, audio);
+                if (bar && dur) bar.style.width = (audio.currentTime / dur * 100) + '%';
+                if (timeEl) timeEl.textContent = _fmtTime(audio.currentTime);
+            };
+        } else {
+            audio.pause();
+            if (icon) icon.classList.replace('fa-pause', 'fa-play');
+        }
+        audio.onended = function() {
+            if (icon) icon.classList.replace('fa-pause', 'fa-play');
+            if (bar) bar.style.width = '0%';
+            var dur = _getDur(pill, audio);
+            if (timeEl) timeEl.textContent = dur ? _fmtTime(dur) : '0:00';
+        };
+    }
+    function _audioSeek(wrap, e) {
+        var pill = wrap.closest('.audio-playback-pill');
+        var audio = pill ? pill.querySelector('audio') : null;
+        var dur = pill ? _getDur(pill, audio) : 0;
+        if (!audio || !dur) return;
+        var rect = wrap.getBoundingClientRect();
+        var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        audio.currentTime = pct * dur;
+    }
+    document.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-action="audio-toggle"]');
+        if (t) { _audioToggle(t); return; }
+        t = e.target.closest('[data-action="audio-seek"]');
+        if (t) { _audioSeek(t, e); return; }
+    });
+    // Copy post link handler
+    document.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-action="copy-post-link"]');
+        if (t) {
+            e.preventDefault();
+            var url = window.location.origin + t.dataset.url;
+            navigator.clipboard.writeText(url).then(function() {
+                var icon = t.querySelector('i');
+                var orig = icon.className;
+                icon.className = 'fas fa-check text-success';
+                setTimeout(function() { icon.className = orig; }, 1500);
+            });
+            // Close the Bootstrap dropdown
+            var dd = t.closest('.dropdown-menu');
+            if (dd) {
+                var trigger = dd.closest('.dropdown').querySelector('[data-bs-toggle="dropdown"]');
+                if (trigger) bootstrap.Dropdown.getOrCreateInstance(trigger).hide();
+            }
+        }
+    });
+    // Confirm before delete
+    document.addEventListener('submit', function(e) {
+        var t = e.target.closest('[data-confirm]');
+        if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+    });
+    </script>
+    {% endif %}
+
+    {# ── FAB ──
+       If a template filter is active, FAB links directly to that template's compose screen.
+       Otherwise it opens a bottom sheet picker. #}
+    {% if templates %}
+        {% if filter_template_id %}
+        {# Filtered view — skip the picker, go straight to posting this template. #}
+            {% if is_blocked_template %}
+            {# "I'm blocked" filter — FAB opens blocker modal directly #}
+            <button type="button" class="fab"
+                    hx-get="{{ url_for('sync_bp.blockers_modal_new', next=url_for('updates_bp.updates_index')) }}"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML"
+                    aria-label="{{ _('New blocker') }}">
+                <i class="fas fa-plus"></i>
+            </button>
+            {% else %}
+            <a href="{{ url_for('sync_bp.post_new', template_id=filter_template_id) }}" class="fab" aria-label="{{ _('New post') }}">
+                <i class="fas fa-plus"></i>
+            </a>
+            {% endif %}
+        {% else %}
+        <div x-data="{ open: false }">
+            <button @click="open = true" class="fab" aria-label="{{ _('New post') }}">
+                <i class="fas fa-plus"></i>
+            </button>
+            <div class="bottom-sheet-overlay" :class="{ 'open': open }" @click.self="open = false" x-cloak>
+                <div class="bottom-sheet" @click.stop>
+                    <div class="bottom-sheet-handle"></div>
+                    <div class="bottom-sheet-header">{{ _("Choose template") }}</div>
+                    <div class="bottom-sheet-content">
+                        {% for tmpl in templates %}
+                            {% if tmpl.name == "I'm blocked" %}
+                            <button type="button" class="bottom-sheet-item"
+                                    style="background:none;border:none;width:100%;cursor:pointer;font-family:inherit;"
+                                    @click="open = false"
+                                    hx-get="{{ url_for('sync_bp.blockers_modal_new', next=url_for('updates_bp.updates_index')) }}"
+                                    hx-target="#modal-container"
+                                    hx-swap="innerHTML">
+                                <i class="fas fa-hand"></i>
+                                <span>{{ tmpl.name }}</span>
+                            </button>
+                            {% else %}
+                            <a href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}" class="bottom-sheet-item">
+                                <i class="{% if tmpl.post_type == 'win' %}fas fa-trophy{% else %}far fa-paper-plane{% endif %}"></i>
+                                <span>{{ tmpl.name }}</span>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

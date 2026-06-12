@@ -1,0 +1,16 @@
+{# Reusable project dropdown partial.
+   Expects: projects (list), preselected_project_id (int|None), last_project_id (int|None)
+#}
+<div class="mb-3">
+    <label class="form-label text-base">{{ _("Project") }} <span class="text-muted">({{ _("optional") }})</span></label>
+    <select name="project_id" class="form-select form-select-sm">
+        <option value="">{{ _("No project") }}</option>
+        {% for p in projects|default([]) %}
+        <option value="{{ p.id }}"
+                {% if preselected_project_id and p.id == preselected_project_id %}selected{% endif %}>
+            {{ p.name }}
+            {% if last_project_id and p.id == last_project_id and not preselected_project_id %} ({{ _("last used") }}){% endif %}
+        </option>
+        {% endfor %}
+    </select>
+</div>

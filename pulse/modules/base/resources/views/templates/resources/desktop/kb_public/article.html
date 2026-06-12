@@ -1,0 +1,90 @@
+{% extends "resources/desktop/kb_public/layout.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block kb_content %}
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('kb_bp.index') }}">{{ _("Knowledge Base") }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('kb_bp.category', category_slug=article.category.slug) }}">{{ article.category.name }}</a></li>
+        {% if article.subcategory %}
+        <li class="breadcrumb-item"><a href="{{ url_for('kb_bp.category_or_article', category_slug=article.category.slug, path_part=article.subcategory.slug) }}">{{ article.subcategory.name }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ article.title|truncate(30) }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="kb-card p-4 mb-4">
+            <h1 class="mb-4">{{ article.title }}</h1>
+
+            <div class="kb-article-content">
+                {{ article.render_content()|safe }}
+            </div>
+        </div>
+
+        <!-- Feedback Widget -->
+        <div class="kb-card p-4" id="feedback-widget">
+            {% if has_feedback %}
+            {% include "resources/desktop/kb_public/_feedback_thanks.html" %}
+            {% else %}
+            <h6 class="mb-3">{{ _("Was this article helpful?") }}</h6>
+            <form hx-post="{{ url_for('kb_bp.submit_feedback', article_id=article.id) }}"
+                  hx-target="#feedback-widget"
+                  hx-swap="innerHTML">
+                <div class="d-flex gap-2 mb-3">
+                    <button type="submit" name="helpful" value="yes" class="btn btn-outline-success">
+                        <i class="fas fa-thumbs-up me-1"></i> {{ _("Yes") }}
+                    </button>
+                    <button type="submit" name="helpful" value="no" class="btn btn-outline-danger">
+                        <i class="fas fa-thumbs-down me-1"></i> {{ _("No") }}
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Article Info -->
+        <div class="kb-card p-3 mb-4">
+            <h6 class="text-muted mb-3">{{ _("Article Info") }}</h6>
+            <table class="table table-sm table-borderless mb-0">
+                <tr>
+                    <td class="text-muted">{{ _("Category") }}</td>
+                    <td>{{ article.category.name }}</td>
+                </tr>
+                {% if article.subcategory %}
+                <tr>
+                    <td class="text-muted">{{ _("Subcategory") }}</td>
+                    <td>{{ article.subcategory.name }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td class="text-muted">{{ _("Updated") }}</td>
+                    <td>{{ article.updated_at|format_datetime('%b %d, %Y') if article.updated_at else article.created_at|format_datetime('%b %d, %Y') }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Related Articles (same category) -->
+        {% set related = article.category.articles.filter_by(is_active=True).limit(5).all() %}
+        {% set related_filtered = related|rejectattr('id', 'equalto', article.id)|list %}
+        {% if related_filtered %}
+        <div class="kb-card p-3">
+            <h6 class="text-muted mb-3">{{ _("Related Articles") }}</h6>
+            <ul class="list-unstyled mb-0">
+                {% for rel in related_filtered[:4] %}
+                <li class="mb-2">
+                    <a href="{{ rel.public_url }}" class="text-decoration-none">
+                        <i class="fas fa-file-alt text-muted me-1"></i> {{ rel.title }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

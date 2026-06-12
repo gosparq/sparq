@@ -1,0 +1,8 @@
+{% extends "core/desktop/base.html" %}
+{% block app_class %}finance-app{% endblock %}
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('finance_bp.static', filename='css/finance.css') }}">
+{% endblock %}
+{% block content %}
+<div class="module-content-wrapper">{% block module_content %}{% endblock %}</div>
+{% endblock %}

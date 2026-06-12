@@ -1,0 +1,22 @@
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            {% if current_folder %}
+                <a href="{{ url_for('docs_blueprint.index') }}">
+                    <i class="fas fa-home"></i>
+                </a>
+            {% else %}
+                <i class="fas fa-home"></i>
+            {% endif %}
+        </li>
+        {% for crumb in breadcrumbs %}
+            {% if loop.last %}
+                <li class="breadcrumb-item active" aria-current="page">{{ crumb.name }}</li>
+            {% else %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('docs_blueprint.view_folder', folder_id=crumb.id) }}">{{ crumb.name }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ol>
+</nav>

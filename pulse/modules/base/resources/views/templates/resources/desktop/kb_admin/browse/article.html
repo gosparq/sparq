@@ -1,0 +1,156 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('kb_staff_bp.index') }}">{{ _("Knowledge Base") }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('kb_staff_bp.category', category_slug=article.category.slug) }}">{{ article.category.name }}</a></li>
+            {% if article.subcategory %}
+            <li class="breadcrumb-item"><a href="{{ url_for('kb_staff_bp.category_or_article', category_slug=article.category.slug, path_part=article.subcategory.slug) }}">{{ article.subcategory.name }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ article.title|truncate(30) }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Article Content -->
+            <div class="mb-4">
+                <h1 class="mb-2">
+                    {{ article.title }}
+                    {% if not article.is_public %}
+                    <span class="badge bg-secondary">{{ _("Private") }}</span>
+                    {% else %}
+                    <span class="badge bg-success">{{ _("Public") }}</span>
+                    {% endif %}
+                </h1>
+
+                <div class="kb-article-content">
+                    {{ article.render_content()|safe }}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Article Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Article Info") }}</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">{{ _("Category") }}</td>
+                            <td>{{ article.category.name }}</td>
+                        </tr>
+                        {% if article.subcategory %}
+                        <tr>
+                            <td class="text-muted">{{ _("Subcategory") }}</td>
+                            <td>{{ article.subcategory.name }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td class="text-muted">{{ _("Status") }}</td>
+                            <td>
+                                {% if article.is_active %}
+                                <span class="badge bg-success">{{ _("Active") }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ _("Inactive") }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">{{ _("Views") }}</td>
+                            <td>{{ article.view_count or 0 }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">{{ _("Updated") }}</td>
+                            <td>{{ article.updated_at|format_datetime('%b %d, %Y') if article.updated_at else article.created_at|format_datetime('%b %d, %Y') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Feedback Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Feedback") }}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-3">
+                        <div class="text-success">
+                            <i class="fas fa-thumbs-up"></i> {{ article.helpful_count }} {{ _("helpful") }}
+                        </div>
+                        <div class="text-danger">
+                            <i class="fas fa-thumbs-down"></i> {{ article.not_helpful_count }} {{ _("not helpful") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Articles -->
+            {% set related = article.category.articles.filter_by(is_active=True).limit(5).all() %}
+            {% set related_filtered = related|rejectattr('id', 'equalto', article.id)|list %}
+            {% if related_filtered %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">{{ _("Related Articles") }}</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        {% for rel in related_filtered[:4] %}
+                        <li class="mb-2">
+                            <a href="{{ url_for('kb_staff_bp.category_or_article', category_slug=rel.category.slug, path_part=rel.slug) if not rel.subcategory else url_for('kb_staff_bp.article', category_slug=rel.category.slug, subcategory_slug=rel.subcategory.slug, article_slug=rel.slug) }}" class="text-decoration-none">
+                                <i class="fas fa-file-alt text-muted me-1"></i> {{ rel.title }}
+                                {% if not rel.is_public %}
+                                <span class="badge bg-secondary">{{ _("Private") }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .kb-article-content h1, .kb-article-content h2, .kb-article-content h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .kb-article-content pre {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: 0.375rem;
+        overflow-x: auto;
+    }
+    .kb-article-content code {
+        background: var(--color-gray-100);
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        font-size: 0.875em;
+    }
+    .kb-article-content pre code {
+        background: none;
+        padding: 0;
+    }
+    .kb-article-content table {
+        width: 100%;
+        margin-bottom: 1rem;
+        border-collapse: collapse;
+    }
+    .kb-article-content th, .kb-article-content td {
+        border: 1px solid var(--color-gray-300);
+        padding: 0.5rem;
+    }
+    .kb-article-content th {
+        background: var(--color-gray-100);
+    }
+</style>
+{% endblock %}

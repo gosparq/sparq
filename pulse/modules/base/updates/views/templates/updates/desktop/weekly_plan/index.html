@@ -1,0 +1,64 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Weekly Plans") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Weekly Plans") }}</h2>
+            <span class="text-muted text-sm">{{ _("Past weekly plans") }}</span>
+        </div>
+    </div>
+
+    {% if plans %}
+    <div class="plan-timeline">
+        {% for plan in plans %}
+        <a href="{{ url_for('tasks_bp.plan_detail', year=plan.year, week=plan.week_number) }}"
+           class="plan-timeline-item {% if plan.is_current_week %}plan-current{% endif %} text-decoration-none" style="color:inherit">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-semibold text-base">
+                        {{ plan.display_name }}
+                        {% if plan.is_current_week %}
+                        <span class="badge text-icon badge-primary-solid ms-1" style="vertical-align:middle">{{ _("Current") }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-muted text-xs">{{ plan.date_range_display }}, {{ plan.year }}</div>
+                </div>
+                <div class="text-end flex-shrink-0">
+                    {% if plan.goals_total_count > 0 %}
+                    <span class="text-muted text-xs">
+                        {{ plan.goals_complete_count }}/{{ plan.goals_total_count }} {{ _("goals") }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-calendar-week fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-0">{{ _("No weekly plans yet.") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.plan-timeline-item {
+    display: block;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.625rem;
+    margin-bottom: 0.5rem;
+    transition: border-color 0.15s;
+}
+.plan-timeline-item:hover {
+    border-color: var(--color-primary);
+}
+.plan-current {
+    border-left: 3px solid var(--color-primary);
+}
+</style>
+{% endblock %}

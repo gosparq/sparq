@@ -1,0 +1,105 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="mb-4">
+        <a href="{{ url_for('finance_bp.accounts_settings') }}" class="btn btn-link text-muted ps-0">
+            <i class="fas fa-arrow-left me-1"></i> {{ _("Back to Chart of Accounts") }}
+        </a>
+        <h2>{{ title }}</h2>
+    </div>
+
+    <form method="POST" class="needs-validation" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Account Code") }} <span class="text-danger">*</span></label>
+                    <input type="text" name="code" class="form-control" required
+                           value="{{ account.code if account else '' }}"
+                           placeholder="{{ _('e.g., 5100') }}"
+                           pattern="[0-9A-Za-z\-]+"
+                           maxlength="20">
+                    <div class="form-text">{{ _("Unique code for this account (numbers or alphanumeric)") }}</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Account Type") }} <span class="text-danger">*</span></label>
+                    <select name="account_type" class="form-select" required>
+                        {% for type in AccountType %}
+                        <option value="{{ type.value }}"
+                                {% if account and account.account_type == type %}selected{% endif %}>
+                            {{ type.value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ _("Account Name") }} <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ account.name if account else '' }}"
+                   placeholder="{{ _('e.g., Office Supplies') }}"
+                   maxlength="100">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ _("Parent Account") }}</label>
+            <select name="parent_id" class="form-select">
+                <option value="">{{ _("None (Top-level account)") }}</option>
+                {% for parent in parent_accounts %}
+                <option value="{{ parent.id }}"
+                        {% if account and account.parent_id == parent.id %}selected{% endif %}>
+                    {{ parent.code }} - {{ parent.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="form-text">{{ _("Optional: Group this account under a parent") }}</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ _("Description") }}</label>
+            <textarea name="description" class="form-control" rows="2"
+                      placeholder="{{ _('Optional description for this account') }}"
+                      maxlength="255">{{ account.description if account else '' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">{{ _("Tax Category") }}</label>
+            <input type="text" name="tax_category" class="form-control"
+                   value="{{ account.tax_category if account else '' }}"
+                   placeholder="{{ _('e.g., Office Expenses, Travel') }}"
+                   maxlength="100">
+            <div class="form-text">{{ _("Optional: IRS category hint for tax reporting") }}</div>
+        </div>
+
+        {% if account %}
+        <div class="mb-3">
+            <div class="form-check">
+                <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
+                       {% if account.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="is_active">{{ _("Active") }}</label>
+            </div>
+            <div class="form-text">{{ _("Inactive accounts won't appear in dropdowns") }}</div>
+        </div>
+        {% endif %}
+
+        <hr>
+
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('finance_bp.accounts_settings') }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-save me-1"></i>
+                {% if account %}{{ _("Save Changes") }}{% else %}{{ _("Create Account") }}{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

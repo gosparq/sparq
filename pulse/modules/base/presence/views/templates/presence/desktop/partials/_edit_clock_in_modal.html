@@ -1,0 +1,79 @@
+<!-- Edit Clock-In Time Modal -->
+<div class="modal fade show" id="editClockInModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{{ url_for('board_bp.save_clock_in_edit', member_id=member.id) }}"
+                  hx-target="#modals"
+                  hx-swap="innerHTML">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>{{ _("Edit Clock-In Time") }}
+                    </h5>
+                    <button type="button" class="btn-close"
+                            hx-get="{{ url_for('board_bp.clear_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML"></button>
+                </div>
+                <div class="modal-body">
+                    {% if error %}
+                    <div class="alert alert-danger py-2">{{ error }}</div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Person") }}</label>
+                        <div class="fw-bold">{{ member.user.full_name }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Current Clock-In") }}</label>
+                        <div>{{ clock_in_local.strftime('%I:%M %p') }} ({{ clock_in_local.strftime('%b %d, %Y') }})</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_time" class="form-label">{{ _("New Clock-In Time") }}</label>
+                        <input type="text"
+                               class="form-control"
+                               id="new_time"
+                               name="new_time"
+                               required>
+                        <div class="form-text">{{ _("Date will remain") }} {{ clock_in_local.strftime('%b %d, %Y') }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">{{ _("Reason for Adjustment") }}</label>
+                        <textarea class="form-control"
+                                  id="reason"
+                                  name="reason"
+                                  rows="2"
+                                  placeholder="{{ _('e.g., Reported incorrect clock-in time') }}"></textarea>
+                        <div class="form-text">{{ _("This will be recorded in the audit trail.") }}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary"
+                            hx-get="{{ url_for('board_bp.clear_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>{{ _("Save Changes") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+flatpickr("#new_time", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    altInput: true,
+    altFormat: "h:i K",
+    time_24hr: false,
+    minuteIncrement: 1,
+    defaultDate: "{{ clock_in_local.strftime('%H:%M') }}"
+});
+</script>

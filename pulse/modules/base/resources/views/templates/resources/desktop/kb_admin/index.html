@@ -1,0 +1,169 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("Knowledge Base") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ _("Knowledge Base Admin") }}</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('kb_staff_bp.index') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-book-reader me-1"></i> {{ _("Browse KB") }}
+            </a>
+            <a href="{{ url_for('knowledge_blueprint.categories_list') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-tags me-1"></i> {{ _("Categories") }}
+            </a>
+            <a href="{{ url_for('knowledge_blueprint.article_new') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i> {{ _("New Article") }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">{{ _("Total Articles") }}</h6>
+                            <h3 class="mb-0">{{ stats.total_articles }}</h3>
+                        </div>
+                        <i class="fas fa-file-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">{{ _("Public") }}</h6>
+                            <h3 class="mb-0">{{ stats.public_articles }}</h3>
+                        </div>
+                        <i class="fas fa-globe fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">{{ _("Private") }}</h6>
+                            <h3 class="mb-0">{{ stats.private_articles }}</h3>
+                        </div>
+                        <i class="fas fa-lock fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">{{ _("Feedback") }}</h6>
+                            <h3 class="mb-0">{{ stats.total_feedback }}</h3>
+                        </div>
+                        <i class="fas fa-comments fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Articles -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ _("Recent Articles") }}</h5>
+                    <a href="{{ url_for('knowledge_blueprint.articles_list') }}" class="btn btn-sm btn-primary">
+                        {{ _("View All") }}
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if articles %}
+                    <div class="list-group list-group-flush">
+                        {% for article in articles %}
+                        <a href="{{ url_for('knowledge_blueprint.article_detail', article_id=article.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ article.title }}</h6>
+                                    <small class="text-muted">
+                                        {{ article.category.name }}
+                                        {% if article.subcategory %} &raquo; {{ article.subcategory.name }}{% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    {% if article.is_public %}
+                                    <span class="badge bg-success">{{ _("Public") }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ _("Private") }}</span>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">{{ article.updated_at|format_datetime('%b %d') if article.updated_at else article.created_at|format_datetime('%b %d') }}</small>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-file-alt fa-3x mb-3"></i>
+                        <p>{{ _("No articles yet.") }}</p>
+                        <a href="{{ url_for('knowledge_blueprint.article_new') }}" class="btn btn-sm btn-primary">
+                            {{ _("Create Your First Article") }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Feedback -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ _("Recent Feedback") }}</h5>
+                    <a href="{{ url_for('knowledge_blueprint.feedback_list') }}" class="btn btn-sm btn-primary">
+                        {{ _("View All") }}
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_feedback %}
+                    <div class="list-group list-group-flush">
+                        {% for fb in recent_feedback %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                {% if fb.is_helpful %}
+                                <i class="fas fa-thumbs-up text-success me-2"></i>
+                                {% else %}
+                                <i class="fas fa-thumbs-down text-danger me-2"></i>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <a href="{{ url_for('knowledge_blueprint.article_detail', article_id=fb.article_id) }}" class="text-decoration-none">
+                                        {{ fb.article.title|truncate(30) }}
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">{{ fb.created_at|format_datetime('%b %d, %H:%M') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-comments fa-2x mb-2"></i>
+                        <p class="mb-0">{{ _("No feedback yet.") }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

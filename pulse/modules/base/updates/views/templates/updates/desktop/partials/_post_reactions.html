@@ -1,0 +1,18 @@
+{# Partial: Reactions + reply/react action buttons for a post #}
+{% set post_for_reactions = post if post is defined else reply if reply is defined else none %}
+{% if post_for_reactions %}
+{% set reactions = UpdatePostReaction.get_for_message(post_for_reactions.id) if UpdatePostReaction is defined and UpdatePostReaction else {} %}
+<div class="post-reactions" id="post-reactions-{{ post_for_reactions.id }}">
+    {% for emoji, data in reactions.items() %}
+    <button class="post-reaction-badge {% if current_user.id in data.user_ids %}user-reacted{% endif %}"
+            data-action="post-toggle-reaction" data-post-id="{{ post_for_reactions.id }}" data-emoji="{{ emoji }}"
+            title="{{ data.users|join(', ') }}">
+        <span class="post-reaction-emoji">{{ emoji }}</span>
+        <span class="post-reaction-count">{{ data.count }}</span>
+    </button>
+    {% endfor %}
+    <button class="post-reaction-add" data-action="post-show-picker" data-post-id="{{ post_for_reactions.id }}" title="{{ _('Add reaction') }}">
+        <i class="far fa-smile"></i>
+    </button>
+</div>
+{% endif %}

@@ -1,0 +1,19 @@
+<div id="task-title-section" class="mb-3">
+    <form hx-post="{{ url_for('tasks_bp.inline_save_title', item_id=item.id) }}"
+          hx-target="#task-title-section"
+          hx-swap="outerHTML"
+          hx-disabled-elt="button[type=submit]">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="text" name="title" value="{{ item.title }}"
+               class="form-control form-control-sm mb-2 fw-semibold"
+               required maxlength="200"
+               autofocus style="font-size:1.375rem">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save") }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for('tasks_bp.inline_display_title', item_id=item.id) }}"
+                    hx-target="#task-title-section"
+                    hx-swap="outerHTML">{{ _("Cancel") }}</button>
+        </div>
+    </form>
+</div>

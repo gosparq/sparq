@@ -1,0 +1,85 @@
+{% extends "projects/desktop/layout.html" %}
+
+{% block title %}{{ _("Edit Project") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" style="max-width:560px;">
+    <div class="mb-3">
+        <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}" class="text-muted text-decoration-none text-base">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back") }}
+        </a>
+    </div>
+
+    <h2 class="content-heading mb-3">{{ _("Edit Project") }}</h2>
+
+    <form method="POST" action="{{ url_for('projects_bp.update', project_id=project.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        {# Name #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Name") }} <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control form-control-sm" required maxlength="200"
+                   value="{{ project.name }}">
+        </div>
+
+        {# Description #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Description") }} <span class="text-muted">({{ _("optional") }})</span></label>
+            <textarea name="description" class="form-control form-control-sm" rows="2" maxlength="500">{{ project.description or '' }}</textarea>
+        </div>
+
+        {# Owner #}
+        <div class="mb-3">
+            <label class="form-label text-base">{{ _("Owner") }}</label>
+            <select name="owner_id" class="form-select form-select-sm">
+                {% for m in members %}
+                <option value="{{ m.id }}" {% if project.owner_id == m.id %}selected{% endif %}>{{ m.user.first_name }} {{ m.user.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {# Color #}
+        <div class="mb-3" x-data="{ selectedColor: '{{ project.color or '' }}' }">
+            <label class="form-label text-base">{{ _("Color") }} <span class="text-muted">({{ _("optional") }})</span></label>
+            <div class="d-flex gap-2 align-items-center">
+                {% set colors = ['var(--color-danger)', '#d97706', '#16a34a', '#2563eb', 'var(--color-focus)', '#ec4899'] %}
+                {% for c in colors %}
+                <label class="project-color-swatch" :class="{ 'project-color-swatch--active': selectedColor === '{{ c }}' }">
+                    <input type="radio" name="color" value="{{ c }}" class="d-none"
+                           x-model="selectedColor">
+                    <span style="background:{{ c }};"></span>
+                </label>
+                {% endfor %}
+                <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2 text-sm"
+                        @click="selectedColor = ''" x-show="selectedColor">
+                    {{ _("Clear") }}
+                </button>
+            </div>
+            {# Hidden input to submit empty color when cleared #}
+            <template x-if="!selectedColor">
+                <input type="hidden" name="color" value="">
+            </template>
+        </div>
+
+        {# Channel info (read-only) #}
+        {% if project.channel %}
+        <div class="mb-3 p-3" style="border:1px solid var(--color-gray-200);border-radius:0.5rem;background:var(--color-gray-50);">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-hashtag text-muted text-xs"></i>
+                <span class="fw-medium text-base">{{ project.channel.name }}</span>
+                <span class="text-muted text-sm">{{ _("(channel cannot be changed)") }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-check me-1"></i>{{ _("Save Changes") }}
+            </button>
+            <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

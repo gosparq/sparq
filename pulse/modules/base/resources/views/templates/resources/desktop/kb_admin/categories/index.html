@@ -1,0 +1,126 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("Categories") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ _("Categories & Subcategories") }}</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('knowledge_blueprint.subcategory_new') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-plus me-1"></i> {{ _("New Subcategory") }}
+            </a>
+            <a href="{{ url_for('knowledge_blueprint.category_new') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i> {{ _("New Category") }}
+            </a>
+        </div>
+    </div>
+
+    {% if categories %}
+    <div class="accordion" id="categoriesAccordion">
+        {% for category in categories %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#category{{ category.id }}">
+                    <i class="{{ category.icon_class }} me-2"></i>
+                    <strong>{{ category.name }}</strong>
+                    <span class="badge bg-secondary ms-2">{{ category.article_count }} {{ _("articles") }}</span>
+                    {% if not category.is_active %}
+                    <span class="badge bg-warning ms-2">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="category{{ category.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                 data-bs-parent="#categoriesAccordion">
+                <div class="accordion-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            {% if category.description %}
+                            <p class="text-muted mb-2">{{ category.description }}</p>
+                            {% endif %}
+                            <small class="text-muted">
+                                {{ _("Slug:") }} <code>{{ category.slug }}</code>
+                            </small>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('knowledge_blueprint.category_edit', category_id=category.id) }}"
+                               class="btn btn-sm btn-primary" title="{{ _('Edit') }}">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('knowledge_blueprint.subcategory_new', category_id=category.id) }}"
+                               class="btn btn-sm btn-outline-secondary" title="{{ _('Add Subcategory') }}">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Subcategories -->
+                    {% set subcategories = category.subcategories.all() %}
+                    {% if subcategories %}
+                    <h6 class="text-muted mb-2">{{ _("Subcategories") }}</h6>
+                    <div class="list-group">
+                        {% for sub in subcategories %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ sub.name }}</strong>
+                                {% if not sub.is_active %}
+                                <span class="badge bg-warning">{{ _("Inactive") }}</span>
+                                {% endif %}
+                                <br>
+                                <small class="text-muted">
+                                    {{ sub.article_count }} {{ _("articles") }} &bull;
+                                    {{ _("Slug:") }} <code>{{ sub.slug }}</code>
+                                </small>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('knowledge_blueprint.subcategory_edit', subcategory_id=sub.id) }}"
+                                   class="btn btn-sm btn-primary" title="{{ _('Edit') }}">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('knowledge_blueprint.subcategory_delete', subcategory_id=sub.id) }}"
+                                      method="post" class="d-inline"
+                                      data-confirm="{{ _('Are you sure?') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ _('Delete') }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {{ _("No subcategories. Articles can be added directly to this category.") }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-tags fa-3x mb-3"></i>
+        <p>{{ _("No categories yet.") }}</p>
+        <a href="{{ url_for('knowledge_blueprint.category_new') }}" class="btn btn-sm btn-primary">
+            {{ _("Create Your First Category") }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+        });
+    });
+});
+</script>
+{% endblock %}

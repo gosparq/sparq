@@ -1,0 +1,116 @@
+{# Attachment widget - include this partial in Job/Quote/Contact/Invoice detail pages #}
+{# Required variables: entity_type, entity_id, attachments (optional) #}
+
+<div class="res-attach-panel">
+    <div class="d-flex justify-content-between align-items-center res-attach-panel-header">
+        <span class="res-attach-panel-title">
+            <i class="fas fa-paperclip me-2"></i>{{ _("Attachments") }}
+        </span>
+        <button type="button"
+                class="btn btn-sm btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#attachmentModal">
+            <i class="fas fa-plus me-1"></i>{{ _("Attach") }}
+        </button>
+    </div>
+    <div class="res-attach-panel-body">
+        <div id="attachments-list"
+             hx-get="{{ url_for('docs_blueprint.list_attachments', entity_type=entity_type, entity_id=entity_id) }}"
+             hx-trigger="load">
+            {% if attachments %}
+                {% for attachment in attachments %}
+                <div class="d-flex align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                    <i class="fas fa-file text-secondary me-2"></i>
+                    <div class="flex-grow-1">
+                        <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=attachment.id) }}"
+                           class="text-decoration-none" target="_blank">
+                            {{ attachment.filename }}
+                        </a>
+                        <small class="text-muted ms-2">{{ attachment.size_display }}</small>
+                    </div>
+                    <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=attachment.id) }}"
+                       class="btn btn-sm btn-outline-secondary"
+                       title="{{ _('Download') }}">
+                        <i class="fas fa-download"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted mb-0 text-center py-3">
+                    <i class="fas fa-inbox me-1"></i>{{ _("No attachments") }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Attachment Modal -->
+<div class="modal fade" id="attachmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _("Attach File") }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">
+                            <i class="fas fa-upload me-1"></i>{{ _("Upload New") }}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="browse-tab" data-bs-toggle="tab" data-bs-target="#browse-pane" type="button" role="tab">
+                            <i class="fas fa-folder-open me-1"></i>{{ _("Browse Library") }}
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Upload Tab -->
+                    <div class="tab-pane fade show active" id="upload-pane" role="tabpanel">
+                        <form action="{{ url_for('docs_blueprint.upload_and_attach') }}"
+                              method="post"
+                              enctype="multipart/form-data"
+                              hx-post="{{ url_for('docs_blueprint.upload_and_attach') }}"
+                              hx-target="#attachments-list"
+                              hx-swap="innerHTML"
+                              id="uploadAttachForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="entity_type" value="{{ entity_type }}">
+                            <input type="hidden" name="entity_id" value="{{ entity_id }}">
+
+                            <div class="mb-3">
+                                <label for="attachFile" class="form-label">{{ _("Select File") }}</label>
+                                <input type="file" class="form-control" id="attachFile" name="file" required>
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-dismiss="modal">
+                                    {{ _("Cancel") }}
+                                </button>
+                                <button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+                                    <i class="fas fa-upload me-1"></i>{{ _("Upload & Attach") }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Browse Tab -->
+                    <div class="tab-pane fade" id="browse-pane" role="tabpanel">
+                        <div id="library-browser"
+                             hx-get="{{ url_for('docs_blueprint.browser', entity_type=entity_type, entity_id=entity_id) }}"
+                             hx-trigger="shown.bs.tab from:#browse-tab">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-secondary" role="status">
+                                    <span class="visually-hidden">{{ _("Loading...") }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,71 @@
+<!-- Progress Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">{{ _("Progress") }}</span>
+            <span class="fw-bold">{{ progress.completed }}/{{ progress.total }} {{ _("tasks completed") }}</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-success" role="progressbar"
+                 style="width: {{ progress.percent }}%"
+                 aria-valuenow="{{ progress.percent }}" aria-valuemin="0" aria-valuemax="100">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Offboarding Checklist Items -->
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0">{{ _("Tasks") }}</h6>
+    </div>
+    <ul class="list-group list-group-flush">
+        {% for assignment in assignments %}
+        <li class="list-group-item">
+            <div class="d-flex align-items-start">
+                <div class="form-check me-3 mt-1">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           id="task-{{ assignment.id }}"
+                           {% if assignment.completed %}checked{% endif %}
+                           hx-post="{{ url_for('people_bp.toggle_offboarding_task', employee_id=employee_id, assignment_id=assignment.id) }}"
+                           hx-target="#offboarding-checklist"
+                           hx-swap="innerHTML">
+                </div>
+                <div class="flex-grow-1">
+                    <label for="task-{{ assignment.id }}"
+                           class="form-check-label fw-medium {% if assignment.completed %}text-decoration-line-through text-muted{% endif %}">
+                        {{ assignment.task.name }}
+                    </label>
+                    {% if assignment.task.description %}
+                    <p class="text-muted small mb-0 {% if assignment.completed %}text-decoration-line-through{% endif %}">
+                        {{ assignment.task.description }}
+                    </p>
+                    {% endif %}
+                    {% if assignment.completed and assignment.completed_by %}
+                    <p class="text-success small mb-0 mt-1">
+                        <i class="fas fa-check-circle me-1"></i>
+                        {{ _("Completed by") }} {{ assignment.completed_by.first_name }} {{ assignment.completed_by.last_name }}
+                        {% if assignment.completed_at %}
+                        {{ _("on") }} {{ assignment.completed_at|format_datetime('%b %d, %Y') }}
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </li>
+        {% else %}
+        <li class="list-group-item text-center text-muted py-4">
+            <i class="fas fa-clipboard-check fa-2x mb-2 opacity-50"></i>
+            <p class="mb-0">{{ _("No offboarding tasks configured.") }}</p>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if progress.percent == 100 and progress.total > 0 %}
+<div class="alert alert-success mt-4">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ _("All offboarding tasks have been completed.") }}
+</div>
+{% endif %}

@@ -1,0 +1,75 @@
+{# Clock punches table for admin day view.
+   Expects from context: punches, view_date
+#}
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-clock me-2"></i>{{ _("Clock Punches") }}
+            <span class="text-muted small ms-2">{{ view_date.strftime('%A, %b %d, %Y') }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if punches %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ _("Type") }}</th>
+                        <th>{{ _("Time") }}</th>
+                        <th>{{ _("Source") }}</th>
+                        <th>{{ _("Location") }}</th>
+                        <th class="text-end">{{ _("Actions") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for punch in punches %}
+                    <tr>
+                        <td>
+                            {% if punch.punch_type.value == 'in' %}
+                            <span class="badge bg-success">{{ _("IN") }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ _("OUT") }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ punch.punch_time_local.strftime('%I:%M %p') }}</strong>
+                            {% if punch.adjustments.count() > 0 %}
+                            <span class="badge bg-info ms-1" title="{{ _('This punch has been adjusted') }}">
+                                <i class="fas fa-history"></i>
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ punch.source or _('web') }}</td>
+                        <td>
+                            {% if punch.outside_geofence %}
+                            <span class="badge bg-warning text-dark" title="{{ _('Outside geofence') }}">
+                                <i class="fas fa-map-marker-alt me-1"></i>{{ _("Outside") }}
+                            </span>
+                            {% elif punch.latitude and punch.longitude %}
+                            <span class="text-success small"><i class="fas fa-check-circle me-1"></i>{{ _("Within") }}</span>
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-primary"
+                                    hx-get="{{ url_for('presence_bp.edit_punch_modal', punch_id=punch.id) }}"
+                                    hx-target="#modals"
+                                    hx-swap="innerHTML"
+                                    title="{{ _('Edit') }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-clock fa-2x opacity-25 mb-2"></i>
+            <p class="mb-0">{{ _("No clock punches for this day") }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,122 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Presence") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card mb-3">
+    <h2 class="content-heading mb-1">{{ _("Presence") }}</h2>
+    <p class="text-muted small mb-0">{{ _("Team availability and wellness at a glance.") }}</p>
+</div>
+
+<div class="row g-3">
+    {# ── Flow / Open Door Card ── #}
+    <div class="col-md-6">
+        <div class="content-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-semibold mb-0"><i class="fas fa-brain me-2" style="color:var(--color-focus);"></i>{{ _("Focus / Available") }}</h6>
+                <a href="{{ url_for('presence_flow_bp.flow_index') }}" class="text-muted small text-decoration-none">{{ _("View all") }} <i class="fas fa-chevron-right" style="font-size:0.5rem;"></i></a>
+            </div>
+            <div class="d-flex gap-3 mb-3">
+                <div class="text-center">
+                    <div class="fs-3 fw-bold" style="color:var(--color-focus);">{{ flow_count }}</div>
+                    <div class="text-muted text-xs">{{ _("Focusing") }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="fs-3 fw-bold text-success">{{ team_count - flow_count }}</div>
+                    <div class="text-muted text-xs">{{ _("Available") }}</div>
+                </div>
+                {% if open_door_members %}
+                <div class="text-center">
+                    <div class="fs-3 fw-bold" style="color:var(--color-success);">{{ open_door_members|length }}</div>
+                    <div class="text-muted text-xs"><i class="fas fa-door-open text-3xs"></i> {{ _("Door Open") }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% if open_door_members %}
+            <div style="border-top:1px solid var(--color-gray-200);padding-top:0.75rem;">
+                {% for m in open_door_members %}
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="avatar-circle" style="width:22px;height:22px;font-size:0.55rem;background:{{ m.user.avatar_color|default('#6b7280') }};">{{ m.user.first_name[0]|upper }}{{ m.user.last_name[0]|upper }}</span>
+                    <span class="small">{{ m.user.first_name }}</span>
+                    <span class="text-muted text-2xs">{{ m.door_minutes_remaining }} {{ _("min") }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Check-ins Card ── #}
+    <div class="col-md-6">
+        <div class="content-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-semibold mb-0"><i class="fas fa-heartbeat me-2 text-danger"></i>{{ _("Check-ins") }}</h6>
+                <a href="{{ url_for('presence_flow_bp.pulse_index') }}" class="text-muted small text-decoration-none">{{ _("View all") }} <i class="fas fa-chevron-right" style="font-size:0.5rem;"></i></a>
+            </div>
+            <div class="d-flex gap-3 mb-3">
+                <div class="text-center">
+                    <div class="fs-3 fw-bold">{{ checkin_count_week }}</div>
+                    <div class="text-muted text-xs">{{ _("This week") }}</div>
+                </div>
+                {% if total_track > 0 %}
+                <div class="text-center">
+                    <div class="fs-3 fw-bold {% if on_track_pct >= 70 %}text-success{% elif on_track_pct >= 40 %}text-warning{% else %}text-danger{% endif %}">{{ on_track_pct }}%</div>
+                    <div class="text-muted text-xs">{{ _("On Track") }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            {# Energy levels (compact) #}
+            {% if energy_data %}
+            <div style="border-top:1px solid var(--color-gray-200);padding-top:0.75rem;">
+                <div class="text-muted small fw-semibold mb-2"><i class="fas fa-bolt me-1"></i>{{ _("Energy Levels") }}</div>
+                {% for item in energy_data %}
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="small text-truncate" style="width:90px;">{{ item.member.user.first_name }}</span>
+                    <div class="flex-grow-1">
+                        {% set pct = (item.avg / 5 * 100)|int %}
+                        {% if item.avg > 3.5 %}{% set bar_color = 'bg-success' %}{% elif item.avg >= 2.5 %}{% set bar_color = 'bg-warning' %}{% else %}{% set bar_color = 'bg-danger' %}{% endif %}
+                        <div class="progress" style="height:6px;">
+                            <div class="progress-bar {{ bar_color }}" style="width:{{ pct }}%;"></div>
+                        </div>
+                    </div>
+                    <span class="text-muted text-2xs" style="width:24px; text-align:right">{{ item.avg }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Timesheets Card ── #}
+    <div class="col-md-6">
+        <div class="content-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-semibold mb-0"><i class="fas fa-clock me-2"></i>{{ _("Timesheets") }}</h6>
+                <a href="{{ url_for('presence_bp.day_view') }}" class="text-muted small text-decoration-none">{{ _("View") }} <i class="fas fa-chevron-right" style="font-size:0.5rem;"></i></a>
+            </div>
+            {% if current_user.is_admin and pending_approval_count > 0 %}
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark">{{ pending_approval_count }}</span>
+                <span class="small">{{ _("pending approvals") }}</span>
+            </div>
+            {% else %}
+            <p class="text-muted small mb-0">{{ _("No pending approvals.") }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── In/Out Board Card ── #}
+    {% if board_visible is not defined or board_visible %}
+    <div class="col-md-6">
+        <div class="content-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-semibold mb-0"><i class="fas fa-users me-2"></i>{{ _("In/Out Board") }}</h6>
+                <a href="{{ url_for('board_bp.index') }}" class="text-muted small text-decoration-none">{{ _("View") }} <i class="fas fa-chevron-right" style="font-size:0.5rem;"></i></a>
+            </div>
+            <p class="text-muted small mb-0">{{ team_count }} {{ _("team members") }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

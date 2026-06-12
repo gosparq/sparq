@@ -1,0 +1,62 @@
+{# Single channel item - used for WebSocket broadcasts when channel is created #}
+{% if oob_swap %}
+<div id="channel-list" hx-swap-oob="beforeend">
+{% endif %}
+
+<div class="channel"
+     :class="{ 'active': activeChannel === '{{ channel.name }}' }"
+     id="channel-{{ channel.name }}"
+     data-channel-name="{{ channel.name }}"
+     hx-get="{{ url_for('sync_bp.get_channel_messages', channel_name=channel.name) }}"
+     hx-target="#chat-messages"
+     hx-swap="innerHTML"
+     hx-trigger="click"
+     @click="
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer && typeof Alpine !== 'undefined') {
+            const data = Alpine.$data(chatContainer);
+            data.activeChannel = '{{ channel.name }}';
+            data.activeChannelDescription = '{{ channel.description|default('')|e }}';
+            data.searchQuery = '';
+            data.pinFilterActive = false;
+            data.activeView = 'channel';
+            data.activeDmThread = null;
+        }
+        const badge = document.getElementById('unread-{{ channel.name }}');
+        if (badge) badge.style.display = 'none';
+        document.querySelectorAll('.dm-item').forEach(function(el) { el.classList.remove('active'); });
+     ">
+    <div class="channel-content">
+        <div class="channel-name">
+            <span class="channel-prefix">#</span>{{ _(channel.name) if channel.name in ('general', 'announcements', 'events') else channel.name }}
+        </div>
+    </div>
+    <div class="channel-meta">
+        <span class="unread-badge" id="unread-{{ channel.name }}" style="display:none">0</span>
+        {% if current_user.is_admin and channel.name != 'general' %}
+        <div class="channel-actions" x-data="{ open: false }">
+            <button class="btn btn-link btn-sm channel-options"
+                    type="button"
+                    @click.stop="open = !open">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" :class="{ 'show': open }" @click.outside="open = false">
+                <li>
+                    <a class="dropdown-item text-danger" href="#"
+                       @click.prevent="open = false"
+                       hx-delete="{{ url_for('sync_bp.delete_channel', channel_name=channel.name) }}"
+                       hx-confirm="{{ _('Delete this channel and all messages?') }}"
+                       hx-target="#channel-{{ channel.name }}"
+                       hx-swap="outerHTML">
+                        <i class="fas fa-trash-alt me-2"></i>{{ _('Delete Channel') }}
+                    </a>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if oob_swap %}
+</div>
+{% endif %}

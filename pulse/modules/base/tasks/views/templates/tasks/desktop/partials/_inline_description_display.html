@@ -1,0 +1,24 @@
+<div id="task-description-section">
+    {% if item.context_note or can_inline_edit %}
+    <div class="task-detail-card task-editable-section">
+        <div class="task-detail-card-header">
+            <span class="task-detail-card-title">{{ _("Description") }}</span>
+            {% if can_inline_edit %}
+            <button class="task-inline-edit-btn"
+                    hx-get="{{ url_for('tasks_bp.inline_edit_description', item_id=item.id) }}"
+                    hx-target="#task-description-section"
+                    hx-swap="outerHTML">
+                <i class="fas fa-pen"></i>
+            </button>
+            {% endif %}
+        </div>
+        <div class="task-detail-card-body">
+            {% if item.context_note %}
+            <div class="text-content task-context-note md-content">{{ item.context_note|markdown }}</div>
+            {% else %}
+            <div class="text-muted small">{{ _("Add a description...") }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>

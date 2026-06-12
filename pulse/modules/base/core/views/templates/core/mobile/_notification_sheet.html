@@ -1,0 +1,62 @@
+{% if system_alerts %}
+{% for alert in system_alerts %}
+<div class="alert-item unread" style="background: rgba(220, 53, 69, 0.1);">
+    <div class="alert-icon" style="background: rgba(220, 53, 69, 0.15); color: {{ alert.color }};">
+        <i class="fas {{ alert.icon }}"></i>
+    </div>
+    <div class="alert-content">
+        <div class="alert-title">{{ alert.title }}</div>
+        {% if alert.message %}
+        <div class="alert-desc">{{ alert.message }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if notifications %}
+{% for notification in notifications %}
+<div class="alert-item {% if not notification.is_read %}unread{% endif %}"
+     {% if notification.action_url %}
+     data-href="{{ notification.action_url }}"
+     {% endif %}>
+    <div class="alert-icon" style="background: color-mix(in srgb, {{ notification.color }} 15%, transparent); color: {{ notification.color }};">
+        <i class="fas {{ notification.icon }}"></i>
+    </div>
+    <div class="alert-content">
+        <div class="alert-title">{{ notification.title }}</div>
+        {% if notification.message %}
+        <div class="alert-desc">{{ notification.message }}</div>
+        {% endif %}
+        <div class="alert-time">{{ notification.time_ago() }}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.25rem;flex-shrink:0;">
+        {% if not notification.is_read %}
+        <button style="background:none;border:none;color:var(--color-gray-400);padding:0.25rem;font-size:0.75rem;"
+                hx-post="{{ url_for('core_bp.notification_mark_read', notification_id=notification.id) }}"
+                hx-target="#mobile-notification-content"
+                hx-swap="innerHTML"
+                @click.stop=""
+                aria-label="{{ _('Mark as read') }}">
+            <i class="fas fa-check"></i>
+        </button>
+        {% endif %}
+        <button style="background:none;border:none;color:var(--color-gray-400);padding:0.25rem;font-size:0.75rem;"
+                hx-post="{{ url_for('core_bp.notification_dismiss', notification_id=notification.id) }}"
+                hx-target="#mobile-notification-content"
+                hx-swap="innerHTML"
+                @click.stop=""
+                aria-label="{{ _('Dismiss') }}">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+{% if not system_alerts %}
+<div class="alerts-empty">
+    <i class="fas fa-bell-slash"></i>
+    <p>{{ _("No new notifications") }}</p>
+</div>
+{% endif %}
+{% endif %}

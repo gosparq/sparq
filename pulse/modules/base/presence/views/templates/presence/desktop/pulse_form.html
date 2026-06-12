@@ -1,0 +1,115 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+<div class="content-card" style="max-width:520px;">
+    <div class="mb-4">
+        <a href="{{ url_for('presence_flow_bp.pulse_index') }}" class="text-muted text-decoration-none">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Pulse") }}
+        </a>
+    </div>
+
+    <h3 class="mb-1"><i class="fas fa-heartbeat me-2 text-danger"></i>{{ template.name }}</h3>
+    {% if template.description %}
+        <p class="text-muted mb-4">{{ template.description }}</p>
+    {% else %}
+        <div class="mb-4"></div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('sync_bp.post_create') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="template_id" value="{{ template.id }}">
+        {% if nudge_id %}
+        <input type="hidden" name="nudge_id" value="{{ nudge_id }}">
+        {% endif %}
+
+        {% for field in template.fields %}
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    {{ field.label }}
+                    {% if field.get('required') %}<span class="text-danger ms-1">*</span>{% endif %}
+                </label>
+
+                {% if field.type == 'text' %}
+                    <textarea
+                        name="field_{{ field.key }}"
+                        class="form-control"
+                        rows="3"
+                        placeholder="{{ field.get('placeholder', '') }}"
+                        {% if field.get('required') %}required{% endif %}
+                    ></textarea>
+
+                {% elif field.type == 'title' %}
+                    <input
+                        type="text"
+                        name="field_{{ field.key }}"
+                        class="form-control"
+                        placeholder="{{ field.get('placeholder', '') }}"
+                        {% if field.get('required') %}required{% endif %}
+                    >
+
+                {% elif field.type == 'scale' %}
+                    {% set min_val = field.get('min', 1) %}
+                    {% set max_val = field.get('max', 5) %}
+                    <div class="d-flex gap-3 flex-wrap">
+                        {% for i in range(min_val, max_val + 1) %}
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="field_{{ field.key }}"
+                                id="field_{{ field.key }}_{{ i }}"
+                                value="{{ i }}"
+                                {% if prefill_value and prefill_value|string == i|string %}checked{% endif %}
+                                {% if field.get('required') and loop.first %}required{% endif %}
+                            >
+                            <label class="form-check-label fw-semibold fs-5" for="field_{{ field.key }}_{{ i }}">{{ i }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-between mt-1" style="max-width:200px;">
+                        <small class="text-muted">{{ _("Low") }}</small>
+                        <small class="text-muted">{{ _("High") }}</small>
+                    </div>
+
+                {% elif field.type == 'choice' %}
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% for option in field.get('options', []) %}
+                        {% set status_colors = {'on_track': 'success', 'off_track': 'danger', 'red': 'danger', 'amber': 'warning', 'green': 'success'} %}
+                        <div class="form-check form-check-inline">
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="field_{{ field.key }}"
+                                id="field_{{ field.key }}_{{ loop.index }}"
+                                value="{{ option }}"
+                                {% if prefill_value and prefill_value == option %}checked{% endif %}
+                                {% if field.get('required') and loop.first %}required{% endif %}
+                            >
+                            <label class="form-check-label" for="field_{{ field.key }}_{{ loop.index }}">
+                                <span class="badge bg-{{ status_colors.get(option, 'secondary') }} bg-opacity-75 px-3 py-2">
+                                    {{ option | replace('_', ' ') | title }}
+                                </span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane me-1"></i>{{ _("Submit") }}
+            </button>
+            <a href="{{ url_for('presence_flow_bp.pulse_index') }}" class="btn btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}

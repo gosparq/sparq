@@ -1,0 +1,67 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Your Organizations") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container" style="max-width: 600px;">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    {% for entry in organizations %}
+    <div class="auth-box{% if not loop.last %} mb-3{% endif %}" style="max-width: 100%;">
+        <h2>{{ _("Welcome to") }} {{ entry.org.name }}</h2>
+
+        {% set organization = entry.org %}
+        {% set org_user = entry.org_user %}
+        {% include "core/desktop/partials/_auto_join_banner.html" %}
+
+        {% if entry.workspaces %}
+        <div class="mb-3">
+            <h6 class="text-muted">{{ _("Workspaces") }}</h6>
+            <div class="list-group">
+                {% for ts in entry.workspaces %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ ts.name }}</strong>
+                    </div>
+                    {% if ts.is_member %}
+                    <span class="badge bg-success">{{ _("Member") }}</span>
+                    {% else %}
+                    <button class="btn btn-sm btn-primary"
+                            hx-post="{{ url_for('core_bp.request_join_workspace', ts_id=ts.id) }}"
+                            hx-swap="outerHTML">
+                        {{ _("Request to Join") }}
+                    </button>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if entry.directory %}
+        <div class="mb-3">
+            <h6 class="text-muted">{{ _("People") }}</h6>
+            <div class="list-group">
+                {% for person in entry.directory %}
+                <div class="list-group-item">
+                    <strong>{{ person.user.first_name }} {{ person.user.last_name }}</strong>
+                    <br><small class="text-muted">{{ person.user.email }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="mt-3 text-center">
+        <small class="text-muted"><a href="{{ url_for('core_bp.logout') }}">{{ _("Log Out") }}</a></small>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">{{ _("Powered by") }} <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a></small>
+{% endblock %}

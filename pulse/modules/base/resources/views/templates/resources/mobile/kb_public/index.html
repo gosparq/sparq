@@ -1,0 +1,46 @@
+{% extends "resources/mobile/layout.html" %}
+{% block title %}{{ _("Knowledge Base") }}{% endblock %}
+
+{% block module_content %}
+<h5 class="mb-3">{{ _("Knowledge Base") }}</h5>
+
+<!-- Search Bar -->
+<form action="{{ url_for('kb_bp.search') }}" method="get" class="mobile-search-bar">
+    <i class="fas fa-search"></i>
+    <input type="search" name="q" placeholder="{{ _('Search articles...') }}" autocomplete="off">
+</form>
+
+<!-- Categories -->
+{% if categories %}
+{% for category in categories %}
+<a href="{{ url_for('kb_bp.category', category_slug=category.slug) }}" class="resource-card">
+    <div class="resource-card-icon category">
+        <i class="{{ category.icon_class }}"></i>
+    </div>
+    <div class="resource-card-content">
+        <div class="resource-card-title">{{ category.name }}</div>
+        <div class="resource-card-meta">
+            {% if category.description %}
+            {{ category.description|truncate(50) }}
+            {% else %}
+            {% if is_authenticated %}
+            {{ category.article_count }} {{ _("articles") }}
+            {% else %}
+            {{ category.public_article_count }} {{ _("articles") }}
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <div class="resource-card-action">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</a>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-book-open"></i>
+    <h5>{{ _("No articles yet") }}</h5>
+    <p>{{ _("Check back soon for helpful content!") }}</p>
+</div>
+{% endif %}
+{% endblock %}

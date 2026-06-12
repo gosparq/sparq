@@ -1,0 +1,124 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Scheduled Leave") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="content-heading">{{ _("PTO / Leave") }}</h2>
+    </div>
+
+    <!-- Sub-navigation -->
+    <div class="mb-3 border-bottom">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('pto_bp.index') }}">
+                    {{ _("My Requests") }}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('pto_bp.approval_queue') }}">
+                    {{ _("Approve Requests") }}
+                    {% if pending_count > 0 %}
+                    <span class="badge bg-warning text-dark ms-1">{{ pending_count }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('pto_bp.scheduled') }}">
+                    {{ _("Scheduled") }}
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    {% if upcoming or past %}
+    <div x-data="{ nav(e, url) { e.ctrlKey || e.metaKey ? window.open(url, '_blank') : location.href = url } }">
+        <!-- Upcoming Section -->
+        {% if upcoming %}
+        <div class="mb-4">
+            <div class="fw-semibold text-uppercase text-xs" style="color:var(--color-gray-500); letter-spacing:0.04em; margin-bottom:0.5rem">
+                {{ _("Upcoming") }} ({{ upcoming|length }})
+            </div>
+            <div>
+                    {% for req in upcoming %}
+                    <div style="padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--color-gray-200);{% endif %}cursor:pointer;" @click="nav($event, '{{ url_for('pto_bp.detail', request_id=req.id) }}')">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <strong>{{ req.member.user.first_name }} {{ req.member.user.last_name }}</strong>
+                                {% if req.member.position %}
+                                <span class="text-muted ms-2 small">{{ req.member.position }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="mb-1">
+                                <strong>
+                                    {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d, %Y') }}{% else %}, {{ req.start_date.strftime('%Y') }}{% endif %}
+                                </strong>
+                            </div>
+                            <div class="text-muted small">
+                                {{ req.leave_type.value }} &middot; {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+                                {% if req.reviewed_by %}
+                                &middot; {{ _("Approved by") }} {{ req.reviewed_by.first_name }} {{ _("on") }} {{ req.reviewed_at|format_datetime('%b %d, %Y') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Past Section -->
+        {% if past %}
+        <div>
+            <div class="fw-semibold text-uppercase text-xs" style="color:var(--color-gray-500); letter-spacing:0.04em; margin-bottom:0.5rem">
+                {{ _("Past") }}
+            </div>
+            <div id="past-list">
+                    {% for req in past %}
+                    <div style="padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--color-gray-200);{% endif %}cursor:pointer;" @click="nav($event, '{{ url_for('pto_bp.detail', request_id=req.id) }}')">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <strong>{{ req.member.user.first_name }} {{ req.member.user.last_name }}</strong>
+                                {% if req.member.position %}
+                                <span class="text-muted ms-2 small">{{ req.member.position }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="mb-1">
+                                <strong>
+                                    {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d, %Y') }}{% else %}, {{ req.start_date.strftime('%Y') }}{% endif %}
+                                </strong>
+                            </div>
+                            <div class="text-muted small">
+                                {{ req.leave_type.value }} &middot; {{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}
+                                {% if req.reviewed_by %}
+                                &middot; {{ _("Approved by") }} {{ req.reviewed_by.first_name }} {{ _("on") }} {{ req.reviewed_at|format_datetime('%b %d, %Y') }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if has_more_past %}
+                    <div class="text-center py-3" id="load-more-past">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                hx-get="{{ url_for('pto_bp.scheduled_past', offset=past_offset) }}"
+                                hx-target="#load-more-past"
+                                hx-swap="outerHTML">
+                            {{ _("Show more") }}
+                        </button>
+                    </div>
+                    {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-calendar-check fa-2x mb-3 d-block opacity-50"></i>
+        <p class="mb-1 text-base">{{ _("No approved leave") }}</p>
+        <p class="mb-0 text-sm">{{ _("There are no approved leave requests to display.") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

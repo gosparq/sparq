@@ -1,0 +1,11 @@
+<div id="task-title-section" class="task-editable-section mb-3">
+    {% if can_inline_edit %}
+    <button class="task-inline-edit-btn"
+            hx-get="{{ url_for('tasks_bp.inline_edit_title', item_id=item.id) }}"
+            hx-target="#task-title-section"
+            hx-swap="outerHTML">
+        <i class="fas fa-pen"></i>
+    </button>
+    {% endif %}
+    <h2 class="task-detail-title">{% if item.is_blocker %}<i class="fas fa-hand text-danger me-2 small" title="{{ _('Blocker') }}"></i>{% endif %}{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}</h2>
+</div>

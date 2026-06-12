@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _("Request Expired") }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .expired-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 3rem;
+            max-width: 500px;
+            text-align: center;
+        }
+        .expired-icon {
+            width: 80px;
+            height: 80px;
+            background: #fee2e2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        .expired-icon i {
+            font-size: 2.5rem;
+            color: var(--color-danger);
+        }
+    </style>
+</head>
+<body>
+    <div class="expired-card">
+        <div class="expired-icon">
+            <i class="fas fa-clock"></i>
+        </div>
+
+        <h2 class="h4 mb-3">{{ _("Request Expired") }}</h2>
+        <p class="text-muted mb-4">
+            {{ _("This signature request has expired.") }}
+            {% if request.expires_at %}
+            {{ _("It was valid until") }} {{ request.expires_at|format_datetime('%B %d, %Y') }}.
+            {% endif %}
+        </p>
+
+        <p class="text-muted small">
+            {{ _("Please contact the sender if you still need to sign this document.") }}
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,111 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% block title %}{{ channel.name }} — {{ _("Channel") }}{% endblock %}
+
+{% block module_content %}
+<div style="padding:1rem;padding-bottom:calc(80px + var(--safe-area-bottom));">
+    {# ── Back link ── #}
+    <div style="margin-bottom:0.75rem;">
+        <a href="{{ url_for('updates_bp.channels_index') }}"
+           style="font-size:0.8125rem;color:var(--color-gray-500);text-decoration:none;">
+            <i class="fas fa-arrow-left" style="margin-right:0.25rem;"></i>
+            {{ _("Channels") }}
+        </a>
+    </div>
+
+    {# ── Header ── #}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div>
+            <h2 style="font-size:1.25rem;font-weight:700;margin:0;">
+                <i class="fas fa-hashtag" style="font-size:0.8rem;color:var(--color-gray-400);"></i>
+                {{ channel.name }}
+            </h2>
+            {% if channel.description %}
+            <p style="font-size:0.8125rem;color:var(--color-gray-500);margin:0.25rem 0 0;">{{ channel.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Thread List ── #}
+    {% if posts %}
+    <div>
+        {% for post in posts %}
+        {% set _row_content = (post.payload or {}).get('content', '') %}
+        {% set _row_webhook = post.webhook_id is not none %}
+        {% set _row_github = _row_webhook and _row_content.startswith('GITHUB_HTML::') %}
+        <a href="{{ url_for('updates_bp.channel_thread', slug=channel.name, post_id=post.id) }}"
+           class="d-block text-decoration-none"
+           style="padding:0.75rem 0;border-bottom:1px solid var(--color-gray-100);">
+            <div style="display:flex;align-items:flex-start;gap:0.75rem;">
+                {# Avatar #}
+                <div style="flex-shrink:0;">
+                    {% if _row_github %}
+                    <span class="avatar-circle" style="width:36px;height:36px;background:var(--color-gray-900);display:flex;align-items:center;justify-content:center;">
+                        <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:18px;height:18px;filter:invert(1);">
+                    </span>
+                    {% elif _row_webhook %}
+                    <span class="avatar-circle" style="width:36px;height:36px;background:var(--color-gray-700);display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-plug" style="font-size:0.75rem;color:white;"></i>
+                    </span>
+                    {% elif not post.is_anonymous and post.member and post.member.user %}
+                    <span class="avatar-circle" style="width:36px;height:36px;font-size:0.75rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                        {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                    </span>
+                    {% else %}
+                    <span class="avatar-circle" style="width:36px;height:36px;font-size:0.75rem;background:var(--color-gray-500);">
+                        <i class="fas fa-user" style="font-size:0.6rem;"></i>
+                    </span>
+                    {% endif %}
+                </div>
+
+                {# Thread info #}
+                <div style="flex:1;min-width:0;">
+                    <div class="text-base" style="font-weight:600;color:var(--color-gray-800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                        {% if post.subject %}{{ post.subject }}
+                        {% elif _row_github %}{{ _("GitHub activity") }}
+                        {% elif _row_webhook %}{{ post.webhook_username or _("Webhook") }}
+                        {% else %}{{ _("(no subject)") }}{% endif %}
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--color-gray-500);margin-top:0.125rem;">
+                        {% if _row_webhook %}{{ post.webhook_username or ('GitHub' if _row_github else _('Webhook')) }}
+                        {% elif not post.is_anonymous and post.member and post.member.user %}{{ post.member.user.full_name }}
+                        {% endif %}
+                        &middot; {{ post.created_at|format_datetime('%b %d, %I:%M %p') }}
+                    </div>
+                </div>
+
+                {# Reply count #}
+                {% set rcount = post.reply_count %}
+                {% if rcount > 0 %}
+                <span class="badge rounded-pill" style="background:var(--color-gray-100);color:var(--color-gray-600);font-size:0.6875rem;flex-shrink:0;">
+                    <i class="fas fa-comment" style="font-size:0.55rem;"></i> {{ rcount }}
+                </span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if has_more %}
+    <div style="text-align:center;margin-top:1rem;">
+        <a href="{{ url_for('updates_bp.channel_feed', slug=channel.name, offset=next_offset) }}"
+           class="btn btn-sm btn-outline-secondary">
+            {{ _("Load more") }}
+        </a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div style="text-align:center;padding:3rem 1rem;color:var(--color-gray-400);">
+        <i class="fas fa-comments" style="font-size:2rem;margin-bottom:0.75rem;display:block;"></i>
+        <p class="text-base">{{ _("No posts yet") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+{# New Post FAB #}
+<a href="{{ url_for('updates_bp.channel_new_thread', slug=channel.name) }}" class="fab" aria-label="{{ _('New Post') }}">
+    <i class="fas fa-plus"></i>
+</a>
+{% endblock %}

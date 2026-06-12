@@ -1,0 +1,120 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Payroll") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="content-heading">{{ _("Timesheets") }}</h2>
+        <div class="d-flex gap-2 align-items-center">
+            <!-- Week navigation -->
+            <a href="{{ url_for('presence_bp.payroll', week_start=prev_week.isoformat()) }}"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <span class="text-muted">{{ week_start.strftime('%b %d') }} - {{ week_end.strftime('%b %d, %Y') }}</span>
+            <a href="{{ url_for('presence_bp.payroll', week_start=next_week.isoformat()) }}"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            <!-- Export payroll modal trigger -->
+            <button class="btn btn-sm btn-primary ms-2"
+                    hx-get="{{ url_for('presence_bp.export_payroll_modal') }}"
+                    hx-target="#modals"
+                    hx-swap="innerHTML">
+                <i class="fas fa-file-export me-1"></i>{{ _("Export Payroll") }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Sub-navigation -->
+    <div class="d-flex gap-1 mb-4 pb-3" style="border-bottom: 1px solid var(--color-gray-200);">
+        <a href="{{ url_for('presence_bp.day_view') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Timesheets") }}
+        </a>
+        <a href="{{ url_for('presence_bp.approve_timesheets') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="color: var(--color-gray-500);">
+            {{ _("Approve") }}
+        </a>
+        <a href="{{ url_for('presence_bp.payroll') }}"
+           class="px-3 py-1 rounded-pill small fw-medium text-decoration-none"
+           style="background: var(--color-primary-lightest); color: var(--color-primary-dark);">
+            {{ _("Payroll") }}
+        </a>
+    </div>
+
+    <!-- Main content -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">{{ _("Confirm payroll") }}</h5>
+            <p class="mb-0 text-muted small">{{ _("Keep tabs on your payroll by updating the status of submitted timesheets and reimbursable expenses.") }}</p>
+        </div>
+
+        <div class="card-body">
+            {% if entries_by_member %}
+            <!-- Team members table -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 35%;">{{ _("Name") }}</th>
+                            <th style="width: 25%;">{{ _("Expenses") }}</th>
+                            <th style="width: 20%;">{{ _("Hours") }}</th>
+                            <th class="text-center" style="width: 20%;">{{ _("Download") }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member_id, data in entries_by_member.items() %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2 text-base" style="width: 32px; height: 32px">
+                                        {{ data.member.user.first_name[0] }}{{ data.member.user.last_name[0] }}
+                                    </div>
+                                    <div>
+                                        <div>{{ data.member.user.first_name }} {{ data.member.user.last_name }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${{ "%.2f"|format(data.total_expenses) }}</td>
+                            <td>{{ "%.2f"|format(data.total_hours) }}</td>
+                            <td class="text-center">
+                                <div class="btn-group">
+                                    <a href="{{ url_for('presence_bp.payroll', format='csv', member_id=member_id, week_start=week_start.isoformat()) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="{{ _('Download CSV') }}">
+                                        CSV
+                                    </a>
+                                    <a href="{{ url_for('presence_bp.payroll', format='excel', member_id=member_id, week_start=week_start.isoformat()) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="{{ _('Download Excel') }}">
+                                        Excel
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <!-- Empty state -->
+            <div class="text-center py-5">
+                <i class="fas fa-file-invoice-dollar fa-3x text-muted opacity-25 mb-3"></i>
+                <p class="text-muted">{{ _("No approved timesheets to process for payroll") }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info note -->
+    <div class="alert alert-info mt-3" role="alert">
+        <i class="fas fa-info-circle"></i>
+        <strong>{{ _("Note:") }}</strong> {{ _("This view shows all employees with approved time entries. Hours are summed across all approved entries. Use this to confirm payroll processing.") }}
+    </div>
+</div>
+
+<div id="modals"></div>
+{% endblock %}

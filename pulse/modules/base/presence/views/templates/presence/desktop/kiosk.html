@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _("Time Clock Kiosk") }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script nonce="{{ csp_nonce }}">htmx.config.inlineScriptNonce = "{{ csp_nonce }}";</script>
+    <style>
+        :root {
+            --primary-color: #4a6cf7;
+            --success-color: #28a745;
+            --bg-dark: #1a1d2e;
+            --bg-card: #242736;
+            --text-primary: #ffffff;
+            --text-muted: #8b8d97;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+        }
+
+        .kiosk-container {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .clock-display {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .clock-time {
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .clock-date {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+        }
+
+        .pin-display {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .pin-dots {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .pin-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--bg-dark);
+            border: 2px solid var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .pin-dot.filled {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .numpad-btn {
+            background: var(--bg-card);
+            border: none;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .numpad-btn:hover {
+            background: #2d3142;
+            transform: scale(1.02);
+        }
+
+        .numpad-btn:active {
+            transform: scale(0.98);
+        }
+
+        .numpad-btn.clear {
+            background: #dc3545;
+            color: white;
+        }
+
+        .numpad-btn.clear:hover {
+            background: #c82333;
+        }
+
+        .numpad-btn.submit {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .numpad-btn.submit:hover {
+            background: #218838;
+        }
+
+        .numpad-btn.submit:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #result-area {
+            min-height: 200px;
+        }
+
+        .branding {
+            margin-top: auto;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            padding-top: 1.5rem;
+        }
+
+        .location-status {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="kiosk-container" x-data="kioskApp()">
+        <!-- Live Clock -->
+        <div class="clock-display">
+            <div class="clock-time" x-text="currentTime"></div>
+            <div class="clock-date" x-text="currentDate"></div>
+        </div>
+
+        <!-- Result Area (for HTMX swaps) -->
+        <div id="result-area">
+            <!-- PIN Entry -->
+            <div class="pin-display">
+                <h4 class="mb-3">{{ _("Enter Your PIN") }}</h4>
+                <div class="pin-dots">
+                    <template x-for="i in 4">
+                        <div class="pin-dot" :class="{ 'filled': pin.length >= i }"></div>
+                    </template>
+                </div>
+                <small class="text-muted">{{ _("Enter your 4-digit PIN to clock in or out") }}</small>
+                <div class="location-status" x-show="locationStatus">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    <span x-text="locationStatus"></span>
+                </div>
+            </div>
+
+            <!-- Number Pad -->
+            <form hx-post="{{ url_for('kiosk_bp.punch') }}"
+                  hx-target="#result-area"
+                  hx-swap="innerHTML"
+                  @submit.prevent="submitPin">
+                <input type="hidden" name="pin" :value="pin">
+                <input type="hidden" name="latitude" :value="latitude">
+                <input type="hidden" name="longitude" :value="longitude">
+                <input type="hidden" name="location_accuracy" :value="locationAccuracy">
+                <input type="hidden" name="location_denied" :value="locationDenied">
+                <div class="numpad">
+                    <template x-for="num in [1,2,3,4,5,6,7,8,9]">
+                        <button type="button" class="numpad-btn" @click="addDigit(num)" x-text="num"></button>
+                    </template>
+                    <button type="button" class="numpad-btn clear" @click="clearPin">
+                        <i class="fas fa-backspace"></i>
+                    </button>
+                    <button type="button" class="numpad-btn" @click="addDigit(0)">0</button>
+                    <button type="submit" class="numpad-btn submit" :disabled="pin.length !== 4 || submitting">
+                        <i class="fas" :class="submitting ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="branding">
+        Powered by <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit"><strong>sparQ</strong></a>
+    </div>
+
+    <script nonce="{{ csp_nonce }}">
+        // Company timezone for all time displays
+        const companyTimezone = '{{ timezone }}';
+
+        function kioskApp() {
+            return {
+                pin: '',
+                currentTime: '',
+                currentDate: '',
+                latitude: '',
+                longitude: '',
+                locationAccuracy: '',
+                locationDenied: false,
+                locationStatus: '',
+                submitting: false,
+
+                init() {
+                    // Update clock every second
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+
+                    // Request geolocation on load
+                    this.requestLocation();
+                },
+
+                updateTime() {
+                    const now = new Date();
+                    this.currentTime = now.toLocaleTimeString('en-US', {
+                        timeZone: companyTimezone,
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    this.currentDate = now.toLocaleDateString('en-US', {
+                        timeZone: companyTimezone,
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                },
+
+                requestLocation() {
+                    if (navigator.geolocation) {
+                        this.locationStatus = '{{ _("Getting location...") }}';
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                this.latitude = position.coords.latitude;
+                                this.longitude = position.coords.longitude;
+                                this.locationAccuracy = position.coords.accuracy;
+                                this.locationStatus = '{{ _("Location acquired") }}';
+                                // Clear status after 2 seconds
+                                setTimeout(() => { this.locationStatus = ''; }, 2000);
+                            },
+                            (error) => {
+                                console.log('Geolocation error:', error.message);
+                                this.locationDenied = true;
+                                this.locationStatus = '{{ _("Location unavailable") }}';
+                                setTimeout(() => { this.locationStatus = ''; }, 2000);
+                            },
+                            {
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                                maximumAge: 60000
+                            }
+                        );
+                    }
+                },
+
+                addDigit(digit) {
+                    if (this.pin.length < 4) {
+                        this.pin += digit;
+                    }
+                },
+
+                clearPin() {
+                    this.pin = this.pin.slice(0, -1);
+                },
+
+                submitPin() {
+                    if (this.pin.length === 4 && !this.submitting) {
+                        this.submitting = true;
+                        // Trigger HTMX request
+                        const form = this.$el.querySelector('form');
+                        htmx.trigger(form, 'submit');
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>

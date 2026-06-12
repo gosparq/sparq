@@ -1,0 +1,82 @@
+<div class="step-header mb-4">
+    <h4><i class="fas fa-university me-2"></i>{{ _("Direct Deposit Information") }}</h4>
+    <p class="text-muted">{{ _("Provide your bank account information for payroll direct deposit.") }}</p>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="fas fa-shield-alt me-2"></i>
+    {{ _("Your banking information is encrypted and securely stored. We only use it to process your payroll.") }}
+</div>
+
+<form data-action="form-submit" data-task-key="direct_deposit">
+    <div class="mb-3">
+        <label class="form-label">{{ _("Bank Name") }}</label>
+        <input type="text" class="form-control" name="bank_name"
+               placeholder="e.g., Wells Fargo, Chase, Bank of America">
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ _("Routing Number") }}</label>
+            <input type="text" class="form-control" name="routing_number"
+                   placeholder="9 digits" maxlength="9" pattern="[0-9]{9}">
+            <div class="form-text">{{ _("The 9-digit number on the bottom left of your check.") }}</div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ _("Account Number") }}</label>
+            <input type="text" class="form-control" name="account_number"
+                   placeholder="Your account number">
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">{{ _("Account Type") }}</label>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="account_type" id="checking" value="checking" checked>
+            <label class="form-check-label" for="checking">{{ _("Checking") }}</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="account_type" id="savings" value="savings">
+            <label class="form-check-label" for="savings">{{ _("Savings") }}</label>
+        </div>
+    </div>
+
+    <div class="card bg-light mb-4">
+        <div class="card-body">
+            <h6 class="mb-2">{{ _("Where to find your account information") }}</h6>
+            <p class="text-muted small mb-0">
+                {{ _("You can find your routing and account numbers on a check, in your online banking portal, or by contacting your bank. The routing number is usually on the bottom left, followed by your account number.") }}
+            </p>
+        </div>
+    </div>
+
+    <hr class="my-4">
+
+    <div class="d-flex justify-content-between">
+        {% if not current_task.required %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-action="skip-task" data-task-key="direct_deposit">
+            <i class="fas fa-forward me-2"></i>{{ _("Skip for Now") }}
+        </button>
+        {% else %}
+        <div></div>
+        {% endif %}
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="fas fa-save me-2"></i>{{ _("Save & Continue") }}
+        </button>
+    </div>
+</form>
+<script nonce="{{ csp_nonce }}">
+(function() {
+    document.querySelectorAll('form[data-action="form-submit"]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleFormSubmit(this, this.dataset.taskKey);
+        });
+    });
+    document.querySelectorAll('[data-action="skip-task"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            skipTask(this.dataset.taskKey);
+        });
+    });
+})();
+</script>

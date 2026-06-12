@@ -1,0 +1,119 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("Working Agreement") }}{% endblock %}
+
+{% block module_content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{{ _("Working Agreement") }}</h1>
+            {% if agreement %}
+            <small class="text-muted">
+                {{ _("Version") }} {{ agreement.version }}
+                &middot;
+                {{ _("Last updated") }} {{ agreement.updated_at.strftime('%b %d, %Y') if agreement.updated_at else '' }}
+                {% if agreement.updated_by %}
+                    {{ _("by") }} {{ agreement.updated_by.user.full_name if agreement.updated_by and agreement.updated_by.user else '' }}
+                {% endif %}
+            </small>
+            {% endif %}
+        </div>
+        <div>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('working_agreement_bp.edit') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit me-1"></i>{{ _("Edit") }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not agreement %}
+    {# Empty state #}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-handshake fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">{{ _("No Working Agreement Yet") }}</h5>
+            <p class="text-muted mb-3">{{ _("A working agreement helps your team align on expectations, norms, and communication preferences.") }}</p>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('working_agreement_bp.edit') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>{{ _("Create Working Agreement") }}
+            </a>
+            {% else %}
+            <p class="text-muted">{{ _("An admin will set up the team working agreement.") }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+
+    {# Ack status bar #}
+    {% if ack_status %}
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted text-base">
+                    <i class="fas fa-check-circle text-success me-1"></i>
+                    {{ ack_status.acked_count }} {{ _("of") }} {{ ack_status.total_count }} {{ _("members acknowledged") }}
+                </span>
+                {% if not user_acknowledged %}
+                <span class="badge bg-warning text-dark">{{ _("You haven't acknowledged this version") }}</span>
+                {% else %}
+                <span class="badge bg-success">{{ _("You've acknowledged this version") }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Agreement content #}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="working-agreement-content">
+                {{ rendered_content | safe }}
+            </div>
+        </div>
+    </div>
+
+    {# Acknowledge button #}
+    {% if not user_acknowledged %}
+    <div class="card border-primary">
+        <div class="card-body text-center py-3">
+            <p class="mb-2">{{ _("By clicking below, you confirm that you have read and understood the working agreement.") }}</p>
+            <form method="POST" action="{{ url_for('working_agreement_bp.ack') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check me-1"></i>{{ _("I've Read This") }}
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Ack details for admins #}
+    {% if current_user.is_admin and ack_status %}
+    <div class="card mt-3">
+        <div class="card-header">
+            <h6 class="mb-0">{{ _("Acknowledgment Status") }}</h6>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ _("Member") }}</th>
+                        <th>{{ _("Status") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in ack_status.acked_members %}
+                    <tr>
+                        <td>{{ member.user.full_name if member.user else '' }}</td>
+                        <td><span class="badge bg-success">{{ _("Acknowledged") }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

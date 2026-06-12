@@ -1,0 +1,81 @@
+<!-- Company Event Detail Modal (Mobile) -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-size:1rem;">
+                    <i class="fas fa-calendar-day text-primary me-2"></i>
+                    {{ event.title }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="d-flex align-items-center text-muted mb-2 text-base">
+                        <i class="fas fa-calendar me-2"></i>
+                        <span>{{ event.scheduled_date.strftime('%A, %B %d, %Y') }}</span>
+                    </div>
+                    <div class="d-flex align-items-center text-muted text-base">
+                        <i class="fas fa-clock me-2"></i>
+                        <span>{{ event.display_time }}</span>
+                    </div>
+                </div>
+                {% if event.location %}
+                <div class="mb-3">
+                    <div class="d-flex align-items-center text-muted text-base">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        <span>{{ event.location }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if event.description %}
+                <div class="mb-3">
+                    <p class="mb-0 text-base">{{ event.description }}</p>
+                </div>
+                {% endif %}
+                {% if event.created_by %}
+                <div class="small text-muted border-top pt-2 mt-3">
+                    {{ _("Created by") }} {{ event.created_by.full_name }}
+                </div>
+                {% endif %}
+            </div>
+            {% if current_user.is_admin %}
+            <div class="modal-footer">
+                <form action="{{ url_for('sync_bp.event_delete', event_id=event.id) }}" method="post" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                            data-confirm="{{ _('Delete this event?') }}">
+                        <i class="fas fa-trash me-1"></i>{{ _("Delete") }}
+                    </button>
+                </form>
+                <a href="{{ url_for('sync_bp.event_edit', event_id=event.id, view=view|default('month')) }}"
+                   class="btn btn-sm btn-primary"
+                   hx-get="{{ url_for('sync_bp.event_edit', event_id=event.id, view=view|default('month')) }}"
+                   hx-target="#modal-container">
+                    <i class="fas fa-edit me-1"></i>{{ _("Edit") }}
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var modalEl = document.getElementById('eventDetailModal');
+    if (modalEl) {
+        document.querySelectorAll('.modal-backdrop').forEach(function(el) { el.remove(); });
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+})();
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !t.dataset.hxConfirm) {
+        if (!confirm(t.dataset.confirm)) e.preventDefault();
+    }
+});
+</script>

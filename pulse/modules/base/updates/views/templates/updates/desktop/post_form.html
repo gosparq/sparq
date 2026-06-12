@@ -1,0 +1,552 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ template.name }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" style="max-width:640px;">
+    <div class="mb-4">
+        <a href="{{ url_for('updates_bp.updates_index') if template.post_type in ('update', 'win') else url_for('sync_bp.board_index') if template.post_type == 'board' else url_for('sync_bp.index') }}" class="text-muted text-decoration-none">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back") }}
+        </a>
+    </div>
+
+    <h3 class="mb-1">{{ template.name }}</h3>
+    {% if template.description %}
+        <p class="text-muted mb-4">{{ template.description }}</p>
+    {% else %}
+        <div class="mb-4"></div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('sync_bp.post_update', post_id=post.id) if is_edit else url_for('sync_bp.post_create') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="template_id" value="{{ template.id }}">
+        {% if prefill_post %}<input type="hidden" name="bump_from" value="{{ prefill_post.id }}">{% endif %}
+        {% set src = post if is_edit else prefill_post %}
+
+        {% for field in template.fields %}
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    {{ field.label }}
+                    {% if field.get('required') %}<span class="text-danger ms-1">*</span>{% endif %}
+                </label>
+
+                {% if field.type == 'structured_list' %}
+                    {# Structured list — per-row text + project + action item autocomplete #}
+                    {% set field_key = field.key %}
+                    {% set is_blocker_field = field.get('blocker', false) %}
+                    {# hide_project: informational non-blocker fields don't need project selection #}
+                    {% set hide_project = is_informational and not is_blocker_field %}
+                    {% set existing_items = [] %}
+                    {% if src %}
+                        {% set existing_items = src.payload.get(field.key, []) %}
+                    {% endif %}
+                    <div x-data="structuredList_{{ field.key }}()" x-init="init()">
+                        {% if template.post_type == 'update' and not field.get('blocker', false) %}
+                        {# Quick-select pills: completed today (EOD) or open tasks (other update templates) #}
+                        <div x-show="suggestions.length > 0" class="sl-pills mb-2" x-cloak>
+                            <template x-for="sug in suggestions" :key="sug.id">
+                                <button type="button" class="sl-pill" @click="selectPill(sug)">
+                                    <span class="sl-pill-dot" :style="'background:' + sug.tier_color"></span>
+                                    <span x-text="sug.title"></span>
+                                </button>
+                            </template>
+                        </div>
+                        {% endif %}
+                        <template x-for="(row, idx) in items" :key="idx">
+                            <div class="sl-row mb-2">
+                                <div class="d-flex gap-2 align-items-start">
+                                    <span class="pt-2 text-muted"><i class="fas fa-circle" style="font-size:0.4rem;"></i></span>
+                                    <div class="flex-grow-1 position-relative">
+                                        <input type="text"
+                                               :name="'field_{{ field_key }}_text[]'"
+                                               class="form-control form-control-sm"
+                                               x-model="row.text"
+                                               {% if not hide_project and github_connected %}x-init="window.ghTriggerInit && window.ghTriggerInit($el, 'post', {{ (post.id if (is_edit and post) else 0)|int }}, {{ github_repo | tojson | e }})"{% endif %}
+                                               @input.debounce.300ms="fetchSuggestions(idx)"
+                                               @focus="row._showSuggestions = true"
+                                               @blur="setTimeout(() => row._showSuggestions = false, 200)"
+                                               placeholder="{{ field.get('placeholder', _('What are you working on?')) }}"
+                                               autocomplete="off">
+                                        {# Action item autocomplete dropdown #}
+                                        <div class="sl-autocomplete" x-show="row._showSuggestions && row._suggestions && row._suggestions.length > 0" x-cloak>
+                                            <template x-for="sug in row._suggestions" :key="sug.id">
+                                                <button type="button" class="sl-autocomplete-item" @mousedown.prevent="selectSuggestion(idx, sug)">
+                                                    <span class="task-feed-pill-dot" :style="'background:' + sug.tier_color"></span>
+                                                    <span x-text="sug.title"></span>
+                                                    <template x-if="sug.project_name">
+                                                        <span class="sl-autocomplete-project" x-text="sug.project_name"></span>
+                                                    </template>
+                                                </button>
+                                            </template>
+                                        </div>
+                                        {# Linked action item indicator #}
+                                        <template x-if="row.action_item_id">
+                                            <div class="sl-linked-badge">
+                                                <i class="fas fa-link text-3xs"></i>
+                                                <span class="text-2xs">{{ _("Linked") }}</span>
+                                                <button type="button" class="btn btn-link p-0 text-muted text-3xs" @click="row.action_item_id = null" style="line-height:1">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    {% if not hide_project %}
+                                    <select :name="'field_{{ field_key }}_project[]'"
+                                            class="form-select form-select-sm sl-project-select"
+                                            x-model="row.project_id"
+                                            @change="row.action_item_id = null; row._suggestions = []">
+                                        <option value="">{{ _("No project") }}</option>
+                                        <template x-for="p in projects" :key="p.id">
+                                            <option :value="p.id" x-text="p.name" :selected="row.project_id == p.id"></option>
+                                        </template>
+                                    </select>
+                                    {% endif %}
+                                    {% if is_blocker_field %}
+                                    <select :name="'field_{{ field_key }}_assignee[]'"
+                                            class="form-select form-select-sm sl-assignee-select"
+                                            x-model="row.assignee_id">
+                                        <option value="">{{ _("Assignee") }}</option>
+                                        {% for m in active_members|default([]) %}
+                                        <option value="{{ m.id }}">{{ m.user.first_name }} {{ m.user.last_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% endif %}
+                                    <input type="hidden" :name="'field_{{ field_key }}_action_item[]'" :value="row.action_item_id || ''">
+                                    <button type="button" class="btn btn-link text-danger p-1" @click="removeRow(idx)" x-show="items.length > 1">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" @click="addRow()">
+                            <i class="fas fa-plus me-1"></i>{{ _("Add item") }}
+                        </button>
+                    </div>
+
+                    <script nonce="{{ csp_nonce }}">
+                    function structuredList_{{ field.key }}() {
+                        return {
+                            items: [],
+                            projects: [],
+                            suggestions: [],
+                            init() {
+                                {% if not hide_project %}
+                                fetch('/projects/api/list')
+                                    .then(r => r.ok ? r.json() : [])
+                                    .then(data => { this.projects = Array.isArray(data) ? data : []; })
+                                    .catch(() => {});
+                                {% endif %}
+
+                                var existing = {{ existing_items | tojson }};
+                                if (existing && existing.length > 0) {
+                                    this.items = existing.map(function(item) {
+                                        if (typeof item === 'string') {
+                                            return { text: item, project_id: null, action_item_id: null, assignee_id: null, _suggestions: [], _showSuggestions: false };
+                                        }
+                                        return {
+                                            text: item.text || '',
+                                            project_id: item.project_id || null,
+                                            action_item_id: item.action_item_id || null,
+                                            assignee_id: item.assignee_id || null,
+                                            _suggestions: [],
+                                            _showSuggestions: false
+                                        };
+                                    });
+                                } else {
+                                    this.items = [{ text: '', project_id: {% if template.post_type == 'update' %}null{% elif preselected_project_id is defined and preselected_project_id %}{{ preselected_project_id }}{% else %}null{% endif %}, action_item_id: null, assignee_id: null, _suggestions: [], _showSuggestions: false }];
+                                }
+
+                                {% if template.post_type == 'update' and not field.get('blocker', false) %}
+                                {% if field.key == 'shipped' %}
+                                fetch('/tasks/api/mine')
+                                    .then(r => r.json())
+                                    .then(data => { this.suggestions = data.resolved_today || []; })
+                                    .catch(() => {});
+                                {% else %}
+                                fetch('/tasks/api/suggestions')
+                                    .then(r => r.json())
+                                    .then(data => { this.suggestions = data.suggestions || []; })
+                                    .catch(() => {});
+                                {% endif %}
+                                {% endif %}
+                            },
+                            addRow() {
+                                this.items.push({ text: '', project_id: null, action_item_id: null, assignee_id: null, _suggestions: [], _showSuggestions: false });
+                            },
+                            removeRow(idx) {
+                                if (this.items.length > 1) this.items.splice(idx, 1);
+                            },
+                            fetchSuggestions(idx) {
+                                var row = this.items[idx];
+                                var q = row.text.trim();
+                                if (q.length < 2) { row._suggestions = []; return; }
+                                var url = '/tasks/api/search?q=' + encodeURIComponent(q);
+                                if (row.project_id) url += '&project_id=' + row.project_id;
+                                fetch(url)
+                                    .then(r => r.json())
+                                    .then(data => { row._suggestions = data.results || []; })
+                                    .catch(() => { row._suggestions = []; });
+                            },
+                            selectSuggestion(idx, sug) {
+                                var row = this.items[idx];
+                                row.text = sug.title;
+                                row.action_item_id = sug.id;
+                                if (sug.project_id) row.project_id = sug.project_id;
+                                row._suggestions = [];
+                                row._showSuggestions = false;
+                            },
+                            selectPill(sug) {
+                                var idx = this.items.findIndex(function(r) { return !r.text && !r.action_item_id; });
+                                if (idx === -1) { this.addRow(); idx = this.items.length - 1; }
+                                var row = this.items[idx];
+                                row.text = sug.title;
+                                row.action_item_id = sug.id;
+                                if (sug.project_id) row.project_id = sug.project_id;
+                                var selId = sug.id;
+                                this.suggestions = this.suggestions.filter(function(s) { return s.id !== selId; });
+                            }
+                        };
+                    }
+                    </script>
+
+                {% elif field.type == 'text_audio' %}
+                    {# Free-text area with optional audio recording #}
+                    {% set existing_audio_uuid = '' %}
+                    {% if src and src.payload.get(field.key ~ '_audio_uuid') %}
+                        {% set existing_audio_uuid = src.payload.get(field.key ~ '_audio_uuid') %}
+                    {% endif %}
+                    <div x-data="audioRecorder('field_{{ field.key }}', '{{ csrf_token }}', {confirmReplace: '{{ _("Recording will replace your text. Continue?") }}', micDenied: '{{ _("Microphone access denied.") }}', micDeniedHint: '{{ _("Allow microphone access in your browser settings, then try again.") }}', micNotFound: '{{ _("No microphone found.") }}'}, '{{ url_for("sync_bp.audio_transcribe") }}', {{ 'true' if ai_available else 'false' }})" x-init="init()">
+                        <textarea
+                            name="field_{{ field.key }}"
+                            id="field_{{ field.key }}"
+                            class="form-control"
+                            style="min-height:8rem;"
+                            {% if field.get('required') %}required{% endif %}
+                            :readonly="textLocked"
+                            :class="{ 'textarea-locked': textLocked }"
+                        >{% if src %}{{ src.payload.get(field.key, '') }}{% endif %}</textarea>
+                        {% if field.get('placeholders') %}
+                        <script nonce="{{ csp_nonce }}">
+                        (function() {
+                            var placeholders = {{ field.get('placeholders') | tojson }};
+                            var storageKey = 'standup_placeholder_last';
+                            var lastIdx = parseInt(sessionStorage.getItem(storageKey), 10);
+                            var available = [];
+                            for (var i = 0; i < placeholders.length; i++) {
+                                if (i !== lastIdx) available.push(i);
+                            }
+                            var chosen = available[Math.floor(Math.random() * available.length)];
+                            sessionStorage.setItem(storageKey, chosen);
+                            var el = document.getElementById('field_{{ field.key }}');
+                            if (el && !el.value.trim()) {
+                                el.placeholder = placeholders[chosen];
+                            }
+                        })();
+                        </script>
+                        {% endif %}
+
+                        <input type="file" name="field_{{ field.key }}_audio" id="field_{{ field.key }}_audio" accept="audio/*" class="d-none">
+                        <input type="hidden" name="field_{{ field.key }}_audio_duration" id="field_{{ field.key }}_audio_duration" :value="duration">
+
+                        <div class="audio-recorder mt-2">
+                            {# Idle state: record button + inline error hint #}
+                            <template x-if="state === 'idle'">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="startRecording()">
+                                        <i class="fas fa-microphone me-1"></i>{{ _("Record audio clip") }}
+                                    </button>
+                                    <span class="audio-record-hint position-relative" x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false">
+                                        <button type="button" class="btn btn-sm btn-link text-muted p-0" style="font-size:1rem;line-height:1;">
+                                            <i class="fas fa-question-circle"></i>
+                                        </button>
+                                        <div x-show="open" x-cloak class="audio-hint-popover">
+                                            <p class="fw-semibold mb-1">{{ _("Tip: jot down a quick list before recording") }}</p>
+                                            <p class="mb-1">{{ _("You have 30-60 seconds. Sketch 5-6 bullet points in the text area first so you have a mental map:") }}</p>
+                                            <ul class="mb-1 ps-3 text-sm">
+                                                <li>{{ _("Key tasks or priorities for today") }}</li>
+                                                <li>{{ _("Progress on ongoing work") }}</li>
+                                                <li>{{ _("Anything else on your mind for the day") }}</li>
+                                            </ul>
+                                            <p class="mb-0 text-muted text-xs">{{ _("Optionally mention if you're feeling on/off track, and whether you'll be mostly available or heads-down focused today.") }}</p>
+                                        </div>
+                                    </span>
+                                    <span x-show="errorMsg" x-cloak class="audio-mic-denied">
+                                        <i class="fas fa-microphone-slash me-1"></i><span x-text="errorHint || errorMsg"></span>
+                                    </span>
+                                </div>
+                            </template>
+
+                            {# Recording state #}
+                            <template x-if="state === 'recording'">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="audio-recording-dot"></span>
+                                    <span class="audio-recording-label">{{ _("Recording...") }}</span>
+                                    <span class="audio-duration" x-text="durationDisplay"></span>
+                                    <span class="text-muted text-xs" x-show="!canStop">{{ _("Min 30s") }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @click="stopRecording()" :disabled="!canStop">
+                                        <i class="fas fa-stop me-1"></i>{{ _("Stop") }}
+                                    </button>
+                                </div>
+                            </template>
+
+                            {# Transcribing state #}
+                            <template x-if="state === 'transcribing'">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="spinner-border spinner-border-sm text-muted"></span>
+                                    <span class="text-muted text-sm">{{ _("Transcribing...") }}</span>
+                                </div>
+                            </template>
+
+                            {# Recorded state: playback pill + rerecord #}
+                            <template x-if="state === 'recorded' || state === 'playing'">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="audio-playback-pill d-inline-flex align-items-center" :data-duration="duration">
+                                        <button type="button" class="btn btn-sm audio-play-btn" @click="togglePlayback()">
+                                            <i class="fas text-2xs" :class="state === 'playing' ? 'fa-pause' : 'fa-play'"></i>
+                                        </button>
+                                        <div class="audio-progress-wrap" @click="seekPlayback($event)">
+                                            <div class="audio-progress-bar" :style="'width:' + playbackPct + '%'"></div>
+                                        </div>
+                                        <span class="audio-time" x-text="playbackTime"></span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="rerecord()">
+                                        <i class="fas fa-redo me-1"></i>{{ _("Re-record") }}
+                                    </button>
+                                </div>
+                            </template>
+
+                        </div>
+
+                        {% if existing_audio_uuid %}
+                        <input type="hidden" name="field_{{ field.key }}_existing_audio" value="{{ existing_audio_uuid }}">
+                        {% endif %}
+                    </div>
+
+                {% elif field.type == 'text' %}
+                    {# Multi-line textarea #}
+                    <textarea
+                        name="field_{{ field.key }}"
+                        id="field_{{ field.key }}"
+                        class="form-control"
+                        rows="4"
+                        placeholder="{{ field.get('placeholder', '') }}"
+                        {% if field.get('required') %}required{% endif %}
+                    >{% if src %}{{ src.payload.get(field.key, '') }}{% endif %}</textarea>
+                    {% if github_connected %}
+                    {% from "github/desktop/partials/_issue_trigger.html" import issue_trigger with context %}
+                    {{ issue_trigger('field_' ~ field.key, 'post', (post.id if (is_edit and post) else 0), github_repo) }}
+                    {% endif %}
+
+                {% elif field.type == 'title' %}
+                    {# Single-line input #}
+                    <input
+                        type="text"
+                        name="field_{{ field.key }}"
+                        class="form-control"
+                        placeholder="{{ field.get('placeholder', '') }}"
+                        {% if field.get('required') %}required{% endif %}
+                        {% if src %}value="{{ src.payload.get(field.key, '') }}"{% endif %}
+                    >
+
+                {% elif field.type == 'bullets' %}
+                    {# Multiple bullet inputs — Alpine.js for dynamic add/remove #}
+                    <div
+                        x-data="{
+                            items: {% if src %}{{ src.payload.get(field.key, ['']) | tojson }}{% else %}['']{% endif %},
+                            add() { this.items.push('') },
+                            remove(idx) { if (this.items.length > 1) this.items.splice(idx, 1) }
+                        }"
+                    >
+                        <template x-for="(item, idx) in items" :key="idx">
+                            <div class="d-flex gap-2 mb-2">
+                                <span class="pt-2 text-muted"><i class="fas fa-circle" style="font-size:0.4rem;"></i></span>
+                                <input
+                                    type="text"
+                                    :name="'field_{{ field.key }}[]'"
+                                    class="form-control"
+                                    x-model="items[idx]"
+                                    placeholder="{{ field.get('placeholder', _('Add item...')) }}"
+                                >
+                                <button type="button" class="btn btn-link text-danger p-1" @click="remove(idx)" x-show="items.length > 1">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </template>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" @click="add()">
+                            <i class="fas fa-plus me-1"></i>{{ _("Add item") }}
+                        </button>
+                    </div>
+
+                {% elif field.type == 'scale' %}
+                    {# 1-5 radio scale #}
+                    {% set min_val = field.get('min', 1) %}
+                    {% set max_val = field.get('max', 5) %}
+                    <div class="d-flex gap-3 flex-wrap">
+                        {% for i in range(min_val, max_val + 1) %}
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="field_{{ field.key }}"
+                                id="field_{{ field.key }}_{{ i }}"
+                                value="{{ i }}"
+                                {% if field.get('required') and loop.first %}required{% endif %}
+                                {% if src and src.payload.get(field.key) == i|string %}checked{% endif %}
+                            >
+                            <label class="form-check-label" for="field_{{ field.key }}_{{ i }}">{{ i }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if min_val and max_val %}
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">{{ min_val }}</small>
+                        <small class="text-muted">{{ max_val }}</small>
+                    </div>
+                    {% endif %}
+
+                {% elif field.type == 'choice' %}
+                    {# Pill selector for choice fields #}
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% for option in field.get('options', []) %}
+                        <label class="presence-signal-pill">
+                            <input type="radio" name="field_{{ field.key }}" value="{{ option }}" class="d-none"
+                                   {% if field.get('required') and loop.first %}required{% endif %}
+                                   {% if src and src.payload.get(field.key) == option %}checked{% endif %}>
+                            <span class="presence-signal-pill-label">{{ option | replace('_', ' ') | title }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                {% endif %}
+            </div>
+            {% if loop.index0 == 0 and not is_edit and not prefill_post and template.schedule_type == "periodic" and previous_posts %}
+            <div x-data="{ open: false }" class="bump-picker mb-4">
+                <button type="button" class="btn btn-link p-0 text-muted bump-picker-toggle" @click="open = !open">
+                    <i class="fas fa-history me-1 text-sm"></i>
+                    <span class="text-base">{{ _("Use a previous update") }}</span>
+                    <i class="fas fa-chevron-down ms-1 bump-picker-chevron text-3xs" :class="{ 'bump-picker-chevron-open': open }"></i>
+                </button>
+                <div x-show="open" x-cloak class="bump-picker-list mt-2">
+                    {% for prev in previous_posts %}
+                    <div class="bump-picker-row d-flex align-items-center gap-2">
+                        <span class="text-muted bump-picker-date">{{ prev.created_at.strftime('%b %-d') }}</span>
+                        <span class="bump-picker-text flex-grow-1">{{ prev.preview_text()[:120] }}{% if prev.preview_text()|length > 120 %}…{% endif %}</span>
+                        <a href="{{ url_for('sync_bp.post_new', template_id=template.id, bump_from=prev.id) }}" class="btn btn-outline-secondary btn-sm flex-shrink-0">{{ _("Use this") }}</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+
+        {# Optional channel_id when composing within a channel #}
+        {% if channel_id is defined and channel_id %}
+        <input type="hidden" name="channel_id" value="{{ channel_id }}">
+        {% endif %}
+
+        {# Mark as win checkbox #}
+        {% if template.post_type in ('update', 'win') and template.name != 'Standup' %}
+        <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="is_win" id="is_win" value="1"
+                   {% if template.name == "Win" or (is_edit and post and post.is_win) %}checked{% endif %}>
+            <label class="form-check-label text-base" for="is_win">
+                <i class="fas fa-trophy text-xs" style="color:#d97706"></i> {{ _("Mark as a win") }}
+            </label>
+        </div>
+        {% endif %}
+
+        {% if template.post_type == 'board' and current_user.is_admin %}
+        <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="promoted_to_dashboard" id="promoted_to_dashboard" value="1"
+                   {% if is_edit and post and post.promoted_to_dashboard %}checked{% endif %}>
+            <label class="form-check-label text-base" for="promoted_to_dashboard">
+                <i class="fas fa-bullhorn text-xs" style="color:var(--color-success)"></i> {{ _("Promote to Dashboard") }}
+            </label>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+                {% if is_edit %}
+                <i class="fas fa-check me-1"></i>{{ _("Save") }}
+                {% else %}
+                <i class="fas fa-paper-plane me-1"></i>{{ _("Post") }}
+                {% endif %}
+            </button>
+            <a href="{{ url_for('updates_bp.updates_index') if template.post_type in ('update', 'win') else url_for('sync_bp.board_index') if template.post_type == 'board' else url_for('sync_bp.index') }}" class="btn btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+/* Structured list row styles */
+.sl-row { position: relative; }
+.sl-project-select { width: 130px; flex-shrink: 0; font-size: 0.8125rem; }
+.sl-assignee-select { width: 130px; flex-shrink: 0; font-size: 0.8125rem; }
+.sl-autocomplete {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+    background: white; border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.375rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 200px; overflow-y: auto; margin-top: 2px;
+}
+.sl-autocomplete-item {
+    display: flex; align-items: center; gap: 0.375rem;
+    width: 100%; padding: 0.5rem 0.75rem; border: none; background: none;
+    font-size: 0.8125rem; color: var(--color-gray-700, #374151);
+    cursor: pointer; text-align: left;
+}
+.sl-autocomplete-item:hover { background: var(--color-gray-50, #f9fafb); }
+.sl-autocomplete-project {
+    font-size: 0.65rem; font-weight: 600; padding: 1px 5px;
+    border-radius: 4px; background: var(--color-gray-200, #e5e7eb); color: var(--color-gray-500, #6b7280);
+    margin-left: auto;
+}
+.sl-linked-badge {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    margin-top: 0.25rem; padding: 1px 6px; border-radius: 4px;
+    background: var(--color-primary-lightest, #eff6ff); color: var(--color-primary, #2563eb);
+}
+.sl-pills { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.sl-pill {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    padding: 0.25rem 0.625rem; border-radius: 999px;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    background: var(--color-gray-50, #f9fafb);
+    font-size: 0.75rem; font-weight: 500;
+    color: var(--color-gray-700, #374151);
+    cursor: pointer; white-space: nowrap;
+}
+.sl-pill:hover { background: var(--color-gray-100, #f3f4f6); border-color: var(--color-gray-300, #d1d5db); }
+.sl-pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+</style>
+
+<style>
+.bump-picker-toggle { text-decoration: none; }
+.bump-picker-toggle:hover { color: var(--text) !important; text-decoration: none; }
+.bump-picker-chevron { transition: transform 0.15s; }
+.bump-picker-chevron-open { transform: rotate(180deg); }
+.bump-picker-list { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.bump-picker-row { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+.bump-picker-row:last-child { border-bottom: none; }
+.bump-picker-date { font-size: 0.75rem; white-space: nowrap; min-width: 36px; }
+.bump-picker-text { font-size: 0.8125rem; color: var(--text); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+</style>
+
+<style>
+.presence-signal-pill { cursor: pointer; }
+.presence-signal-pill-label {
+    display: inline-block; padding: 0.25rem 0.75rem;
+    border-radius: 999px; background: var(--color-gray-100);
+    color: var(--color-gray-600); font-size: 0.75rem; font-weight: 500;
+    transition: all 0.15s;
+}
+.presence-signal-pill input:checked + .presence-signal-pill-label {
+    background: var(--color-primary); color: white;
+}
+</style>
+
+<script src="{{ url_for('sync_bp.static', filename='js/audio-recorder.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}

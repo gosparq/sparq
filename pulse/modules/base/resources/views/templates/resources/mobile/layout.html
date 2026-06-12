@@ -1,0 +1,15 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}resources-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('docs_blueprint.static', filename='css/resources-mobile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="resources-mobile-wrapper">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}

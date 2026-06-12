@@ -1,0 +1,103 @@
+<!-- Edit Clock Punch Modal -->
+<div class="modal fade show" id="editPunchModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{{ url_for('presence_bp.update_punch', punch_id=punch.id) }}"
+                  hx-target="#modals"
+                  hx-swap="innerHTML">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>{{ _("Edit Clock Punch") }}
+                    </h5>
+                    <button type="button" class="btn-close"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML"></button>
+                </div>
+                <div class="modal-body">
+                    {% if error %}
+                    <div class="alert alert-danger mb-3">
+                        <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Person") }}</label>
+                        <div class="fw-bold">{{ punch.member.user.full_name }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Punch Type") }}</label>
+                        <div>
+                            {% if punch.punch_type.value == 'in' %}
+                            <span class="badge bg-success">{{ _("Clock IN") }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ _("Clock OUT") }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">{{ _("Current Time") }}</label>
+                        <div>{{ punch_local.strftime('%I:%M %p') }} ({{ punch_local.strftime('%b %d, %Y') }})</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_time" class="form-label">{{ _("New Time") }}</label>
+                        <input type="text"
+                               class="form-control"
+                               id="new_time"
+                               name="new_time"
+                               required>
+                        <div class="form-text">{{ _("Date will remain") }} {{ punch_local.strftime('%b %d, %Y') }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">{{ _("Reason for Adjustment") }}</label>
+                        <textarea class="form-control"
+                                  id="reason"
+                                  name="reason"
+                                  rows="2"
+                                  placeholder="{{ _('e.g., Forgot to clock out') }}"></textarea>
+                        <div class="form-text">{{ _("This will be recorded in the audit trail.") }}</div>
+                    </div>
+
+                    {% if adjustment_count and adjustment_count > 0 %}
+                    <div class="alert alert-info small mb-0">
+                        <i class="fas fa-history me-1"></i>
+                        <strong>{{ _("Previous adjustments:") }}</strong> {{ adjustment_count }}
+                        {% if last_adjustment %}
+                        <br>
+                        <span class="text-muted">{{ _("Last adjusted by") }} {{ last_adjustment.adjusted_by.full_name }} {{ _("on") }} {{ last_adjustment.created_at|format_datetime('%b %d, %Y') }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>{{ _("Save Changes") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+flatpickr("#new_time", {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: "H:i",
+    altInput: true,
+    altFormat: "h:i K",
+    time_24hr: false,
+    minuteIncrement: 1,
+    defaultDate: "{{ punch_local.strftime('%H:%M') }}"
+});
+</script>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MSA{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" nonce="{{ csp_nonce }}">
+    <link rel="stylesheet" href="{{ url_for('msa_bp.static', filename='css/msa.css') }}" nonce="{{ csp_nonce }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="msa-shell">
+    <!-- Sidebar -->
+    <aside class="msa-sidebar">
+        <div class="msa-sidebar-brand">
+            <h2>sparQ <span>MSA</span></h2>
+            <p>{{ _("System Admin") }}</p>
+        </div>
+
+        <nav class="msa-nav">
+            <div class="msa-nav-section">
+                <div class="msa-nav-section-label">{{ _("Overview") }}</div>
+                <a href="{{ url_for('msa_bp.dashboard') }}"
+                   class="msa-nav-item {% if request.path == '/msa/' or request.path == '/msa' %}active{% endif %}">
+                    <i class="fas fa-chart-bar"></i> {{ _("Dashboard") }}
+                </a>
+            </div>
+
+            <div class="msa-nav-section">
+                <div class="msa-nav-section-label">{{ _("Platform") }}</div>
+                <a href="{{ url_for('msa_bp.organization_list') }}"
+                   class="msa-nav-item {% if '/msa/organizations' in request.path %}active{% endif %}">
+                    <i class="fas fa-sitemap"></i> {{ _("Organizations") }}
+                </a>
+            </div>
+
+            <div class="msa-nav-section">
+                <div class="msa-nav-section-label">{{ _("Configuration") }}</div>
+                <a href="{{ url_for('msa_bp.email_config') }}"
+                   class="msa-nav-item {% if '/msa/email' in request.path %}active{% endif %}">
+                    <i class="fas fa-envelope"></i> {{ _("Email") }}
+                </a>
+            </div>
+
+            <div class="msa-nav-section">
+                <div class="msa-nav-section-label">{{ _("Quick Links") }}</div>
+                <a href="/signup" class="msa-nav-item" target="_blank">
+                    <i class="fas fa-user-plus"></i> {{ _("Signup Page") }}
+                </a>
+            </div>
+        </nav>
+
+        <div class="msa-sidebar-footer">
+            <a href="{{ url_for('msa_bp.logout') }}" class="msa-nav-item">
+                <i class="fas fa-arrow-right-from-bracket"></i> {{ _("Sign Out") }}
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="msa-main">
+        <div class="msa-topbar">
+            <div class="msa-breadcrumb">
+                {% block breadcrumb %}
+                <span class="current">{{ _("Dashboard") }}</span>
+                {% endblock %}
+            </div>
+            <div>
+                {% block topbar_actions %}{% endblock %}
+            </div>
+        </div>
+
+        <div class="msa-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="msa-flash msa-flash-{{ category }}">
+                    <i class="fas {{ 'fa-check-circle' if category == 'success' else 'fa-exclamation-circle' }}"></i>
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

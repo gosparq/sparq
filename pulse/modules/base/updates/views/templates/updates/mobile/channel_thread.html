@@ -1,0 +1,141 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% set _post_content = (post.payload or {}).get('content', '') %}
+{% set is_webhook_post = post.webhook_id is not none %}
+{% set is_github_post = is_webhook_post and _post_content.startswith('GITHUB_HTML::') %}
+
+{% block title %}{{ post.subject or _("Thread") }} — #{{ channel.name }}{% endblock %}
+
+{% block module_content %}
+<div style="padding:1rem;padding-bottom:calc(80px + var(--safe-area-bottom));">
+    {# ── Back link ── #}
+    <div style="margin-bottom:0.75rem;">
+        <a href="{{ url_for('updates_bp.channel_feed', slug=channel.name) }}"
+           style="font-size:0.8125rem;color:var(--color-gray-500);text-decoration:none;">
+            <i class="fas fa-arrow-left" style="margin-right:0.25rem;"></i>
+            <i class="fas fa-hashtag" style="font-size:0.65rem;"></i> {{ channel.name }}
+        </a>
+    </div>
+
+    {# ── Original Post ── #}
+    <div style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:12px;padding:1rem;margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+            {% if is_github_post %}
+            <span class="avatar-circle" style="width:32px;height:32px;background:var(--color-gray-900);display:flex;align-items:center;justify-content:center;">
+                <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:18px;height:18px;filter:invert(1);">
+            </span>
+            {% elif is_webhook_post %}
+            <span class="avatar-circle" style="width:32px;height:32px;background:var(--color-gray-700);display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-plug" style="font-size:0.7rem;color:white;"></i>
+            </span>
+            {% elif not post.is_anonymous and post.member and post.member.user %}
+            <span class="avatar-circle" style="width:32px;height:32px;font-size:0.6875rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+            </span>
+            {% endif %}
+            <div style="flex:1;">
+                <div class="text-base" style="font-weight:600">
+                    {% if is_webhook_post %}{{ post.webhook_username or ('GitHub' if is_github_post else _('Webhook')) }}
+                    {% elif not post.is_anonymous and post.member and post.member.user %}{{ post.member.user.full_name }}
+                    {% else %}{{ _("Anonymous") }}{% endif %}
+                </div>
+                <div style="font-size:0.6875rem;color:var(--color-gray-500);">{{ post.created_at|format_datetime('%b %d, %Y at %I:%M %p') }}</div>
+            </div>
+        </div>
+
+        {% if post.subject %}
+        <h3 style="font-size:1.0625rem;font-weight:600;margin:0 0 0.5rem;">{{ post.subject }}</h3>
+        {% endif %}
+
+        {# Post body content #}
+        <div class="text-base" style="color:var(--color-gray-700);line-height:1.6">
+            {% if is_github_post %}
+            <div class="webhook-github-body">{{ _post_content[13:]|safe }}</div>
+            {% elif is_webhook_post %}
+            <p style="white-space:pre-wrap;margin:0;">{{ _post_content|urlize(target="_blank") }}</p>
+            {% elif post.template and post.template.fields %}
+                {% for field in post.template.fields %}
+                    {% set val = post.payload.get(field.key) %}
+                    {% if val %}
+                        {% if field.type == 'text' or field.type == 'textarea' %}
+                        <p style="white-space:pre-wrap;margin:0 0 0.5rem;">{{ val|urlize(target="_blank") }}</p>
+                        {% elif field.type == 'structured_list' and val is iterable and val is not string %}
+                        <ul style="padding-left:1.25rem;margin:0 0 0.5rem;">
+                            {% for item in val %}
+                            <li>{% if item is mapping %}{{ item.text|urlize(target="_blank") }}{% else %}{{ item|urlize(target="_blank") }}{% endif %}</li>
+                            {% endfor %}
+                        </ul>
+                        {% elif field.type != 'choice' %}
+                        <p style="margin:0 0 0.5rem;">{{ val|urlize(target="_blank") }}</p>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% elif post.payload.get('content') %}
+            <p style="white-space:pre-wrap;margin:0;">{{ post.payload.get('content')|urlize(target="_blank") }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Reply count ── #}
+    {% if threaded_replies %}
+    <div style="font-size:0.8125rem;font-weight:600;color:var(--color-gray-500);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--color-gray-200);">
+        {{ threaded_replies|length }} {{ _("Replies") if threaded_replies|length != 1 else _("Reply") }}
+    </div>
+    {% endif %}
+
+    {# ── Replies ── #}
+    {% set _replies_ordered = threaded_replies|reverse|list if is_github_post else threaded_replies %}
+    {% for reply, depth in _replies_ordered %}
+    {% set _r_content = (reply.payload or {}).get('content', '') %}
+    {% set _r_webhook = reply.webhook_id is not none %}
+    {% set _r_github = _r_webhook and _r_content.startswith('GITHUB_HTML::') %}
+    <div style="padding:0.75rem 0;border-bottom:1px solid var(--color-gray-100);{% if depth > 0 %}margin-left:1.5rem;{% endif %}">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem;">
+            {% if _r_github %}
+            <span class="avatar-circle" style="width:28px;height:28px;background:var(--color-gray-900);display:flex;align-items:center;justify-content:center;">
+                <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:14px;height:14px;filter:invert(1);">
+            </span>
+            {% elif _r_webhook %}
+            <span class="avatar-circle" style="width:28px;height:28px;background:var(--color-gray-700);display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-plug" style="font-size:0.6rem;color:white;"></i>
+            </span>
+            {% elif not reply.is_anonymous and reply.member and reply.member.user %}
+            <span class="avatar-circle" style="width:28px;height:28px;font-size:0.625rem;background:{{ reply.member.user.avatar_color|default('#6b7280') }};">
+                {{ reply.member.user.first_name[0]|upper }}{{ reply.member.user.last_name[0]|upper }}
+            </span>
+            {% endif %}
+            <span style="font-weight:600;font-size:0.8125rem;">
+                {% if _r_webhook %}{{ reply.webhook_username or ('GitHub' if _r_github else _('Webhook')) }}
+                {% elif not reply.is_anonymous and reply.member and reply.member.user %}{{ reply.member.user.full_name }}
+                {% else %}{{ _("Anonymous") }}{% endif %}
+            </span>
+            <span style="font-size:0.6875rem;color:var(--color-gray-400);margin-left:auto;">{{ reply.created_at|format_datetime('%I:%M %p') }}</span>
+        </div>
+        <div style="font-size:0.8125rem;color:var(--color-gray-700);line-height:1.5;">
+            {% if _r_github %}
+            <div class="webhook-github-body">{{ _r_content[13:]|safe }}</div>
+            {% elif _r_webhook %}
+            <p style="white-space:pre-wrap;margin:0;">{{ _r_content|urlize(target="_blank") }}</p>
+            {% elif reply.payload.get('content') %}
+            <p style="white-space:pre-wrap;margin:0;">{{ reply.payload.get('content')|urlize(target="_blank") }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {# ── Reply form ── #}
+    {% set reply_url = url_for('updates_bp.channel_reply', slug=channel.name, post_id=post.id) %}
+    <form method="POST" action="{{ reply_url }}" style="margin-top:1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <textarea name="content" class="form-control" rows="3"
+                  placeholder="{{ _('Write a reply...') }}"
+                  style="resize:none;border-radius:8px"
+                  required></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:0.5rem;">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-paper-plane" style="margin-right:0.25rem;font-size:0.7rem;"></i>{{ _("Reply") }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

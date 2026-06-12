@@ -1,0 +1,73 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Week in Review") }}: {{ review.week_start.strftime('%b %d') }} &ndash; {{ review.week_end.strftime('%b %d, %Y') }}{% endblock %}
+
+{% block module_content %}
+<div>
+    {# ── Back link ── #}
+    <a href="{{ url_for('sync_bp.week_review_index') }}" class="text-muted mb-3 d-inline-block text-decoration-none text-sm">
+        <i class="fas fa-arrow-left me-1"></i>{{ _("Back to reviews") }}
+    </a>
+
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h1 class="fw-semibold" style="font-size:1.5rem; margin-bottom:0">
+                {{ review.week_start.strftime('%b %d') }} &ndash; {{ review.week_end.strftime('%b %d, %Y') }}
+            </h1>
+            <div class="mt-1">
+                {% if review.status == 'sent' %}
+                <span class="badge bg-success">{{ _("Sent") }}</span>
+                {% if review.sent_at %}
+                <span class="text-muted ms-2 text-sm">
+                    {{ review.sent_at | format_datetime('%b %d at %I:%M %p') }}
+                    {% if review.sent_by and review.sent_by.user %}
+                    {{ _("by") }} {{ review.sent_by.user.full_name }}
+                    {% endif %}
+                </span>
+                {% endif %}
+                {% else %}
+                <span class="badge bg-warning text-dark">{{ _("Draft") }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if review.status == 'draft' %}
+    {# ── Editable Draft ── #}
+    <form method="POST" action="{{ url_for('sync_bp.week_review_send', review_id=review.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="card sync-card">
+            <div class="card-body p-4">
+                <label class="form-label fw-semibold">{{ _("Review Content") }} <span class="text-muted fw-normal text-sm">({{ _("Markdown") }})</span></label>
+                <textarea name="content" class="form-control text-base" rows="20" style="font-family:var(--font-mono, monospace); line-height:1.6" placeholder="{{ _('Generate a review first, then edit here...') }}">{{ review.content or '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <a href="{{ url_for('sync_bp.week_review_index') }}" class="btn btn-secondary btn-sm">{{ _("Cancel") }}</a>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-paper-plane me-1"></i>{{ _("Send to Team") }}
+            </button>
+        </div>
+    </form>
+
+    {% else %}
+    {# ── Read-only Sent Review ── #}
+    <div class="card sync-card">
+        <div class="card-body p-4">
+            <div class="sync-pre-wrap" style="font-size:0.9rem; line-height:1.7">{{ review.content or '' }}</div>
+        </div>
+    </div>
+
+    {% if review.post_id %}
+    <div class="mt-3">
+        <a href="{{ url_for('sync_bp.post_permalink', post_id=review.post_id) }}" class="text-muted text-sm">
+            <i class="fas fa-link me-1"></i>{{ _("View sync post") }}
+        </a>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

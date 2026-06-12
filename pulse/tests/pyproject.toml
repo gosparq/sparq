@@ -1,0 +1,15 @@
+[tool.ruff]
+line-length = 100
+exclude = ["venv"]
+
+[tool.ruff.lint]
+ignore = [
+    "E402",  # Module level import not at top (intentional: load_dotenv first)
+    "E712",  # == True/False comparisons (required for SQLAlchemy filters)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint.isort]
+force-single-line = true

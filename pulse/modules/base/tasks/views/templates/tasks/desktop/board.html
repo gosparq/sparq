@@ -1,0 +1,515 @@
+{% extends "tasks/desktop/layout.html" %}
+
+{% block title %}{{ _("Board") }}{% endblock %}
+
+{# ── Macro: single list row ── #}
+{% macro list_row(item, ws, is_done, is_system) %}
+<div class="task-list-row d-flex align-items-center position-relative"
+     style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-gray-100);{% if is_done %}opacity:0.6;{% endif %}">
+    <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="stretched-link" aria-label="{{ item.title }}"></a>
+    <div class="d-flex align-items-center gap-2 text-truncate min-w-0" style="flex:1">
+        {% if is_done %}<i class="fas fa-check-circle text-success flex-shrink-0 text-3xs"></i>{% endif %}
+        {% if is_system %}<i class="fas fa-robot flex-shrink-0 text-icon" style="color:var(--color-gray-400)" title="{{ _('System-generated') }}"></i>{% endif %}
+        <span class="text-truncate text-base" style="color:{% if is_done %}var(--color-gray-400){% else %}var(--color-gray-800){% endif %}">{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}</span>
+    </div>
+    <div class="text-center text-xs" style="width:120px">
+        {% if item.project %}
+        <span class="fw-medium text-nowrap text-secondary" style="display:block; max-width:120px; padding:0.0625rem 0.375rem; border-radius:999px; background:var(--color-gray-100); overflow:hidden; text-overflow:ellipsis; margin:0 auto" title="{{ item.project.name }}">
+            {% if item.project.emoji %}{{ item.project.emoji }} {% endif %}{{ item.project.name }}
+        </span>
+        {% else %}<span class="text-muted">&mdash;</span>{% endif %}
+    </div>
+    <div class="text-center task-board-col">
+        {% if item.assignee and item.assignee.user %}
+        <span class="avatar-circle" style="width:22px;height:22px;font-size:0.5rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};" title="{{ item.assignee.user.first_name }} {{ item.assignee.user.last_name }}">
+            {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="text-center text-sm task-board-col">
+        {% if item.due_date %}
+        <span {% if item.status == 'open' and item.due_date < today %}class="text-danger fw-semibold"{% else %}class="text-muted"{% endif %}>{{ item.due_date.strftime('%b %d') }}</span>
+        {% else %}<span class="text-muted">&mdash;</span>{% endif %}
+    </div>
+    <div class="text-center text-sm" style="width:75px">
+        <span class="text-muted">{{ item.created_at.strftime('%b %d') }}</span>
+    </div>
+    <div class="text-center task-board-col">
+        <span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:999px;font-size:0.8rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;">{{ tier_defaults[item.urgency_tier].label }}</span>
+    </div>
+    <div class="text-center task-board-col">
+        <span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:999px;font-size:0.8rem;background:{{ ws.color }}15;color:{{ ws.color }};font-weight:500;">{{ ws.label }}</span>
+    </div>
+</div>
+{% endmacro %}
+
+{# ── Macro: single board card ── #}
+{% macro board_card(item, is_done, is_system) %}
+<div class="board-card position-relative" data-item-id="{{ item.id }}"
+     style="background:white;border:1px solid var(--color-gray-200);border-radius:0.375rem;padding:0.625rem;margin-bottom:0.375rem;cursor:grab;transition:box-shadow 0.15s;">
+    <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="stretched-link" aria-label="{{ item.title }}"></a>
+    <div class="{% if is_done %}d-flex align-items-center gap-2{% endif %} text-base" style="margin-bottom:{% if is_done %}0{% else %}0.375rem{% endif %}">
+        {% if is_done %}<i class="fas fa-check-circle text-success text-3xs"></i>{% endif %}
+        {% if is_system %}<i class="fas fa-robot text-icon" style="color:var(--color-gray-400); margin-right:0.25rem" title="{{ _('System-generated') }}"></i>{% endif %}
+        <span class="task-board-card-title fw-medium" style="color:var(--color-gray-800)">{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}</span>
+    </div>
+    {% if not is_done %}
+    <div class="d-flex align-items-center gap-2">
+        {% if item.assignee and item.assignee.user %}
+        <span class="avatar-circle" style="width:20px;height:20px;font-size:0.45rem;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};" title="{{ item.assignee.user.first_name }} {{ item.assignee.user.last_name }}">
+            {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+        </span>
+        {% endif %}
+        {% if item.due_date %}
+        <span {% if item.due_date < today %}class="text-danger fw-semibold text-sm"{% else %}class="text-muted"{% endif %}>
+            <i class="fas fa-calendar-day me-1 text-icon"></i>{{ item.due_date.strftime('%b %d') }}
+        </span>
+        {% endif %}
+        {% if not item.project %}
+        <span style="display:inline-block;padding:0.0625rem 0.375rem;border-radius:999px;font-size:0.75rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;margin-left:auto;">
+            {{ tier_defaults[item.urgency_tier].label }}
+        </span>
+        {% endif %}
+    </div>
+    {% if item.project %}
+    <div class="d-flex align-items-center gap-2 mt-1">
+        <span class="text-truncate fw-medium text-2xs text-secondary" style="display:inline-block; max-width:60%; padding:0.0625rem 0.375rem; border-radius:999px; background:var(--color-gray-100); vertical-align:middle" title="{{ item.project.name }}">
+            {% if item.project.emoji %}{{ item.project.emoji }} {% endif %}{{ item.project.name }}
+        </span>
+        <span style="display:inline-block;padding:0.0625rem 0.375rem;border-radius:999px;font-size:0.75rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;margin-left:auto;">
+            {{ tier_defaults[item.urgency_tier].label }}
+        </span>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block module_content %}
+{# Pre-paint the saved view choice so users with viewMode='list' don't see #}
+{# the default board flash before Alpine initializes. Runs synchronously. #}
+<script nonce="{{ csp_nonce }}">
+(function(){
+    try {
+        if (localStorage.getItem('ai_board_view') !== 'board') {
+            document.documentElement.classList.add('task-board-view-list');
+        }
+    } catch (e) { /* private browsing — fall through to default (list) */ }
+})();
+</script>
+<style nonce="{{ csp_nonce }}">
+.task-board-view-list [data-ai-view="list"] { display: block !important; }
+.task-board-view-list [data-ai-view="board"] { display: none !important; }
+</style>
+<div class="content-card" x-data="boardFilter()">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Task Overview") }}</h2>
+            <span class="text-muted text-base">{{ _("See who's working on what across the team.") }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                hx-get="{{ url_for('tasks_bp.create_modal') }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("Create Task") }}
+        </button>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {# ── SECTION A: SUMMARY PANEL (stats + per-member breakdown) ── #}
+    {# ══════════════════════════════════════════════════════════════════ #}
+    <div class="task-summary-panel mb-4">
+
+        {# Totals row — desaturated, uniform #}
+        <div class="task-summary-totals">
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("Total Open") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.open"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("To Do") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.todo"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("In Progress") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.in_progress"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("Needs Review") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.needs_review"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("On Hold") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.on_hold"></div>
+            </div>
+            <div class="task-summary-stat">
+                <div class="task-summary-stat-label">{{ _("Completed") }}</div>
+                <div class="task-summary-stat-value" x-text="filteredCounts.done"></div>
+            </div>
+        </div>
+
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════ #}
+    {# ── SECTION B: FILTERED LIST/KANBAN ── #}
+    {# ══════════════════════════════════════════════════════════════════ #}
+
+    <div class="task-work-panel">
+        <div class="task-work-toolbar">
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <button class="task-filter-pill"
+                        :class="{ 'task-filter-pill--active': selectedMembers.length === 0 && !raisedByMe && !showUnassigned }"
+                        @click="clearAll()">{{ _("All") }}</button>
+                <button class="task-filter-pill"
+                        :class="{ 'task-filter-pill--active': raisedByMe }"
+                        @click="raisedByMe = !raisedByMe">
+                    <i class="fas fa-paper-plane text-icon"></i>
+                    <span>{{ _("Created by Me") }}</span>
+                </button>
+                <button class="task-filter-pill"
+                        :class="{ 'task-filter-pill--active': showUnassigned }"
+                        @click="showUnassigned = !showUnassigned">
+                    <i class="fas fa-user-slash text-icon"></i>
+                    <span>{{ _("Unassigned") }}</span>
+                </button>
+                {% for m in members %}
+                {% if m.user and not m.user.is_sample %}
+                <button class="task-filter-pill"
+                        x-show="memberHasItems({{ m.id }})"
+                        x-cloak
+                        :class="{ 'task-filter-pill--active': selectedMembers.includes({{ m.id }}) }"
+                        @click="toggleMember({{ m.id }})">
+                    <span class="avatar-circle" style="width:18px;height:18px;font-size:0.4rem;background:{{ m.user.avatar_color|default('#6b7280') }};">
+                        {{ m.user.first_name[0]|upper }}{{ m.user.last_name[0]|upper }}
+                    </span>
+                    <span>{{ m.user.first_name }}</span>
+                    <span class="task-filter-pill-count" x-show="memberOpenCount({{ m.id }}) > 0" x-text="memberOpenCount({{ m.id }})"></span>
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div class="d-flex" style="border:1px solid var(--color-gray-200);border-radius:0.375rem;overflow:hidden;">
+                <button class="btn btn-sm border-0 text-sm" style="padding:0.15rem 0.5rem; border-radius:0"
+                        :style="viewMode === 'list' ? 'background:var(--color-gray-100);color:var(--color-gray-700);' : 'background:transparent;color:var(--color-gray-400);'"
+                        @click="viewMode = 'list'"><i class="fas fa-list"></i></button>
+                <button class="btn btn-sm border-0 text-sm" style="padding:0.15rem 0.5rem; border-radius:0; border-left:1px solid var(--color-gray-200)"
+                        :style="viewMode === 'board' ? 'background:var(--color-gray-100);color:var(--color-gray-700);' : 'background:transparent;color:var(--color-gray-400);'"
+                        @click="viewMode = 'board'"><i class="fas fa-columns"></i></button>
+            </div>
+        </div>
+
+        {% set has_items = human_items|length > 0 %}
+        {% if has_items %}
+
+        {# ════════════════ LIST VIEW ════════════════ #}
+        {# JS default is 'board'. Hide list initially via inline style so #}
+        {# the page paints in the right view; Alpine x-show takes over once #}
+        {# initialized. The data-ai-view attribute lets the inline script #}
+        {# above flip the default for users whose saved view is 'list'. #}
+        <div data-ai-view="list" x-cloak x-show="viewMode === 'list'" class="task-work-view" style="overflow:hidden;display:none;">
+            {# Column headers #}
+            <div class="d-none d-md-flex align-items-center fw-semibold text-uppercase text-sm text-secondary" style="padding:0.5rem 0.75rem; background:var(--color-gray-50); border-bottom:1px solid var(--color-gray-200); letter-spacing:0.04em">
+                <div class="min-w-0" style="flex:1">{{ _("Name") }}</div>
+                <div class="text-center" style="width:120px">{{ _("Project") }}</div>
+                <div class="text-center task-board-col">{{ _("Assignee") }}</div>
+                <div class="text-center task-board-col">{{ _("Due date") }}</div>
+                <div class="text-center" style="width:75px">{{ _("Created") }}</div>
+                <div class="text-center task-board-col">{{ _("Priority") }}</div>
+                <div class="text-center task-board-col">{{ _("Status") }}</div>
+            </div>
+
+            {% for ws in workflow_statuses %}
+            {% set ws_human = workflow_groups.get(ws.key, []) %}
+            {% set ws_total_human = ws_human|length %}
+            {% if ws_total_human > 0 %}
+            {% set is_done = ws.key == 'done' %}
+            <div x-show="filteredGroupCount('{{ ws.key }}') > 0">
+                <div class="d-flex align-items-center gap-2" style="padding:0.375rem 0.75rem;background:var(--color-gray-50);border-top:1px solid var(--color-gray-200);border-bottom:1px solid var(--color-gray-100);">
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{{ ws.color }};"></span>
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-600)">{{ ws.label }}</span>
+                    <span class="text-sm" style="color:var(--color-gray-400)" x-text="filteredGroupCount('{{ ws.key }}')"></span>
+                </div>
+                <div>
+                    {% for item in ws_human %}
+                    <div x-show="showItem({{ item.assignee_id|tojson }}, {{ item.raised_by_id|tojson }}, '{{ ws.key }}', {{ loop.index0 }})">
+                        {{ list_row(item, ws, is_done, false) }}
+                    </div>
+                    {% endfor %}
+                    <div class="text-center" x-show="!isGroupExpanded('{{ ws.key }}') && filteredGroupCount('{{ ws.key }}') > 10" style="padding:0.375rem 0.75rem; background:var(--color-gray-50); border-top:1px solid var(--color-gray-100)">
+                        <button class="text-sm cursor-pointer text-secondary" @click="expandGroup('{{ ws.key }}')" style="background:none; border:none">
+                            {{ _("Show all") }} (<span x-text="filteredGroupCount('{{ ws.key }}')"></span>)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {# ════════════════ BOARD VIEW ════════════════ #}
+        <div data-ai-view="board" x-cloak x-show="viewMode === 'board'">
+        <div class="d-flex gap-3" style="overflow-x:auto;padding-bottom:0.5rem;">
+            {% for ws in workflow_statuses %}
+            {% set ws_human = workflow_groups.get(ws.key, []) %}
+            {% set ws_total_human = ws_human|length %}
+            {% set is_done = ws.key == 'done' %}
+            <div class="task-board-col" style="min-width:240px;flex:1 1 240px;max-width:320px;border:1px solid var(--color-gray-200);border-radius:0.5rem;overflow:hidden;background:var(--color-gray-50);">
+                <div class="d-flex align-items-center justify-content-between" style="padding:0.5rem 0.75rem;border-bottom:1px solid var(--color-gray-200);">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ ws.color }};"></span>
+                        <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ ws.label }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="board-col-count text-sm" style="color:var(--color-gray-400); background:var(--color-gray-200); border-radius:999px; padding:0 0.4rem" x-text="filteredGroupCount('{{ ws.key }}')">{{ ws_total_human }}</span>
+                    </div>
+                </div>
+                <div class="task-board-col-body">
+                    <div class="board-column task-board-dropzone" data-status="{{ ws.key }}">
+                        {% for item in ws_human %}
+                        <div x-show="showItem({{ item.assignee_id|tojson }}, {{ item.raised_by_id|tojson }}, '{{ ws.key }}', {{ loop.index0 }})">
+                            {{ board_card(item, is_done, false) }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center" x-show="!isGroupExpanded('{{ ws.key }}') && filteredGroupCount('{{ ws.key }}') > 10" style="padding:0.25rem 0.5rem 0.5rem">
+                        <button class="text-xs cursor-pointer text-secondary" @click="expandGroup('{{ ws.key }}')" style="background:none; border:none; width:100%">
+                            {{ _("Show all") }} (<span x-text="filteredGroupCount('{{ ws.key }}')"></span>)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        </div>
+
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-check-circle fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-1 fw-medium text-base">{{ _("All clear") }}</p>
+            <p class="mb-0 text-base">{{ _("No action items across the team") }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+function boardFilter() {
+    var allItems = [
+        {% for item in human_items %}
+        {s: {{ item.workflow_status|tojson }}, a: {{ item.assignee_id|tojson }}, r: {{ item.raised_by_id|tojson }}}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    var groupItems = {
+        {% for ws in workflow_statuses %}{% set ws_human = workflow_groups.get(ws.key, []) %}'{{ ws.key }}': [{% for item in ws_human %}{a: {{ item.assignee_id|tojson }}, r: {{ item.raised_by_id|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]{% if not loop.last %},{% endif %}{% endfor %}
+    };
+    var prefSaveUrl = '{{ url_for("tasks_bp.set_board_filter_pref") }}';
+    var viewPrefSaveUrl = '{{ url_for("tasks_bp.set_board_view_pref") }}';
+    var csrfToken = document.querySelector('meta[name=csrf-token]') ? document.querySelector('meta[name=csrf-token]').content : '{{ csrf_token }}';
+    return {
+        selectedMembers: {{ initial_filter_pref.selectedMembers|tojson }},
+        raisedByMe: {{ initial_filter_pref.raisedByMe|tojson }},
+        showUnassigned: {{ initial_filter_pref.showUnassigned|tojson }},
+        expandedGroups: [],
+        viewMode: '{{ initial_view_pref }}',
+        currentMemberId: {{ current_member_id }},
+        _saveTimer: null,
+        _viewSaveTimer: null,
+        filterItem(assigneeId, raisedById) {
+            if (this.showUnassigned) return assigneeId === null;
+            if (this.raisedByMe && raisedById !== this.currentMemberId) return false;
+            if (this.selectedMembers.length > 0 && !this.selectedMembers.includes(assigneeId)) return false;
+            return true;
+        },
+        isGroupExpanded(key) {
+            return this.expandedGroups.includes(key);
+        },
+        expandGroup(key) {
+            if (!this.expandedGroups.includes(key)) this.expandedGroups.push(key);
+        },
+        filteredRankInGroup(key, loopIndex) {
+            var self = this;
+            var items = groupItems[key] || [];
+            var rank = 0;
+            for (var i = 0; i < loopIndex; i++) {
+                if (self.filterItem(items[i].a, items[i].r)) rank++;
+            }
+            return rank;
+        },
+        showItem(assigneeId, raisedById, key, loopIndex) {
+            if (!this.filterItem(assigneeId, raisedById)) return false;
+            if (this.isGroupExpanded(key)) return true;
+            return this.filteredRankInGroup(key, loopIndex) < 10;
+        },
+        filteredGroupCount(key) {
+            var self = this;
+            var n = 0;
+            allItems.forEach(function(item) { if (item.s === key && self.filterItem(item.a, item.r)) n++; });
+            return n;
+        },
+        get filteredCounts() {
+            var self = this;
+            var counts = {open: 0, todo: 0, in_progress: 0, on_hold: 0, needs_review: 0, done: 0};
+            allItems.forEach(function(item) {
+                if (!self.filterItem(item.a, item.r)) return;
+                if (item.s === 'todo') { counts.todo++; counts.open++; }
+                else if (item.s === 'in_progress') { counts.in_progress++; counts.open++; }
+                else if (item.s === 'on_hold') { counts.on_hold++; counts.open++; }
+                else if (item.s === 'needs_review') { counts.needs_review++; counts.open++; }
+                else if (item.s === 'done') { counts.done++; }
+            });
+            return counts;
+        },
+        get memberCounts() {
+            var counts = {};
+            allItems.forEach(function(item) {
+                if (item.a === null) return;
+                if (!counts[item.a]) counts[item.a] = {open: 0, total: 0};
+                counts[item.a].total++;
+                if (item.s !== 'done') counts[item.a].open++;
+            });
+            return counts;
+        },
+        memberHasItems(id) {
+            return !!(this.memberCounts[id] && this.memberCounts[id].total > 0);
+        },
+        memberOpenCount(id) {
+            return this.memberCounts[id] ? this.memberCounts[id].open : 0;
+        },
+        init() {
+            var self = this;
+            document.documentElement.classList.remove('task-board-view-list');
+            this.$watch('viewMode', function(val) {
+                localStorage.setItem('ai_board_view', val);
+                self._scheduleViewPrefSave(val);
+            });
+
+            // URL param wins for deep-links (e.g. clicking a member card elsewhere).
+            var urlMemberId = new URLSearchParams(window.location.search).get('member');
+            if (urlMemberId) {
+                self.selectedMembers = [parseInt(urlMemberId, 10)];
+            }
+
+            self.$watch('selectedMembers', function() { self._schedulePrefSave(); });
+            self.$watch('raisedByMe', function() { self._schedulePrefSave(); });
+            self.$watch('showUnassigned', function() { self._schedulePrefSave(); });
+        },
+        _schedulePrefSave() {
+            var self = this;
+            if (self._saveTimer) clearTimeout(self._saveTimer);
+            self._saveTimer = setTimeout(function() { self._savePref(); }, 500);
+        },
+        _savePref() {
+            var body = {
+                selectedMembers: this.selectedMembers,
+                raisedByMe: this.raisedByMe,
+                showUnassigned: this.showUnassigned
+            };
+            fetch(prefSaveUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify(body)
+            }).catch(function() { /* silent — non-critical */ });
+        },
+        _scheduleViewPrefSave(val) {
+            var self = this;
+            if (self._viewSaveTimer) clearTimeout(self._viewSaveTimer);
+            self._viewSaveTimer = setTimeout(function() { self._saveViewPref(val); }, 500);
+        },
+        _saveViewPref(val) {
+            fetch(viewPrefSaveUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({ mode: val })
+            }).catch(function() {});
+        },
+        toggleMember(id) {
+            this.showUnassigned = false;
+            var idx = this.selectedMembers.indexOf(id);
+            if (idx === -1) {
+                this.selectedMembers.push(id);
+            } else {
+                this.selectedMembers.splice(idx, 1);
+            }
+        },
+        clearAll() {
+            this.selectedMembers = [];
+            this.raisedByMe = false;
+            this.showUnassigned = false;
+        },
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var wsUrl = '{{ url_for("tasks_bp.set_workflow_status", item_id=0) }}';
+    var csrfToken = '{{ csrf_token }}';
+
+    document.querySelectorAll('.board-column').forEach(function(col) {
+        Sortable.create(col, {
+            group: 'board',
+            animation: 150,
+            ghostClass: 'board-card-ghost',
+            dragClass: 'board-card-drag',
+            scroll: true,
+            scrollSensitivity: 100,
+            scrollSpeed: 10,
+            bubbleScroll: true,
+            onStart: function(evt) {
+                evt.item.querySelectorAll('a').forEach(function(a) { a.style.pointerEvents = 'none'; });
+            },
+            onEnd: function(evt) {
+                evt.item.querySelectorAll('a').forEach(function(a) { a.style.pointerEvents = ''; });
+
+                if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return;
+
+                var card = evt.item.querySelector('.board-card') || evt.item;
+                var itemId = card.dataset.itemId;
+                if (!itemId) return;
+                var newStatus = evt.to.dataset.status;
+
+                card.style.opacity = (newStatus === 'done') ? '0.6' : '1';
+
+                [evt.from, evt.to].forEach(function(container) {
+                    var countEl = container.closest('.task-board-col');
+                    if (countEl) {
+                        var ce = countEl.querySelector('.board-col-count');
+                        if (ce) {
+                            var current = parseInt(ce.textContent, 10) || 0;
+                            ce.textContent = container === evt.to ? current + 1 : current - 1;
+                        }
+                    }
+                });
+
+                var form = new FormData();
+                form.append('workflow_status', newStatus);
+                form.append('csrf_token', csrfToken);
+
+                fetch(wsUrl.replace('/0/', '/' + itemId + '/'), {
+                    method: 'POST',
+                    body: form,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    redirect: 'follow'
+                }).catch(function() {
+                    window.location.reload();
+                });
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.board-card-ghost { opacity: 0.4; background: var(--color-gray-100) !important; }
+.board-card-drag { box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: rotate(2deg); }
+</style>
+{% endblock %}

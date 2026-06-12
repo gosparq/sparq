@@ -1,0 +1,140 @@
+{# Reusable post card partial — renders a single UpdatePost with win badge #}
+{# Expects: post (UpdatePost instance) #}
+
+{% set _card_content = (post.payload or {}).get('content', '') %}
+{% set _is_webhook = post.webhook_id is not none %}
+{% set _is_github = _is_webhook and _card_content.startswith('GITHUB_HTML::') %}
+
+<div class="card mb-2" style="border:1px solid var(--color-gray-200);border-radius:0.625rem;{% if post.is_win %}border-left:3px solid var(--color-warning);{% endif %}">
+    <div class="card-body py-3 px-4">
+        <div class="d-flex align-items-start gap-3">
+            {# Avatar #}
+            <div class="flex-shrink-0">
+                {% if _is_github %}
+                <span class="avatar-circle avatar-webhook d-flex align-items-center" style="width:36px; height:36px; background:var(--color-gray-900); justify-content:center">
+                    <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:20px;height:20px;filter:invert(1);">
+                </span>
+                {% elif _is_webhook %}
+                <span class="avatar-circle avatar-webhook" style="width:36px;height:36px;background:var(--color-gray-700);">
+                    <i class="fas fa-plug text-sm" style="color:white"></i>
+                </span>
+                {% elif not post.is_anonymous and post.member and post.member.user %}
+                <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8125rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                    {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                </span>
+                {% else %}
+                <span class="avatar-circle text-sm" style="width:36px; height:36px; background:var(--color-gray-500)">
+                    <i class="fas fa-user text-2xs"></i>
+                </span>
+                {% endif %}
+            </div>
+
+            {# Content #}
+            <div class="flex-grow-1 min-width-0">
+                <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                    {% if _is_webhook %}
+                    <span class="fw-semibold text-base">{{ post.webhook_username or ('GitHub' if _is_github else _('Webhook')) }}</span>
+                    <span class="badge text-3xs sync-chip">
+                        {% if _is_github %}<i class="fab fa-github me-1"></i>GitHub{% else %}<i class="fas fa-plug me-1 text-icon"></i>{{ _("Webhook") }}{% endif %}
+                    </span>
+                    {% elif not post.is_anonymous and post.member and post.member.user %}
+                    <span class="fw-semibold text-base">{{ post.member.user.full_name }}</span>
+                    {% else %}
+                    <span class="fw-semibold text-muted text-base">{{ _("Anonymous") }}</span>
+                    {% endif %}
+                    {% if post.template and not _is_webhook %}
+                    <span class="badge {% if post.post_type == 'win' %}sync-badge-win{% else %}sync-badge-update{% endif %} text-3xs">
+                        {{ post.template.name }}
+                    </span>
+                    {% elif post.post_type == 'channel' %}
+                    <span class="badge text-3xs sync-chip">
+                        {{ _("Chat") }}
+                    </span>
+                    {% endif %}
+                    {% if post.is_win %}
+                    <span class="badge sync-badge-win text-3xs">
+                        <i class="fas fa-trophy"></i> {{ _("Win") }}
+                    </span>
+                    {% endif %}
+                    {% if post.channel %}
+                    <a href="{{ url_for('updates_bp.channel_feed', slug=post.channel.name) }}" class="badge text-decoration-none text-3xs sync-chip">
+                        <i class="fas fa-hashtag text-icon"></i> {{ post.channel.name }}
+                    </a>
+                    {% endif %}
+                    <span class="text-muted ms-auto text-sm">{{ post.created_at|format_datetime('%b %d, %I:%M %p') }}</span>
+                </div>
+
+                {# Render body #}
+                {% if _is_github %}
+                <div class="webhook-github-body text-base" style="color:var(--color-gray-700); line-height:1.5">
+                    {{ _card_content[13:]|safe }}
+                </div>
+                {% elif _is_webhook %}
+                <p class="mb-1 text-base sync-pre-wrap" style="color:var(--color-gray-700)">{{ _card_content|urlize(target="_blank") }}</p>
+                {% elif post.template %}
+                {% for field in post.template.fields %}
+                    {% set val = post.payload.get(field.key) %}
+                    {% if val %}
+                        {% if field.type == 'structured_list' and val is iterable and val is not string %}
+                        <ul class="mb-1 ps-3 text-base" style="list-style:disc">
+                            {% for item in val %}
+                            <li>{% if item is mapping %}{{ item.text|urlize(target="_blank") }}{% else %}{{ item|urlize(target="_blank") }}{% endif %}</li>
+                            {% endfor %}
+                        </ul>
+                        {% elif field.type == 'choice' %}
+                        {# Choice fields are meta signals, not body content — hidden in card view #}
+                        {% elif field.type == 'text_audio' %}
+                        <p class="mb-1 text-base" style="color:var(--color-gray-700)">{{ val|urlize(target="_blank") }}</p>
+                        {% set audio_uuid = post.payload.get(field.key ~ '_audio_uuid') %}
+                        {% if audio_uuid %}
+                        {% set audio_dur = post.payload.get(field.key ~ '_audio_duration', 0) %}
+                        <div class="audio-playback-pill d-inline-flex align-items-center mt-1 mb-1" data-duration="{{ audio_dur }}">
+                            <button type="button" class="btn btn-sm audio-play-btn" data-action="audio-toggle">
+                                <i class="fas fa-play text-2xs"></i>
+                            </button>
+                            <div class="audio-progress-wrap" data-action="audio-seek">
+                                <div class="audio-progress-bar"></div>
+                            </div>
+                            <span class="audio-time">{% if audio_dur %}{{ '%d:%02d' | format(audio_dur // 60, audio_dur % 60) }}{% else %}0:00{% endif %}</span>
+                            <audio preload="metadata" src="{{ url_for('sync_bp.download_attachment', uuid=audio_uuid) }}"></audio>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <p class="mb-1 text-base" style="color:var(--color-gray-700)">{{ val|urlize(target="_blank") }}</p>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                {# Legacy fallback: render payload keys not covered by current template fields #}
+                {% set _tpl_keys = post.template.fields | map(attribute='key') | list if post.template and post.template.fields else [] %}
+                {% for key, val in (post.payload or {}).items() if key not in _tpl_keys and not key.startswith('_') and '_audio_uuid' not in key and key not in ('focus', 'progress') and val %}
+                    {% if val is iterable and val is not string and val is not mapping %}
+                    <ul class="mb-1 ps-3 text-base" style="list-style:disc">
+                        {% for item in val %}
+                        <li>{% if item is mapping %}{{ item.text|urlize(target="_blank") }}{% else %}{{ item|urlize(target="_blank") }}{% endif %}</li>
+                        {% endfor %}
+                    </ul>
+                    {% elif val is string and val | length > 2 %}
+                    <p class="mb-1 text-base" style="color:var(--color-gray-700)">{{ val|urlize(target="_blank") }}</p>
+                    {% endif %}
+                {% endfor %}
+                {% else %}
+                {# Template-free post (migrated chat) — show content directly #}
+                {% if _card_content %}
+                <p class="mb-1 text-base" style="color:var(--color-gray-700)">{{ _card_content|urlize(target="_blank") }}</p>
+                {% endif %}
+                {% endif %}
+
+                {# Reply count + Reactions #}
+                <div class="d-flex align-items-center gap-3 mt-2 text-xs sync-text-subtle">
+                    {% if post.reply_count > 0 %}
+                    <span><i class="fas fa-comment"></i> {{ post.reply_count }}</span>
+                    {% endif %}
+                    {% set reaction_count = post.reactions.count() %}
+                    {% if reaction_count > 0 %}
+                    <span><i class="fas fa-heart"></i> {{ reaction_count }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

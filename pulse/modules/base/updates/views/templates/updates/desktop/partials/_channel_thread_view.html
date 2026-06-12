@@ -1,0 +1,725 @@
+{# Shared channel-thread view body. #}
+{# Used by both the team channel thread page and the project Channel tab. #}
+{# Optional context: project — when set, links route to the project's #}
+{# Channel tab so users stay in project chrome. #}
+{% set _project = project|default(None) %}
+{% if _project %}
+{% set feed_url = url_for('projects_bp.detail', project_id=_project.id, tab='log') %}
+{% set reply_url = url_for('updates_bp.channel_reply', slug=channel.name, post_id=post.id) %}
+{% set _back_label = _project.name %}
+{% set _back_icon = "fa-arrow-left" %}
+{% else %}
+{% set feed_url = url_for('updates_bp.organization_channel_feed', slug=channel.name) if is_organization_channel else url_for('updates_bp.channel_feed', slug=channel.name) %}
+{% set reply_url = url_for('updates_bp.organization_channel_reply', slug=channel.name, post_id=post.id) if is_organization_channel else url_for('updates_bp.channel_reply', slug=channel.name, post_id=post.id) %}
+{% set _back_label = channel.name %}
+{% set _back_icon = "fa-arrow-left" %}
+{% endif %}
+{% set _reply_return_to = url_for('projects_bp.channel_thread', project_id=_project.id, post_id=post.id) if _project else '' %}
+<div class="content-card" data-current-user-id="{{ current_user.id }}">
+    {# ── Back link ── #}
+    <div class="mb-3">
+        <a href="{{ feed_url }}" class="text-muted text-decoration-none text-sm">
+            <i class="fas {{ _back_icon }} me-1"></i>{% if _project %}<i class="fas fa-folder-open text-3xs"></i>{% else %}<i class="fas fa-hashtag text-3xs"></i>{% endif %} {{ _back_label }}
+        </a>
+    </div>
+
+    {# ── Original Post ── #}
+    <div class="thread-op" id="post-{{ post.id }}">
+        <div class="d-flex align-items-start gap-3">
+            <div class="flex-shrink-0">
+                {% if is_github_post %}
+                <span class="avatar-circle avatar-webhook d-flex align-items-center" style="width:40px; height:40px; background:var(--color-gray-900); justify-content:center">
+                    <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:22px;height:22px;filter:invert(1);">
+                </span>
+                {% elif is_webhook_post %}
+                <span class="avatar-circle avatar-webhook text-base" style="width:40px; height:40px; background:var(--color-gray-700)">
+                    <i class="fas fa-plug" style="font-size:0.9rem;color:white;"></i>
+                </span>
+                {% elif not post.is_anonymous and post.member and post.member.user %}
+                <span class="avatar-circle text-base" style="width:40px;height:40px;background:{{ post.member.user.avatar_color|default('#6b7280') }}">
+                    {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                </span>
+                {% else %}
+                <span class="avatar-circle text-base" style="width:40px; height:40px; background:var(--color-gray-500)">
+                    <i class="fas fa-user text-sm"></i>
+                </span>
+                {% endif %}
+            </div>
+            <div class="flex-grow-1 min-width-0">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    {% if is_webhook_post %}
+                    <span class="fw-bold" style="font-size:0.9375rem;">{{ post.webhook_username or ('GitHub' if is_github_post else _('Webhook')) }}</span>
+                    <span class="badge fw-medium text-3xs sync-chip">
+                        {% if is_github_post %}<i class="fab fa-github me-1"></i>GitHub{% else %}<i class="fas fa-plug me-1 text-icon"></i>{{ _("Webhook") }}{% endif %}
+                    </span>
+                    {% elif not post.is_anonymous and post.member and post.member.user %}
+                    <span class="fw-bold" style="font-size:0.9375rem;">{{ post.member.user.full_name }}</span>
+                    {% else %}
+                    <span class="fw-bold text-muted" style="font-size:0.9375rem;">{{ _("Anonymous") }}</span>
+                    {% endif %}
+                    {% if post.is_win %}
+                    <span class="badge sync-badge-win text-3xs"><i class="fas fa-trophy me-1"></i>{{ _("Win") }}</span>
+                    {% endif %}
+                </div>
+
+                {% if post.subject %}
+                <h3 class="mb-2 fw-semibold" style="font-size:1.125rem; color:var(--color-gray-900)">{{ post.subject|render_mentions }}</h3>
+                {% endif %}
+
+                {% if is_github_post %}
+                <div class="webhook-github-body" style="font-size:0.9375rem;color:var(--color-gray-700);line-height:1.6;">
+                    {{ _post_content[13:]|safe }}
+                </div>
+                {% elif is_webhook_post %}
+                <p class="sync-pre-wrap" style="font-size:0.9375rem; color:var(--color-gray-700); line-height:1.6">{{ _post_content|urlize(target="_blank") }}</p>
+                {% elif post.template and post.template.fields %}
+                    {% for field in post.template.fields %}
+                        {% set val = post.payload.get(field.key) %}
+                        {% if val %}
+                            {% if field.type == 'text' or field.type == 'textarea' %}
+                            <p class="sync-pre-wrap" style="font-size:0.9375rem; color:var(--color-gray-700); line-height:1.6">{{ val|render_mentions }}</p>
+                            {% elif field.type == 'structured_list' and val is iterable and val is not string %}
+                            <ul class="ps-3" style="font-size:0.9375rem;list-style:disc;">
+                                {% for item in val %}
+                                <li>{% if item is mapping %}{{ item.text|urlize(target="_blank") }}{% else %}{{ item|urlize(target="_blank") }}{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                            {% elif field.type == 'choice' %}
+                            {# Choice fields are meta signals, not body content — hidden in thread view #}
+                            {% else %}
+                            <p class="sync-pre-wrap" style="font-size:0.9375rem; color:var(--color-gray-700)">{{ val|render_mentions }}</p>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% elif post.payload.get('content') %}
+                <p class="sync-pre-wrap" style="font-size:0.9375rem; color:var(--color-gray-700); line-height:1.6">{{ post.payload.get('content')|urlize(target="_blank") }}</p>
+                {% endif %}
+
+                {# OP footer: timestamp, reactions, reply #}
+                <div class="thread-op-footer">
+                    <span class="text-muted text-xs">{{ post.created_at|format_datetime('%b %d, %Y at %I:%M %p') }}</span>
+                    {% include "updates/desktop/partials/_post_reactions.html" with context %}
+                    <button class="thread-action-btn" data-action="reply-to"
+                            data-reply-id="{{ post.id }}"
+                            data-reply-author="{{ post.member.user.full_name if not post.is_anonymous and post.member and post.member.user else _('Anonymous') }}"
+                            title="{{ _('Reply') }}">
+                        <i class="fas fa-reply text-3xs"></i> {{ _("Reply") }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Reply count separator ── #}
+    {% if threaded_replies %}
+    <div class="thread-reply-count">
+        {{ threaded_replies|length }} {{ _("Replies") if threaded_replies|length != 1 else _("Reply") }}
+        {% if is_github_post %}
+        <span class="text-muted text-xs" style="font-weight:normal; margin-left:0.5rem">
+            ({{ _("newest first; only last 10 events kept") }})
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Threaded Replies ── #}
+    {# For github threads, show newest event first #}
+    {% set _replies_ordered = threaded_replies|reverse|list if is_github_post else threaded_replies %}
+    <div id="thread-replies">
+        {% for reply, depth in _replies_ordered %}
+        {% set _r_content = (reply.payload or {}).get('content', '') %}
+        {% set _r_webhook = reply.webhook_id is not none %}
+        {% set _r_github = _r_webhook and _r_content.startswith('GITHUB_HTML::') %}
+        <div class="thread-reply {% if depth > 0 %}thread-reply-nested{% endif %}" id="reply-{{ reply.id }}">
+            <div class="d-flex align-items-start gap-2">
+                <div class="flex-shrink-0">
+                    {% if _r_github %}
+                    <span class="avatar-circle avatar-webhook" style="width:{{ '28' if depth > 0 else '32' }}px;height:{{ '28' if depth > 0 else '32' }}px;background:var(--color-gray-900);display:flex;align-items:center;justify-content:center;">
+                        <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:{{ '16' if depth > 0 else '18' }}px;height:{{ '16' if depth > 0 else '18' }}px;filter:invert(1);">
+                    </span>
+                    {% elif _r_webhook %}
+                    <span class="avatar-circle avatar-webhook" style="width:{{ '28' if depth > 0 else '32' }}px;height:{{ '28' if depth > 0 else '32' }}px;background:var(--color-gray-700);">
+                        <i class="fas fa-plug text-2xs" style="color:white"></i>
+                    </span>
+                    {% elif reply.member and reply.member.user %}
+                    <span class="avatar-circle" style="width:{{ '28' if depth > 0 else '32' }}px;height:{{ '28' if depth > 0 else '32' }}px;font-size:{{ '0.65' if depth > 0 else '0.75' }}rem;background:{{ reply.member.user.avatar_color|default('#6b7280') }};">
+                        {{ reply.member.user.first_name[0]|upper }}{{ reply.member.user.last_name[0]|upper }}
+                    </span>
+                    {% else %}
+                    <span class="avatar-circle" style="width:{{ '28' if depth > 0 else '32' }}px;height:{{ '28' if depth > 0 else '32' }}px;font-size:{{ '0.65' if depth > 0 else '0.75' }}rem;background:#6b7280;">
+                        <i class="fas fa-user text-3xs"></i>
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1 min-width-0">
+                    <div class="d-flex align-items-baseline gap-2">
+                        {% if _r_webhook %}
+                        <span class="fw-semibold text-sm">{{ reply.webhook_username or ('GitHub' if _r_github else _('Webhook')) }}</span>
+                        {% elif reply.member and reply.member.user %}
+                        <span class="fw-semibold text-sm">{{ reply.member.user.full_name }}</span>
+                        {% else %}
+                        <span class="fw-semibold text-muted text-sm">{{ _("Unknown") }}</span>
+                        {% endif %}
+                    </div>
+
+                    {# "Replying to @Name" reference for nested replies #}
+                    {% if depth > 0 and reply.parent and reply.parent.member and reply.parent.member.user %}
+                    <div class="thread-reply-ref">
+                        <a href="#reply-{{ reply.parent_id }}" class="thread-reply-ref-link">
+                            <i class="fas fa-reply fa-flip-horizontal text-icon"></i>
+                            {{ reply.parent.member.user.full_name }}
+                        </a>
+                    </div>
+                    {% elif depth > 0 and reply.parent_id == post.id %}
+                    {# Replying to the OP — no need for ref #}
+                    {% endif %}
+
+                    {% if _r_github %}
+                    <div class="webhook-github-body text-base" style="color:var(--color-gray-700); line-height:1.5">
+                        {{ _r_content[13:]|safe }}
+                    </div>
+                    {% else %}
+                    <div class="mb-0 text-base sync-pre-wrap" style="line-height:1.5">{{ reply.formatted_content }}</div>
+                    {% endif %}
+
+                    {# Reply footer: timestamp, reactions, reply button #}
+                    <div class="thread-reply-footer">
+                        <span class="text-muted text-2xs">{{ reply.created_at|timeago }}</span>
+                        {# Inline reactions #}
+                        {% set post_for_reactions = reply %}
+                        {% set reactions = UpdatePostReaction.get_for_message(reply.id) if UpdatePostReaction is defined and UpdatePostReaction else {} %}
+                        <div class="post-reactions" id="post-reactions-{{ reply.id }}">
+                            {% for emoji, data in reactions.items() %}
+                            <button class="post-reaction-badge {% if current_user.id in data.user_ids %}user-reacted{% endif %}"
+                                    data-action="post-toggle-reaction" data-post-id="{{ reply.id }}" data-emoji="{{ emoji }}"
+                                    title="{{ data.users|join(', ') }}">
+                                <span class="post-reaction-emoji">{{ emoji }}</span>
+                                <span class="post-reaction-count">{{ data.count }}</span>
+                            </button>
+                            {% endfor %}
+                            <button class="post-reaction-add" data-action="post-show-picker" data-post-id="{{ reply.id }}" title="{{ _('Add reaction') }}">
+                                <i class="far fa-smile"></i>
+                            </button>
+                        </div>
+                        <button class="thread-action-btn" data-action="reply-to"
+                                data-reply-id="{{ reply.id }}"
+                                data-reply-author="{{ reply.member.user.full_name if reply.member and reply.member.user else _('Unknown') }}"
+                                title="{{ _('Reply') }}">
+                            <i class="fas fa-reply text-3xs"></i> {{ _("Reply") }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Reply Composer ── #}
+    {% set _is_closed = _project and _project.is_closed %}
+    {% if _is_closed %}
+    <div class="project-locked-banner" style="margin-top:1rem;margin-bottom:0;">
+        <i class="fas fa-lock"></i>
+        {{ _("This project is closed. Replies, reactions, and follows are disabled. Reopen the project to resume activity.") }}
+    </div>
+    {% else %}
+    <div class="thread-composer" id="reply-composer">
+        <div id="reply-to-indicator" class="reply-to-indicator" style="display:none;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-reply fa-flip-horizontal text-3xs sync-text-subtle"></i>
+                <span class="text-xs" style="color:var(--color-gray-500)">{{ _("Replying to") }}
+                    <strong id="reply-to-indicator-name"></strong>
+                </span>
+                <button type="button" id="reply-to-cancel" class="reply-to-cancel" title="{{ _('Cancel') }}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <form method="POST" action="{{ reply_url }}"
+              id="reply-form"
+              hx-post="{{ reply_url }}"
+              hx-target="#thread-replies">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="reply_to_id" id="reply-to-id" value="">
+            {% if _reply_return_to %}<input type="hidden" name="return_to" value="{{ _reply_return_to }}">{% endif %}
+            <div class="d-flex gap-2 align-items-start">
+                <div class="flex-shrink-0">
+                    {% set cu = current_user %}
+                    <span class="avatar-circle" style="width:32px;height:32px;font-size:0.75rem;background:{{ cu.avatar_color|default('#6b7280') }};">
+                        {{ cu.first_name[0]|upper }}{{ cu.last_name[0]|upper }}
+                    </span>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="mention-widget-wrapper position-relative">
+                        <textarea name="body" id="reply-textarea" class="form-control form-control-sm text-base" rows="2"
+                                  placeholder="{{ _('Write a reply...') }}" required style="resize:none"></textarea>
+                        <div id="reply-mention-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#fff;border:1px solid var(--color-gray-200,#e5e7eb);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-height:200px;overflow-y:auto;z-index:100;margin-bottom:4px;"></div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary align-self-end">
+                    <i class="fas fa-reply me-1"></i>{{ _("Reply") }}
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+/* ── Thread layout ── */
+.thread-op {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-gray-200, #e5e7eb);
+}
+.thread-op-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+.thread-reply-count {
+    padding: 0.625rem 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-gray-600, #4b5563);
+    border-bottom: 1px solid var(--color-gray-100, #f3f4f6);
+}
+
+/* ── Replies ── */
+.thread-reply {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-gray-100, #f3f4f6);
+}
+.thread-reply:last-child {
+    border-bottom: none;
+}
+.thread-reply-nested {
+    margin-left: 2.5rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--color-gray-200, #e5e7eb);
+}
+.thread-reply-ref {
+    margin-bottom: 0.125rem;
+}
+.thread-reply-ref-link {
+    font-size: 0.7rem;
+    color: var(--color-primary, #2563eb);
+    text-decoration: none;
+    font-weight: 500;
+}
+.thread-reply-ref-link:hover {
+    text-decoration: underline;
+}
+.thread-reply-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+}
+
+/* ── Action buttons (Reply, Like, etc.) ── */
+.thread-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.7rem;
+    color: var(--color-gray-400, #9ca3af);
+    cursor: pointer;
+    font-weight: 500;
+}
+.thread-action-btn:hover {
+    color: var(--color-gray-600, #4b5563);
+}
+
+/* ── Composer ── */
+.thread-composer {
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-gray-200, #e5e7eb);
+    margin-top: 0.5rem;
+}
+.reply-to-indicator {
+    padding: 0.375rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--color-gray-50, #f9fafb);
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.375rem;
+}
+.reply-to-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--color-gray-400, #9ca3af);
+    font-size: 0.6rem;
+    cursor: pointer;
+    margin-left: auto;
+}
+.reply-to-cancel:hover {
+    background: var(--color-gray-200, #e5e7eb);
+    color: var(--color-gray-700, #374151);
+}
+
+/* ── Reactions (shared) ── */
+.post-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+}
+.post-reaction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    background: var(--color-gray-50, #f9fafb);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.post-reaction-badge:hover {
+    background: var(--color-gray-100, #f3f4f6);
+    border-color: var(--color-gray-300, #d1d5db);
+}
+.post-reaction-badge.user-reacted {
+    background: var(--color-primary-lightest, #eff6ff);
+    border-color: var(--color-primary, #2563eb);
+}
+.post-reaction-emoji { font-size: 0.8rem; }
+.post-reaction-count { font-size: 0.7rem; color: var(--color-gray-600, #4b5563); }
+.post-reaction-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    background: transparent;
+    color: var(--color-gray-400, #9ca3af);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.post-reaction-add:hover {
+    background: var(--color-gray-100, #f3f4f6);
+    color: var(--color-gray-600, #4b5563);
+}
+
+/* ── Reaction picker ── */
+.reaction-picker-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 999;
+}
+.post-reaction-picker {
+    position: absolute;
+    z-index: 1000;
+    background: white;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 0.5rem;
+    width: 280px;
+}
+.post-reaction-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.125rem;
+}
+.post-reaction-picker-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    border-radius: 0.25rem;
+    font-size: 1.125rem;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.post-reaction-picker-btn:hover {
+    background: var(--color-gray-100, #f3f4f6);
+}
+.post-reaction-picker-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--color-gray-400, #9ca3af);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+}
+.post-reaction-picker-divider {
+    height: 1px;
+    background: var(--color-gray-200, #e5e7eb);
+    margin: 0.375rem 0;
+}
+.post-reaction-picker-all {
+    max-height: 160px;
+    overflow-y: auto;
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    // ── Reply-to state ──
+    function setReplyTo(id, author) {
+        document.getElementById('reply-to-id').value = id;
+        document.getElementById('reply-to-indicator-name').textContent = author;
+        document.getElementById('reply-to-indicator').style.display = '';
+        document.getElementById('reply-textarea').focus();
+    }
+
+    window.clearReplyTo = function() {
+        document.getElementById('reply-to-id').value = '';
+        document.getElementById('reply-to-indicator').style.display = 'none';
+    };
+
+    document.getElementById('reply-to-cancel').addEventListener('click', window.clearReplyTo);
+
+    // ── Reaction picker ──
+    var frequentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀'];
+    var allEmojis = [
+        '😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😛',
+        '🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱','😴',
+        '👍','👎','👏','🙌','🤝','👊','✊','🤛','🤜','🤞','✌️','🤟','🤘','👌','🤌','🤏',
+        '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘',
+        '🎉','🎊','🎈','🎁','🏆','🥇','🥈','🥉','⭐','🌟','✨','💫','🔥','💥','💯','💢',
+        '👀','✅','❌','⚠️','❓','❗','💡','🔔','📌'
+    ];
+
+    var currentPicker = null;
+    var currentPostId = null;
+    var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+    function showPicker(event, postId) {
+        event.stopPropagation();
+        closePicker();
+        currentPostId = postId;
+
+        var picker = document.createElement('div');
+        picker.className = 'post-reaction-picker';
+
+        var fLabel = document.createElement('div');
+        fLabel.className = 'post-reaction-picker-label';
+        fLabel.textContent = '{{ _("Frequently Used") }}';
+        picker.appendChild(fLabel);
+        var fGrid = document.createElement('div');
+        fGrid.className = 'post-reaction-picker-grid';
+        frequentEmojis.forEach(function(e) {
+            var b = document.createElement('button');
+            b.className = 'post-reaction-picker-btn';
+            b.textContent = e;
+            b.onclick = function() { selectEmoji(e); };
+            fGrid.appendChild(b);
+        });
+        picker.appendChild(fGrid);
+
+        var div = document.createElement('div');
+        div.className = 'post-reaction-picker-divider';
+        picker.appendChild(div);
+
+        var aLabel = document.createElement('div');
+        aLabel.className = 'post-reaction-picker-label';
+        aLabel.textContent = '{{ _("All Emojis") }}';
+        picker.appendChild(aLabel);
+        var aGrid = document.createElement('div');
+        aGrid.className = 'post-reaction-picker-grid post-reaction-picker-all';
+        allEmojis.forEach(function(e) {
+            var b = document.createElement('button');
+            b.className = 'post-reaction-picker-btn';
+            b.textContent = e;
+            b.onclick = function() { selectEmoji(e); };
+            aGrid.appendChild(b);
+        });
+        picker.appendChild(aGrid);
+
+        var overlay = document.createElement('div');
+        overlay.className = 'reaction-picker-overlay';
+        overlay.onclick = closePicker;
+        document.body.appendChild(overlay);
+
+        var btn = event.target.closest('.post-reaction-add, [data-action="post-show-picker"]');
+        var rect = btn.getBoundingClientRect();
+        picker.style.position = 'fixed';
+        picker.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
+        picker.style.top = (rect.bottom + 4) + 'px';
+        document.body.appendChild(picker);
+        currentPicker = picker;
+    }
+
+    function closePicker() {
+        if (currentPicker) { currentPicker.remove(); currentPicker = null; }
+        var ov = document.querySelector('.reaction-picker-overlay');
+        if (ov) ov.remove();
+        currentPostId = null;
+    }
+
+    function selectEmoji(emoji) {
+        var pid = currentPostId;
+        closePicker();
+        toggleReaction(pid, emoji);
+    }
+
+    function toggleReaction(postId, emoji) {
+        fetch('/sync/posts/' + postId + '/react', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken},
+            body: 'emoji=' + encodeURIComponent(emoji)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { updateReactionsUI(postId, data.reactions); })
+        .catch(function(e) { console.error('Error toggling reaction:', e); });
+    }
+
+    function updateReactionsUI(postId, reactions) {
+        var container = document.getElementById('post-reactions-' + postId);
+        if (!container) return;
+        var currentUserId = parseInt(document.querySelector('[data-current-user-id]').dataset.currentUserId);
+
+        var html = '';
+        for (var emoji in reactions) {
+            var d = reactions[emoji];
+            var reacted = d.user_ids.indexOf(currentUserId) !== -1;
+            html += '<button class="post-reaction-badge ' + (reacted ? 'user-reacted' : '') + '" data-action="post-toggle-reaction" data-post-id="' + postId + '" data-emoji="' + emoji + '" title="' + d.users.join(', ') + '">';
+            html += '<span class="post-reaction-emoji">' + emoji + '</span>';
+            html += '<span class="post-reaction-count">' + d.count + '</span>';
+            html += '</button>';
+        }
+        html += '<button class="post-reaction-add" data-action="post-show-picker" data-post-id="' + postId + '" title="{{ _("Add reaction") }}"><i class="far fa-smile"></i></button>';
+        container.innerHTML = html;
+    }
+
+    // Event delegation
+    document.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-action="post-toggle-reaction"]');
+        if (t) { toggleReaction(parseInt(t.dataset.postId), t.dataset.emoji); return; }
+        t = e.target.closest('[data-action="post-show-picker"]');
+        if (t) { showPicker(e, parseInt(t.dataset.postId)); return; }
+        t = e.target.closest('[data-action="reply-to"]');
+        if (t) { setReplyTo(t.dataset.replyId, t.dataset.replyAuthor); return; }
+    });
+
+    window.postShowPicker = showPicker;
+    window.postToggleReaction = toggleReaction;
+
+    // ── Mention autocomplete for reply textarea ──
+    (function() {
+        var textarea = document.getElementById('reply-textarea');
+        var dropdown = document.getElementById('reply-mention-dropdown');
+        if (!textarea || !dropdown) return;
+
+        var mentionMap = {};
+        var triggerStart = -1;
+        var results = [];
+        var activeIdx = -1;
+
+        function closeDrop() {
+            dropdown.style.display = 'none';
+            triggerStart = -1;
+            results = [];
+            activeIdx = -1;
+        }
+
+        function findTrigger() {
+            var text = textarea.value;
+            var pos = textarea.selectionStart;
+            var start = text.lastIndexOf('@', pos - 1);
+            if (start === -1) return null;
+            var between = text.substring(start + 1, pos);
+            if (/\s/.test(between)) return null;
+            return { start: start, query: between };
+        }
+
+        function setActive(idx) {
+            activeIdx = idx;
+            Array.from(dropdown.children).forEach(function(el, i) {
+                el.style.background = i === activeIdx ? 'var(--color-gray-100,#f3f4f6)' : '';
+            });
+        }
+
+        function renderItems(users) {
+            results = users;
+            activeIdx = -1;
+            if (!users.length) { closeDrop(); return; }
+            dropdown.innerHTML = '';
+            users.forEach(function(u, i) {
+                var item = document.createElement('div');
+                item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;transition:background 0.1s;';
+                var avatarEl = document.createElement('span');
+                var bg = /^#[0-9a-fA-F]{3,8}$/.test(u.avatar_color || '') ? u.avatar_color : '#6b7280';
+                avatarEl.style.cssText = 'width:24px;height:24px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:600;flex-shrink:0;background:' + bg + ';';
+                avatarEl.textContent = (u.name || '?')[0].toUpperCase();
+                var labelEl = document.createElement('span');
+                labelEl.style.cssText = 'font-size:0.8125rem;font-weight:500;color:var(--color-gray-800,#1f2937);';
+                labelEl.textContent = u.full_name || u.name;
+                item.appendChild(avatarEl);
+                item.appendChild(labelEl);
+                item.addEventListener('mousedown', function(e) { e.preventDefault(); selectUser(u); });
+                item.addEventListener('mouseover', function() { setActive(i); });
+                dropdown.appendChild(item);
+            });
+            dropdown.style.display = '';
+        }
+
+        function selectUser(u) {
+            var trig = findTrigger();
+            if (!trig) return;
+            var text = textarea.value;
+            var after = text.substring(textarea.selectionStart);
+            var display = u.name;
+            mentionMap[display] = u.member_id;
+            var inserted = '@' + display + ' ';
+            textarea.value = text.substring(0, trig.start) + inserted + after;
+            var newPos = trig.start + inserted.length;
+            textarea.setSelectionRange(newPos, newPos);
+            closeDrop();
+            textarea.focus();
+        }
+
+        textarea.addEventListener('input', function() {
+            var trig = findTrigger();
+            if (!trig) { closeDrop(); return; }
+            triggerStart = trig.start;
+            fetch('/sync/chat/users/search?q=' + encodeURIComponent(trig.query))
+                .then(function(r) { return r.json(); })
+                .then(function(data) { if (triggerStart !== -1) renderItems(data); })
+                .catch(closeDrop);
+        });
+
+        textarea.addEventListener('keydown', function(e) {
+            if (dropdown.style.display === 'none') return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIdx + 1, results.length - 1)); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIdx - 1, 0)); }
+            else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); selectUser(results[activeIdx]); }
+            else if (e.key === 'Escape') { closeDrop(); }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!textarea.parentNode.contains(e.target)) closeDrop();
+        });
+
+        var form = document.getElementById('reply-form');
+        if (form) {
+            form.addEventListener('submit', function() {
+                var text = textarea.value;
+                Object.keys(mentionMap).sort(function(a, b) { return b.length - a.length; }).forEach(function(name) {
+                    text = text.split('@' + name).join('@[' + mentionMap[name] + ']');
+                });
+                textarea.value = text;
+            });
+        }
+    })();
+})();
+</script>

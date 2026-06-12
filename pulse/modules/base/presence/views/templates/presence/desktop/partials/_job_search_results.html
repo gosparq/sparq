@@ -1,0 +1,20 @@
+{% if jobs %}
+<div class="list-group" id="job-search-results">
+    {% for job in jobs %}
+    <button type="button" class="list-group-item list-group-item-action small job-result"
+            data-job-id="{{ job.id }}"
+            data-job-label="#{{ job.job_number }} - {{ job.title }} ({{ job.contact.display_name if job.contact else _('No Contact') }})">
+        <strong>#{{ job.job_number }}</strong> - {{ job.title }}
+        <br><small class="text-muted">{{ job.contact.display_name if job.contact else _("No Contact") }}</small>
+    </button>
+    {% endfor %}
+</div>
+<script nonce="{{ csp_nonce }}">
+document.getElementById('job-search-results').addEventListener('click', function(e) {
+    const btn = e.target.closest('.job-result');
+    if (btn) selectJob(parseInt(btn.dataset.jobId), btn.dataset.jobLabel);
+});
+</script>
+{% else %}
+<div class="text-muted small p-2">{{ _("No jobs found") }}</div>
+{% endif %}

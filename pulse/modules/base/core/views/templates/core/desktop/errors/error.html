@@ -1,0 +1,143 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ error_title }}{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQOne" class="error-logo">
+
+        <div class="error-code-badge">
+            <h1>{{ error_code }}</h1>
+        </div>
+
+        <h2>{{ error_title }}</h2>
+        <p class="error-message">{{ error_message }}</p>
+
+        {% if error_code == 500 %}
+        <div class="error-notified">
+            <i class="fas fa-check-circle"></i>
+            <span>{{ _("This issue has been reported to our development team and we are working to resolve it. Please try again shortly.") }}</span>
+        </div>
+        {% endif %}
+
+        {% if error_id %}
+        <div class="error-id">
+            <small class="text-muted">
+                {{ _("If the problem persists, please contact support and reference:") }}<br>
+                <code>{{ _("Error ID") }}: {{ error_id }}</code>
+            </small>
+        </div>
+        {% endif %}
+
+        <div class="error-actions">
+            <a href="{{ url_for('core_bp.index') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-home"></i> {{ _("Return Home") }}
+            </a>
+            <button data-action="go-back" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> {{ _("Go Back") }}
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action="go-back"]')) { window.history.back(); }
+});
+</script>
+{% endblock %}
+
+<style>
+.error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+}
+
+.error-content {
+    text-align: center;
+    max-width: 600px;
+}
+
+.error-logo {
+    max-width: 150px;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+}
+
+.error-code-badge {
+    display: inline-block;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+}
+
+.error-code-badge h1 {
+    color: var(--color-white);
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.error-content h2 {
+    font-size: 2rem;
+    color: var(--color-gray-900);
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    font-size: 1.1rem;
+    color: var(--color-gray-500);
+    margin-bottom: 2rem;
+}
+
+.error-notified {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-success-light);
+    border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    color: var(--color-success-dark);
+}
+
+.error-notified i {
+    color: var(--color-success);
+    margin-right: 6px;
+}
+
+.error-id {
+    background: var(--color-gray-100);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.error-id code {
+    background: var(--color-gray-200);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: var(--color-gray-600);
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.error-actions .btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+}
+</style>
+{% endblock %}

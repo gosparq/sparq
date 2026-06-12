@@ -1,0 +1,103 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{% if is_edit %}{{ _("Edit Request") }}{% else %}{{ _("New Leave Request") }}{% endif %}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{{ url_for('pto_bp.index') }}" class="btn btn-sm btn-light">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h5 class="mb-0">{% if is_edit %}{{ _("Edit Request") }}{% else %}{{ _("Request Time Off") }}{% endif %}</h5>
+</div>
+
+<form method="POST" action="{% if is_edit %}{{ url_for('pto_bp.edit_request', request_id=leave_request.id) }}{% else %}{{ url_for('pto_bp.new_request') }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="mobile-card">
+        <div class="mobile-card-body">
+            <!-- Leave Type -->
+            <div class="mb-3">
+                <label class="form-label">{{ _("Leave Type") }}</label>
+                <select name="leave_type" class="form-select" required>
+                    <option value="">{{ _("Select type...") }}</option>
+                    {% for type in leave_types %}
+                    <option value="{{ type.name }}" {% if leave_request and leave_request.leave_type == type %}selected{% endif %}>
+                        {{ type.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Date Range -->
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label">{{ _("Start Date") }}</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control" required
+                           value="{% if leave_request %}{{ leave_request.start_date.isoformat() }}{% endif %}"
+                           data-action="calculate-days">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">{{ _("End Date") }}</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control" required
+                           value="{% if leave_request %}{{ leave_request.end_date.isoformat() }}{% endif %}"
+                           data-action="calculate-days">
+                </div>
+            </div>
+
+            <!-- Calculated Days -->
+            <div class="mb-3 p-3 bg-light rounded" id="days-display" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">{{ _("Total Days") }}</span>
+                    <span class="fw-bold fs-5" id="total-days">0</span>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-3">
+                <label class="form-label">{{ _("Notes") }} <span class="text-muted small">({{ _("optional") }})</span></label>
+                <textarea name="employee_notes" class="form-control" rows="3"
+                          placeholder="{{ _('Add any notes for your manager...') }}">{% if leave_request %}{{ leave_request.employee_notes or '' }}{% endif %}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-grid gap-2 mt-4">
+        <button type="submit" name="action" value="submit" class="btn btn-primary btn-touch">
+            <i class="fas fa-paper-plane me-2"></i>{{ _("Submit Request") }}
+        </button>
+    </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+function calculateDays() {
+    const startInput = document.getElementById('start_date');
+    const endInput = document.getElementById('end_date');
+    const display = document.getElementById('days-display');
+    const totalSpan = document.getElementById('total-days');
+
+    if (startInput.value && endInput.value) {
+        const start = new Date(startInput.value);
+        const end = new Date(endInput.value);
+
+        if (end >= start) {
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            totalSpan.textContent = diffDays;
+            display.style.display = 'block';
+        } else {
+            display.style.display = 'none';
+        }
+    } else {
+        display.style.display = 'none';
+    }
+}
+
+// Initialize on load
+calculateDays();
+
+document.addEventListener('change', function(e) {
+    if (e.target.closest('[data-action="calculate-days"]')) calculateDays();
+});
+</script>
+{% endblock %}

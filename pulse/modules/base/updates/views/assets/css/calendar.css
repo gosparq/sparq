@@ -1,0 +1,598 @@
+/* Calendar Styles for Connect Module */
+
+.calendar-app {
+.calendar-day-num[hx-get],
+.calendar-day-content[hx-get],
+.calendar-day-column[hx-get],
+.day-events[hx-get],
+.day-events-list[hx-get] { cursor: pointer; }
+
+/* Calendar Color Variables */
+--calendar-color: var(--color-primary);
+--calendar-color-hover: var(--color-primary-dark);
+--calendar-color-light: var(--color-primary-lightest);
+--cal-pto: #8b5cf6;
+--cal-pto-dark: #5b21b6;
+--cal-action-item-dark: var(--color-warning-dark);
+--cal-holiday: var(--color-danger);
+--cal-holiday-dark: var(--color-danger-dark);
+--cal-today-tint: color-mix(in srgb, var(--color-primary) 5%, transparent);
+
+/* Calendar Container */
+#calendar-container {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Calendar Navigation */
+.calendar-nav {
+    width: 100%;
+    max-width: 100%;
+}
+
+.calendar-nav > .d-flex {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.calendar-nav .calendar-title {
+    min-width: 120px;
+    text-align: center;
+}
+
+/* Ensure buttons don't shrink too much */
+.calendar-nav .btn {
+    white-space: nowrap;
+}
+
+/* Allow calendar to be responsive - override base min-width */
+.calendar-app .content-card {
+    min-width: 800px;  /* Smaller than default 1100px for calendar */
+    padding: 1rem;
+}
+
+.calendar-app .content-wrapper {
+    min-width: 0;
+}
+
+/* Compact header for calendar page */
+.calendar-app .chat-header {
+    padding: 0.75rem 1rem;
+}
+
+.calendar-app .chat-header h2 {
+    font-size: 1.125rem;
+    margin: 0;
+}
+
+/* Compact navigation */
+.calendar-app .calendar-nav {
+    margin-bottom: 0.75rem;
+}
+
+/* ── Month View ──────────────────────────────────────────────────────── */
+
+.company-calendar-month {
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    width: 100%;
+}
+
+.calendar-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--color-gray-100);
+    border-bottom: 1px solid var(--color-gray-200);
+    width: 100%;
+}
+
+.calendar-header-cell {
+    padding: 0.375rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--color-gray-600);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.calendar-week-row {
+    border-bottom: 1px solid var(--color-gray-200);
+    width: 100%;
+    background: var(--color-white);
+}
+
+.calendar-week-row:last-child {
+    border-bottom: none;
+}
+
+/* Row 1: Day numbers — 7-column grid */
+.calendar-day-numbers {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+}
+
+.calendar-day-num {
+    padding: 0.25rem 0.375rem;
+    border-right: 1px solid var(--color-gray-200);
+    background: var(--color-white);
+}
+
+.calendar-day-num:last-child {
+    border-right: none;
+}
+
+.calendar-day-num.other-month {
+    background: var(--color-gray-50);
+}
+
+.calendar-day-num.other-month .day-number {
+    color: var(--color-gray-400);
+}
+
+.calendar-day-num.today {
+    background: var(--cal-today-tint);
+}
+
+.calendar-day-num.today .day-number {
+    background: var(--calendar-color);
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.day-number {
+    font-weight: 600;
+    font-size: 0.8rem;
+    line-height: 1;
+}
+
+/* Row 2: Spanning bars layer — same 7-column alignment */
+.calendar-spanning-layer {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 20px;
+    gap: 2px 0;
+    padding: 2px 0;
+}
+
+/* Background cells that match day column colors behind spanning bars */
+.spanning-bg {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.spanning-bg-cell {
+    background: var(--color-white);
+    border-right: 1px solid var(--color-gray-200);
+}
+
+.spanning-bg-cell:last-child {
+    border-right: none;
+}
+
+.spanning-bg-cell.other-month {
+    background: var(--color-gray-50);
+}
+
+.spanning-bg-cell.today {
+    background: var(--cal-today-tint);
+}
+
+/* Row 3: Day event cells — 7-column grid */
+.calendar-day-events-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+}
+
+.calendar-day-content {
+    min-height: 40px;
+    min-width: 0;
+    padding: 0.125rem 0.25rem 0.25rem;
+    border-right: 1px solid var(--color-gray-200);
+    background: var(--color-white);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.calendar-day-content:last-child {
+    border-right: none;
+}
+
+.calendar-day-content.other-month {
+    background: var(--color-gray-50);
+}
+
+.calendar-day-content.today {
+    background: var(--cal-today-tint);
+}
+
+.day-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.calendar-event {
+    background: color-mix(in srgb, var(--color-primary) 15%, var(--color-white));
+    border-left: 3px solid var(--calendar-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s;
+    color: var(--calendar-color-hover);
+}
+
+.calendar-event:hover {
+    background: color-mix(in srgb, var(--color-primary) 25%, var(--color-white));
+}
+
+.calendar-event.cal-holiday {
+    background: color-mix(in srgb, var(--cal-holiday) 12%, var(--color-white));
+    border-left-color: var(--cal-holiday);
+    color: var(--cal-holiday-dark);
+}
+
+.calendar-event.cal-holiday:hover {
+    background: color-mix(in srgb, var(--cal-holiday) 22%, var(--color-white));
+}
+
+.calendar-event-card.cal-holiday {
+    background: color-mix(in srgb, var(--cal-holiday) 8%, transparent);
+    border-left-color: var(--cal-holiday);
+}
+
+.calendar-event-card.cal-holiday .event-time {
+    color: var(--cal-holiday);
+}
+
+.more-events {
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+    padding: 0.125rem 0.5rem;
+}
+
+/* ── Spanning Bar Styles ─────────────────────────────────────────────── */
+
+.calendar-spanning-bar {
+    position: relative;
+    z-index: 1;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 2px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 3px;
+    cursor: pointer;
+    line-height: 1.4;
+    text-decoration: none;
+    display: block;
+    transition: opacity 0.15s;
+}
+
+.calendar-spanning-bar:hover {
+    opacity: 0.8;
+}
+
+/* PTO bars — purple */
+.calendar-spanning-bar.cal-pto {
+    background: color-mix(in srgb, var(--cal-pto) 20%, transparent);
+    color: var(--cal-pto-dark);
+    border-left: 3px solid var(--cal-pto);
+}
+
+/* Continuation styling — flatten the end that continues */
+.calendar-spanning-bar.continues-left {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+    padding-left: 4px;
+}
+
+.calendar-spanning-bar.continues-right {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-right: 4px;
+}
+
+/* ── Task Pills ───────────────────────────────────────────────── */
+
+.cal-action-item {
+    background: color-mix(in srgb, var(--color-warning) 15%, var(--color-white));
+    border-left: 3px solid var(--color-warning);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--cal-action-item-dark);
+    text-decoration: none;
+    display: block;
+    transition: all 0.2s;
+}
+
+.cal-action-item:hover {
+    background: color-mix(in srgb, var(--color-warning) 25%, var(--color-white));
+    color: var(--cal-action-item-dark);
+    text-decoration: none;
+}
+
+
+/* Week view action item — more detail */
+.cal-action-item--week {
+    white-space: normal;
+    margin-bottom: 0.5rem;
+}
+
+.cal-action-item-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.cal-action-item-assignee {
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+    margin-top: 0.125rem;
+}
+
+/* Day view action item card */
+.calendar-event-card.cal-action-item-card {
+    background: color-mix(in srgb, var(--color-warning) 10%, var(--color-white));
+    border-left-color: var(--color-warning);
+    text-decoration: none;
+    display: block;
+    color: inherit;
+}
+
+.calendar-event-card.cal-action-item-card:hover {
+    background: color-mix(in srgb, var(--color-warning) 15%, var(--color-white));
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ── Week View ───────────────────────────────────────────────────────── */
+
+.company-calendar-week {
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    width: 100%;
+    background: var(--color-white);
+}
+
+/* Row 1: Day headers */
+.calendar-week-headers {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--color-gray-100);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.week-header-cell {
+    padding: 0.375rem;
+    text-align: center;
+    border-right: 1px solid var(--color-gray-200);
+}
+
+.week-header-cell:last-child {
+    border-right: none;
+}
+
+.week-header-cell.today {
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-white));
+}
+
+.week-header-cell.today .day-number {
+    background: var(--calendar-color);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.week-header-cell .day-name {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+}
+
+.week-header-cell .day-number {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Row 2: Spanning bars for week view */
+.calendar-spanning-layer--week {
+    padding: 2px 0;
+}
+
+/* Row 3: Day event columns */
+.calendar-week-columns {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-day-column {
+    min-width: 0;
+    min-height: 180px;
+    border-right: 1px solid var(--color-gray-200);
+    background: var(--color-white);
+}
+
+.calendar-day-column:last-child {
+    border-right: none;
+}
+
+.calendar-day-column.today {
+    background: var(--cal-today-tint);
+}
+
+.calendar-day-column .day-events {
+    padding: 0.375rem;
+}
+
+.calendar-day-column .day-events--clickable {
+    min-height: 200px;
+}
+
+.calendar-day-column .calendar-event {
+    margin-bottom: 0.375rem;
+    white-space: normal;
+}
+
+.calendar-day-column .event-time {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--calendar-color);
+}
+
+.calendar-day-column .event-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.calendar-day-column .event-location {
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+    margin-top: 0.125rem;
+}
+
+/* ── Day View ────────────────────────────────────────────────────────── */
+
+.company-calendar-day {
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.5rem;
+    background: var(--color-white);
+    min-height: 400px;
+}
+
+/* Day banners — active spanning entries shown as full-width bars */
+.calendar-day-banners {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.calendar-day-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+
+.calendar-day-banner:hover {
+    opacity: 0.8;
+    text-decoration: none;
+}
+
+.calendar-day-banner.cal-pto {
+    background: color-mix(in srgb, var(--cal-pto) 15%, transparent);
+    color: var(--cal-pto-dark);
+    border-left: 3px solid var(--cal-pto);
+}
+
+.calendar-day-banner-label {
+    font-weight: 500;
+}
+
+.calendar-day-banner-dates {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.day-events-list {
+    padding: 1rem;
+}
+
+.day-events-list--clickable {
+    min-height: 300px;
+}
+
+.calendar-event-card {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    border-left: 4px solid var(--calendar-color);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calendar-event-card:hover {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    transform: translateX(4px);
+}
+
+.calendar-event-card .event-time {
+    font-size: 0.85rem;
+    color: var(--calendar-color);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.calendar-event-card .event-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+.calendar-event-card .event-location {
+    font-size: 0.85rem;
+    color: var(--color-gray-500);
+    margin-top: 0.25rem;
+}
+
+.no-events {
+    color: var(--color-gray-400);
+}
+
+} /* end .calendar-app */
+
+/* ── Dark Mode ──────────────────────────────────────────────────────── */
+
+body.dark .calendar-nav .calendar-title {
+    color: var(--color-gray-800);
+}
+body.dark .calendar-nav .btn {
+    color: var(--color-gray-700);
+    border-color: var(--color-gray-300);
+}
+body.dark .calendar-nav .btn:hover {
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-200);
+    border-color: var(--color-gray-400);
+}
+

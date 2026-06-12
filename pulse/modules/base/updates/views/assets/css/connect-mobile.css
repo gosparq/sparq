@@ -1,0 +1,300 @@
+/* ============================================
+   Connect Module — Mobile styles
+   Loaded by: updates/mobile/layout.html
+   ============================================ */
+
+/* ── Momentum Mobile ── */
+.pulse-mobile-page {
+    padding: 1rem;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+.pulse-mobile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.pulse-mobile-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.pulse-mobile-back {
+    font-size: 0.8125rem;
+    color: var(--color-gray-500);
+    text-decoration: none;
+}
+
+.pulse-mobile-detail-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.pulse-mobile-summary {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.pulse-mobile-stat {
+    flex-shrink: 0;
+    min-width: 72px;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+}
+
+.pulse-mobile-stat-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray-400);
+    margin-bottom: 0.125rem;
+}
+
+.pulse-mobile-stat-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+}
+
+.pulse-mobile-stat-fraction {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--color-gray-400);
+    display: block;
+}
+
+.pulse-mobile-member {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.625rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pulse-mobile-member:active { opacity: 0.7; }
+
+.pulse-mobile-member-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pulse-mobile-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}
+
+.pulse-mobile-member-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-gray-800);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pulse-mobile-chevron {
+    font-size: 0.5rem;
+    color: var(--color-gray-400);
+    flex-shrink: 0;
+}
+
+.pulse-mobile-member-bars {
+    margin-top: 0.5rem;
+    padding-left: 2.25rem;
+}
+
+.pulse-mobile-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.pulse-mobile-bar-label {
+    font-size: 0.65rem;
+    color: var(--color-gray-500);
+    width: 60px;
+    flex-shrink: 0;
+}
+
+.pulse-mobile-progress {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-gray-100);
+}
+
+.pulse-mobile-bar-pct {
+    font-size: 0.7rem;
+    font-weight: 600;
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Nudge history stacked cards */
+.pulse-mobile-history-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.625rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.pulse-mobile-history-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.pulse-mobile-history-date {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-gray-800);
+}
+
+.pulse-mobile-history-time {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+}
+
+.pulse-mobile-history-template {
+    font-size: 0.8125rem;
+    color: var(--color-gray-700);
+    margin-bottom: 0.375rem;
+}
+
+.pulse-mobile-history-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ── Wins Mobile ── */
+.wins-mobile-page {
+    padding: 1rem;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+.wins-mobile-header { margin-bottom: 0.75rem; }
+
+.wins-mobile-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.wins-mobile-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-left: 3px solid var(--color-warning);
+    border-radius: 0.625rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.wins-mobile-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.wins-mobile-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}
+
+.wins-mobile-card-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.wins-mobile-author {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wins-mobile-date {
+    font-size: 0.7rem;
+    color: var(--color-gray-500);
+}
+
+.wins-mobile-text {
+    font-size: 0.875rem;
+    color: var(--color-gray-700);
+    margin: 0 0 0.25rem;
+    line-height: 1.4;
+}
+
+.wins-mobile-list {
+    font-size: 0.875rem;
+    color: var(--color-gray-700);
+    margin: 0 0 0.25rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+}
+
+.wins-mobile-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.375rem;
+}
+
+/* ── Dark Mode ── */
+body.dark .pulse-mobile-stat {
+    background: #1e1e22;
+    border-color: rgba(255, 255, 255, 0.07);
+}
+body.dark .pulse-mobile-stat-value { color: #e8e8ea; }
+
+body.dark .pulse-mobile-member {
+    background: #1e1e22;
+    border-color: rgba(255, 255, 255, 0.07);
+}
+body.dark .pulse-mobile-member-name { color: #e8e8ea; }
+
+body.dark .pulse-mobile-history-card {
+    background: #1e1e22;
+    border-color: rgba(255, 255, 255, 0.07);
+}
+body.dark .pulse-mobile-history-date { color: #e8e8ea; }
+
+body.dark .wins-mobile-card {
+    background: #1e1e22;
+    border-color: rgba(255, 255, 255, 0.07);
+    border-left-color: var(--color-warning);
+}
+body.dark .wins-mobile-author { color: #e8e8ea; }
+body.dark .wins-mobile-text { color: #b0b0b8; }

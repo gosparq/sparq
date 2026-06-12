@@ -1,0 +1,114 @@
+<div class="step-header mb-4">
+    {% if current_task.task_key == 'w4' %}
+    <h4><i class="fas fa-file-invoice-dollar me-2"></i>{{ _("W-4 Tax Form") }}</h4>
+    <p class="text-muted">{{ _("Download, complete, and upload your W-4 Employee's Withholding Certificate.") }}</p>
+    {% else %}
+    <h4><i class="fas fa-file-invoice-dollar me-2"></i>{{ _("W-9 Tax Form") }}</h4>
+    <p class="text-muted">{{ _("Download, complete, and upload your W-9 Request for Taxpayer Identification Number.") }}</p>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="mb-3">{{ _("Step 1: Download the Form") }}</h6>
+        <p class="text-muted small">
+            {% if current_task.task_key == 'w4' %}
+            {{ _("Download the official IRS W-4 form. You can fill it out digitally or print and complete by hand.") }}
+            {% else %}
+            {{ _("Download the official IRS W-9 form. You can fill it out digitally or print and complete by hand.") }}
+            {% endif %}
+        </p>
+        {% if current_task.task_key == 'w4' %}
+        <a href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank" class="btn btn-sm btn-primary">
+            <i class="fas fa-download me-2"></i>{{ _("Download W-4 Form (PDF)") }}
+            <i class="fas fa-external-link-alt ms-1 small"></i>
+        </a>
+        {% else %}
+        <a href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" target="_blank" class="btn btn-sm btn-primary">
+            <i class="fas fa-download me-2"></i>{{ _("Download W-9 Form (PDF)") }}
+            <i class="fas fa-external-link-alt ms-1 small"></i>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="mb-3">{{ _("Step 2: Upload Your Completed Form") }}</h6>
+        <p class="text-muted small">
+            {{ _("Once you've completed the form, scan or photograph it and upload it here.") }}
+        </p>
+
+        <form id="tax-form-upload" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label">{{ _("Select File") }} <span class="text-danger">*</span></label>
+                <input type="file" class="form-control" name="tax_form" id="tax_form_file"
+                       accept=".pdf,.jpg,.jpeg,.png" required>
+                <div class="form-text">{{ _("Accepted formats: PDF, JPG, PNG. Max size: 10MB") }}</div>
+            </div>
+
+            {% if record.tax_form_attachment_id %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ _("A tax form has already been uploaded.") }}
+                <a href="#" class="alert-link">{{ _("View uploaded file") }}</a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<hr class="my-4">
+
+<div class="d-flex justify-content-between">
+    {% if not current_task.required %}
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="skip-task" data-task-key="{{ current_task.task_key }}">
+        <i class="fas fa-forward me-2"></i>{{ _("Skip for Now") }}
+    </button>
+    {% else %}
+    <div></div>
+    {% endif %}
+    <button type="button" class="btn btn-sm btn-primary" data-action="upload-tax-form">
+        <i class="fas fa-upload me-2"></i>{{ _("Upload & Continue") }}
+    </button>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function uploadTaxForm() {
+    const fileInput = document.getElementById('tax_form_file');
+    if (!fileInput.files.length) {
+        alert('{{ _("Please select a file to upload.") }}');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('tax_form', fileInput.files[0]);
+    formData.append('task_key', '{{ current_task.task_key }}');
+
+    fetch('{{ url_for("people_bp.onboarding_save_step") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateProgress(data.progress);
+            window.location.reload();
+        } else {
+            alert(data.error || '{{ _("Error uploading file. Please try again.") }}');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('{{ _("Error uploading file. Please try again.") }}');
+    });
+}
+
+// Event delegation
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-action="upload-tax-form"]');
+    if (el) { uploadTaxForm(); }
+    var skip = e.target.closest('[data-action="skip-task"]');
+    if (skip) { skipTask(skip.dataset.taskKey); }
+});
+</script>

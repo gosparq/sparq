@@ -1,0 +1,4 @@
+<option value="">{{ _("None") }}</option>
+{% for sub in subcategories %}
+<option value="{{ sub.id }}" {% if selected_id == sub.id %}selected{% endif %}>{{ sub.name }}</option>
+{% endfor %}

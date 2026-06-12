@@ -1,0 +1,67 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Change Repository") }}{% endblock %}
+{% block page_icon %}<i class="fa-brands fa-github"></i>{% endblock %}
+{% block page_title_display %}{{ _("Change Repository") }}{% endblock %}
+{% block page_description %}
+<p class="text-muted">{{ _("Switch the connected GitHub repository") }}</p>
+{% endblock %}
+
+{% block settings_back %}
+<a href="{{ url_for('github_bp.github_settings') }}" class="d-inline-flex align-items-center gap-1 text-muted mb-3 text-decoration-none text-base">
+    <i class="fas fa-arrow-left text-xs"></i> {{ _("Back") }}
+</a>
+{% endblock %}
+
+{% block settings_content %}
+<div style="max-width:480px;" class="d-flex flex-column gap-3">
+
+    <div class="text-muted text-sm">
+        {{ _("Current:") }} <span class="fw-medium" style="color:var(--color-gray-800);">{{ connection.external_repo }}</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('github_bp.github_change_repo') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="mb-3">
+            <label for="repo-input" class="form-label">{{ _("Repository") }}</label>
+
+            {% if connection.auth_type == 'app' %}
+                {% if repos %}
+                <select id="repo-input" name="repo" class="form-select" required>
+                    <option value="" disabled>— {{ _("Select a repository") }} —</option>
+                    {% for repo in repos %}
+                    <option value="{{ repo.full_name }}" {% if repo.full_name == connection.external_repo %}selected{% endif %}>
+                        {{ repo.full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <p class="text-muted mb-0 text-base">
+                    {{ _("No repositories found for this installation. Install the GitHub App on a repository first, then try again.") }}
+                </p>
+                {% endif %}
+            {% else %}
+            <input id="repo-input" type="text" name="repo" class="form-control"
+                   placeholder="owner/repo" value="{{ connection.external_repo }}" required>
+            <div class="form-text">{{ _("Enter the full repository name, e.g. acme/my-repo") }}</div>
+            {% endif %}
+        </div>
+
+        {% if connection.auth_type != 'app' or repos %}
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-dark btn-sm">
+                {{ _("Update repository") }}
+            </button>
+            <a href="{{ url_for('github_bp.github_settings') }}" class="btn btn-sm btn-outline-secondary">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+        {% else %}
+        <a href="{{ url_for('github_bp.github_settings') }}" class="btn btn-sm btn-outline-secondary">
+            {{ _("Back to settings") }}
+        </a>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

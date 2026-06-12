@@ -1,0 +1,49 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Login") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        {% if company_name %}
+            <h1 class="company-name">{{ company_name }}</h1>
+        {% else %}
+            <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+        {% endif %}
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Login") }}</h2>
+
+        {% if debug_mode and magic_link_url %}
+        <p class="text-muted mb-3 text-center text-sm">{{ _("Logging in as") }} <strong>{{ demo_email }}</strong></p>
+        <div class="mb-3 p-2 bg-light rounded text-sm" style="word-break: break-all">
+            <a href="{{ magic_link_url }}">{{ magic_link_url }}</a>
+        </div>
+        {% else %}
+
+        {% include "core/desktop/auth/_oauth_buttons.html" %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">{{ _("Email") }}</label>
+                <input type="email" class="form-control" id="email" name="email" required autofocus>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-paper-plane me-2"></i> {{ _("Send Email Link") }}
+            </button>
+        </form>
+
+        <p class="text-muted mt-3 text-center text-sm">
+            {{ _("We'll send you an email link to sign in — no password needed.") }}
+        </p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">Powered by <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a><br><span class="version-text">{{ sparq_display_version }}</span></small>
+{% endblock %}

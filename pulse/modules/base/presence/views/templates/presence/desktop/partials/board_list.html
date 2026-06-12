@@ -1,0 +1,109 @@
+<div class="row g-3">
+    {% for item in members %}
+    <div class="col-md-6 col-lg-4 col-xl-3">
+        <div class="card board-card h-100 position-relative {% if item.is_clocked_in %}clocked-in{% endif %}">
+            {% if current_user.is_admin and item.is_clocked_in %}
+            <div class="position-absolute edit-clock-btn d-flex gap-1"
+                 style="top: 4px; right: 4px; opacity: 0; transition: opacity 0.15s; z-index: 10;">
+                <button class="btn btn-sm btn-link p-0"
+                        hx-get="{{ url_for('board_bp.edit_clock_in_modal', member_id=item.member.id) }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML"
+                        title="{{ _('Edit clock-in time') }}">
+                    <i class="fas fa-edit text-primary"></i>
+                </button>
+                <button class="btn btn-sm btn-link p-0"
+                        hx-post="{{ url_for('board_bp.buddy_clock_out', member_id=item.member.id) }}"
+                        hx-target="#board-list"
+                        hx-swap="innerHTML"
+                        hx-confirm="{{ _('Clock out') }} {{ item.member.user.full_name }}?"
+                        title="{{ _('Clock out employee') }}">
+                    <i class="fas fa-stop text-danger"></i>
+                </button>
+            </div>
+            {% elif current_user.is_admin and not item.is_clocked_in %}
+            <button class="btn btn-sm btn-link position-absolute edit-clock-btn"
+                    style="top: 4px; right: 4px; opacity: 0; transition: opacity 0.15s; z-index: 10;"
+                    hx-post="{{ url_for('board_bp.buddy_punch', member_id=item.member.id) }}"
+                    hx-target="#board-list"
+                    hx-swap="innerHTML"
+                    title="{{ _('Clock in employee') }}">
+                <i class="fas fa-play text-success"></i>
+            </button>
+            {% endif %}
+            <div class="card-body d-flex align-items-center py-3">
+                <div class="me-3">
+                    {% if item.member.user and item.member.user.avatar_url %}
+                    <img src="{{ item.member.user.avatar_url }}" alt="" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 40px; height: 40px; background: {% if item.is_clocked_in %}var(--color-primary){% else %}var(--color-gray-400){% endif %};">
+                        <span class="fw-semibold text-sm">{{ item.member.user.first_name[0] if item.member.user and item.member.user.first_name else '?' }}{{ item.member.user.last_name[0] if item.member.user and item.member.user.last_name else '' }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold text-base">{{ item.member.user.full_name if item.member.user else 'Unknown' }}</div>
+                    {% if item.is_clocked_in %}
+                    <small class="text-success text-sm">
+                        <i class="fas fa-circle fa-beat me-1" style="font-size: 0.4rem; vertical-align: middle;"></i>{{ _("In") }}
+                        <span class="text-muted ms-1">{{ item.clock_in_time|format_datetime("%I:%M %p") }}</span>
+                        <span class="text-muted">({{ item.elapsed_str }})</span>
+                        {% if item.outside_geofence %}
+                        <span class="badge bg-warning ms-1 text-3xs" title="{{ _('Clocked in outside geofence') }}">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </span>
+                        {% endif %}
+                    </small>
+                    {% else %}
+                    <small class="text-muted text-sm">
+                        <i class="fas fa-circle me-1" style="font-size: 0.4rem; vertical-align: middle; color: var(--color-gray-300);"></i>{{ _("Out") }}
+                    </small>
+                    {% endif %}
+
+                    {% if today is defined and forecasts is defined %}
+                    {% set today_fc = forecasts.get(item.member.id, {}).get(today) %}
+                    {% if today_fc %}
+                    <div class="mt-1">
+                        {% if today_fc.status == 'in' %}{% set fc_label = _('In Office') %}
+                        {% elif today_fc.status == 'remote' %}{% set fc_label = _('Working Remotely') %}
+                        {% elif today_fc.status == 'out' %}{% set fc_label = _('Out') %}
+                        {% elif today_fc.status == 'pto' %}{% set fc_label = _('Time Off') %}
+                        {% else %}{% set fc_label = today_fc.status %}{% endif %}
+                        <span class="fc-badge" data-status="{{ today_fc.status }}">
+                            {% if today_fc.available_from and today_fc.available_until %}
+                            <span class="fc-badge-time">{{ today_fc.available_from.strftime('%-I%p').lower() }}–{{ today_fc.available_until.strftime('%-I%p').lower() }}</span>
+                            {% endif %}
+                            {{ fc_label }}
+                        </span>
+                        {% if today_fc.note %}
+                        <div class="text-muted fst-italic mt-1 text-xs">{{ today_fc.note }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-users fa-2x mb-3 d-block opacity-25"></i>
+            <p>{{ _("No employees found") }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Summary -->
+{% set clocked_in_count = members | selectattr('is_clocked_in') | list | length %}
+<div class="d-flex align-items-center gap-3 mt-4 pt-3" style="border-top: 1px solid var(--color-gray-200);">
+    <span class="text-muted small">{{ clocked_in_count + (members | length - clocked_in_count) }} {{ _("team members") }}</span>
+    <span class="badge bg-success">{{ clocked_in_count }} {{ _("In") }}</span>
+    <span class="badge bg-secondary">{{ members | length - clocked_in_count }} {{ _("Out") }}</span>
+</div>
+
+{% if forecast_dates is defined %}
+{% include "presence/desktop/partials/_forecast_board.html" %}
+{% endif %}

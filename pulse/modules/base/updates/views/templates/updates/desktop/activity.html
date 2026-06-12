@@ -1,0 +1,78 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Activity") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">
+                <i class="fas fa-bolt text-sm sync-text-subtle"></i>
+                {{ _("Activity") }}
+            </h2>
+            <span class="text-muted text-sm">{{ _("Webhook and integration activity") }}</span>
+        </div>
+    </div>
+
+    {# ── Activity Feed ── #}
+    {% if posts %}
+    <div class="activity-feed">
+        {% for post in posts %}
+        <div class="card mb-2 sync-card">
+            <div class="card-body py-3 px-4">
+                <div class="d-flex align-items-start gap-3">
+                    {# Webhook icon #}
+                    <div class="flex-shrink-0">
+                        <span class="avatar-circle text-sm" style="width:36px; height:36px; background:var(--color-gray-200); color:var(--color-gray-500)">
+                            <i class="fas fa-plug text-xs"></i>
+                        </span>
+                    </div>
+
+                    {# Content #}
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                            {% set webhook_username = (post.payload or {}).get('webhook_username', _('Webhook')) %}
+                            <span class="fw-semibold text-base">{{ webhook_username }}</span>
+                            <span class="badge text-3xs sync-chip">
+                                <i class="fas fa-plug text-icon"></i> {{ _("Integration") }}
+                            </span>
+                            {% if post.channel %}
+                            <a href="{{ url_for('updates_bp.channel_feed', slug=post.channel.name) }}" class="badge text-decoration-none text-3xs sync-chip">
+                                <i class="fas fa-hashtag text-icon"></i> {{ post.channel.name }}
+                            </a>
+                            {% endif %}
+                            <span class="text-muted ms-auto text-sm">{{ post.created_at|format_datetime('%b %d, %I:%M %p') }}</span>
+                        </div>
+
+                        {# Render payload content #}
+                        {% for key, val in (post.payload or {}).items() %}
+                            {% if key not in ('webhook_id', 'webhook_username', '_bumped_from') and val %}
+                            <p class="mb-1 text-base" style="color:var(--color-gray-700)">{{ val|urlize(target="_blank") }}</p>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if has_more %}
+    <div class="text-center mt-3">
+        <a href="{{ url_for('updates_bp.activity', offset=next_offset) }}"
+           class="btn btn-sm btn-outline-secondary">
+            {{ _("Load more") }}
+        </a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-plug" style="font-size:2rem;color:var(--color-gray-300);"></i>
+        <p class="text-muted mt-2">{{ _("No activity from integrations yet.") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

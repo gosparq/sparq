@@ -1,0 +1,109 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Admin Edit - Leave Request") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{{ url_for('pto_bp.detail', request_id=leave_request.id) }}" class="text-muted text-decoration-none mb-2 d-inline-block text-sm">
+                <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Details") }}
+            </a>
+            <h2 class="content-heading">{{ _("Admin Edit") }}</h2>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mb-3 text-sm" style="padding:0.5rem 0.75rem; background:var(--color-gray-50); border:1px solid var(--color-gray-200); border-radius:0.5rem">
+        <i class="fas fa-exclamation-triangle text-warning"></i>
+        {{ _("Admin override mode - changes will be applied directly without employee approval.") }}
+    </div>
+
+    <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+            <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ _("Edit Request for") }} {{ leave_request.member.user.first_name }} {{ leave_request.member.user.last_name }}</span>
+        </div>
+        <div style="padding:1rem;">
+            <form method="POST" x-data="{
+                startDate: '{{ leave_request.start_date.isoformat() }}',
+                endDate: '{{ leave_request.end_date.isoformat() }}',
+                get totalDays() {
+                    if (!this.startDate || !this.endDate) return 0;
+                    const start = new Date(this.startDate);
+                    const end = new Date(this.endDate);
+                    const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                    return diff > 0 ? diff : 0;
+                }
+            }">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="row g-3">
+                    <!-- Status -->
+                    <div class="col-md-6">
+                        <label class="form-label" for="status">{{ _("Status") }} <span class="text-danger">*</span></label>
+                        <select name="status" id="status" class="form-select" required>
+                            {% for s in statuses %}
+                            <option value="{{ s.name }}" {% if leave_request.status == s %}selected{% endif %}>
+                                {{ s.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Leave Type -->
+                    <div class="col-md-6">
+                        <label class="form-label" for="leave_type">{{ _("Type") }} <span class="text-danger">*</span></label>
+                        <select name="leave_type" id="leave_type" class="form-select" required>
+                            {% for lt in leave_types %}
+                            <option value="{{ lt.name }}" {% if leave_request.leave_type == lt %}selected{% endif %}>
+                                {{ lt.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Start Date -->
+                    <div class="col-md-4">
+                        <label class="form-label" for="start_date">{{ _("Start Date") }} <span class="text-danger">*</span></label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" required
+                               x-model="startDate"
+                               value="{{ leave_request.start_date.isoformat() }}">
+                    </div>
+
+                    <!-- End Date -->
+                    <div class="col-md-4">
+                        <label class="form-label" for="end_date">{{ _("End Date") }} <span class="text-danger">*</span></label>
+                        <input type="date" name="end_date" id="end_date" class="form-control" required
+                               x-model="endDate"
+                               :min="startDate"
+                               value="{{ leave_request.end_date.isoformat() }}">
+                    </div>
+
+                    <!-- Total Days Display -->
+                    <div class="col-md-4">
+                        <label class="form-label">{{ _("Total Days") }}</label>
+                        <div class="form-control-plaintext">
+                            <span class="badge bg-primary fs-6" x-text="totalDays + ' days'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="col-12">
+                        <label class="form-label" for="employee_notes">{{ _("Employee Notes") }}</label>
+                        <textarea name="employee_notes" id="employee_notes" class="form-control" rows="3">{{ leave_request.employee_notes or '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{{ url_for('pto_bp.detail', request_id=leave_request.id) }}" class="btn btn-sm btn-outline-secondary">
+                        {{ _("Cancel") }}
+                    </a>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>{{ _("Save Changes") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

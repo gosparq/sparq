@@ -1,0 +1,78 @@
+<!-- Export Payroll Modal -->
+<div class="modal fade show" tabindex="-1" style="display: block;">
+    <div class="modal-dialog">
+        <div class="modal-content"
+             x-data="{
+                 preset: 'last_2w',
+                 format: 'excel',
+                 startDate: '',
+                 endDate: '',
+                 get isValid() {
+                     if (this.preset !== 'custom') return true;
+                     return this.startDate && this.endDate && this.endDate >= this.startDate;
+                 }
+             }">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-export me-2"></i>{{ _("Export Payroll") }}
+                </h5>
+                <button type="button" class="btn-close"
+                        hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML"></button>
+            </div>
+            <form method="GET" action="{{ url_for('presence_bp.export_payroll') }}">
+                <div class="modal-body">
+                    <!-- Period -->
+                    <label class="form-label fw-semibold" for="presetSelect">{{ _("Period") }}</label>
+                    <select class="form-select" name="preset" id="presetSelect" x-model="preset">
+                        {% for p in presets %}
+                        <option value="{{ p.value }}">{{ p.label }} ({{ p.dates }})</option>
+                        {% endfor %}
+                        <option value="custom">{{ _("Custom Range") }}</option>
+                    </select>
+
+                    <!-- Custom date range (shown only when Custom is selected) -->
+                    <template x-if="preset === 'custom'">
+                        <div class="mt-2">
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="date" name="start_date" class="form-control form-control-sm"
+                                       x-model="startDate">
+                                <span class="text-muted">{{ _("to") }}</span>
+                                <input type="date" name="end_date" class="form-control form-control-sm"
+                                       x-model="endDate" :min="startDate">
+                            </div>
+                            <div class="text-danger small mt-1"
+                                 x-show="startDate && endDate && endDate < startDate">
+                                {{ _("End date must be after start date.") }}
+                            </div>
+                        </div>
+                    </template>
+
+                    <hr class="my-3">
+
+                    <!-- Format -->
+                    <label class="form-label fw-semibold">{{ _("Format") }}</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="format" id="formatCsv" value="csv" x-model="format">
+                        <label class="btn btn-sm btn-outline-secondary" for="formatCsv">CSV</label>
+                        <input type="radio" class="btn-check" name="format" id="formatExcel" value="excel" x-model="format">
+                        <label class="btn btn-sm btn-outline-secondary" for="formatExcel">Excel</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            hx-get="{{ url_for('presence_bp.clear_punch_modal') }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        {{ _("Cancel") }}
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary" :disabled="!isValid">
+                        <i class="fas fa-download me-1"></i>{{ _("Download") }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>

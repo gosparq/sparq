@@ -1,0 +1,282 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("Leave Request Details") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{{ url_for('pto_bp.index') }}" class="text-muted text-decoration-none mb-2 d-inline-block text-sm">
+                <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Requests") }}
+            </a>
+            <h2 class="content-heading">{{ _("Leave Request") }}</h2>
+        </div>
+        <span class="badge {{ leave_request.status_badge_class }} text-xs">{{ leave_request.status.value }}</span>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Details Card -->
+        <div class="col-md-8">
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;">
+                <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ _("Request Details") }}</span>
+                </div>
+                <div style="padding:1rem;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">{{ _("Person") }}</label>
+                            <div class="fw-bold">{{ leave_request.member.user.first_name }} {{ leave_request.member.user.last_name }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">{{ _("Leave Type") }}</label>
+                            <div class="fw-bold">{{ leave_request.leave_type.value }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">{{ _("Start Date") }}</label>
+                            <div class="fw-bold">{{ leave_request.start_date.strftime('%B %d, %Y') }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">{{ _("End Date") }}</label>
+                            <div class="fw-bold">{{ leave_request.end_date.strftime('%B %d, %Y') }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">{{ _("Total Days") }}</label>
+                            <div class="fw-bold">{{ leave_request.total_days }} {{ _("day") if leave_request.total_days == 1 else _("days") }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">{{ _("Submitted") }}</label>
+                            <div class="fw-bold">
+                                {% if leave_request.submitted_at %}
+                                {{ leave_request.submitted_at|format_datetime('%B %d, %Y at %I:%M %p') }}
+                                {% else %}
+                                <span class="text-muted">{{ _("Not yet submitted") }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if leave_request.employee_notes %}
+                    <hr>
+                    <div>
+                        <label class="text-muted small">{{ _("Employee Notes") }}</label>
+                        <div class="mt-1">{{ leave_request.employee_notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Admin Notes Card -->
+            {% if leave_request.admin_notes %}
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;margin-top:0.75rem;">
+                <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-700)"><i class="fas fa-comment-dots me-2"></i>{{ _("Admin Feedback") }}</span>
+                </div>
+                <div style="padding:1rem;">
+                    <div class="text-base">{{ leave_request.admin_notes }}</div>
+                    {% if leave_request.reviewed_by %}
+                    <div class="text-muted small mt-2">
+                        {{ _("From") }} {{ leave_request.reviewed_by.first_name }} {{ leave_request.reviewed_by.last_name }}
+                        {{ _("on") }} {{ leave_request.reviewed_at|format_datetime('%B %d, %Y') }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions Sidebar -->
+        <div class="col-md-4">
+            <!-- Person Actions -->
+            {% if is_owner and (leave_request.is_editable_by_member or leave_request.can_cancel) %}
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;margin-bottom:0.75rem;">
+                <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ _("Actions") }}</span>
+                </div>
+                <div style="padding:1rem;">
+                    {% if leave_request.is_editable_by_member %}
+                    <button class="btn btn-sm btn-primary w-100 mb-2"
+                            hx-get="{{ url_for('pto_bp.edit_request_modal', request_id=leave_request.id) }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        <i class="fas fa-edit me-1"></i>{{ _("Edit Request") }}
+                    </button>
+                    {% endif %}
+                    {% if leave_request.status.name == 'DRAFT' %}
+                    <form method="POST" action="{{ url_for('pto_bp.submit_request', request_id=leave_request.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-primary w-100 mb-2">
+                            <i class="fas fa-paper-plane me-1"></i>{{ _("Submit for Approval") }}
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if leave_request.can_cancel %}
+                    <form method="POST" action="{{ url_for('pto_bp.cancel_request', request_id=leave_request.id) }}"
+                          data-confirm="{{ _('Are you sure you want to cancel this request?') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                            <i class="fas fa-times me-1"></i>{{ _("Cancel Request") }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Admin Actions -->
+            {% if current_user.is_admin %}
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;">
+                <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ _("Admin Actions") }}</span>
+                </div>
+                <div style="padding:1rem;">
+                    {% if leave_request.status.name == 'PENDING' %}
+                    <form method="POST" action="{{ url_for('pto_bp.approve_request', request_id=leave_request.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="redirect" value="detail">
+                        <button type="submit" class="btn btn-sm btn-success w-100 mb-2">
+                            <i class="fas fa-check me-1"></i>{{ _("Approve") }}
+                        </button>
+                    </form>
+
+                    <button type="button" class="btn btn-sm btn-outline-warning w-100 mb-2"
+                            data-bs-toggle="modal" data-bs-target="#requestChangesModal">
+                        <i class="fas fa-comment-dots me-1"></i>{{ _("Request Changes") }}
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-danger w-100"
+                            data-bs-toggle="modal" data-bs-target="#denyModal">
+                        <i class="fas fa-times me-1"></i>{{ _("Deny") }}
+                    </button>
+                    {% elif leave_request.status.name == 'APPROVED' and leave_request.end_date >= today %}
+                    <form method="POST" action="{{ url_for('pto_bp.unapprove_request', request_id=leave_request.id) }}"
+                          data-confirm="{{ _('Revert this approval back to pending?') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-warning w-100 mb-2">
+                            <i class="fas fa-undo me-1"></i>{{ _("Unapprove") }}
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <hr>
+                    <a href="{{ url_for('pto_bp.admin_edit', request_id=leave_request.id) }}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="fas fa-edit me-1"></i>{{ _("Admin Edit") }}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Timeline -->
+            <div style="border:1px solid var(--color-gray-200);border-radius:0.625rem;overflow:hidden;margin-top:0.75rem;">
+                <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--color-gray-200);">
+                    <span class="fw-semibold text-sm" style="color:var(--color-gray-700)">{{ _("Timeline") }}</span>
+                </div>
+                <div style="padding:1rem;">
+                    <div class="timeline-item pb-3 border-start ps-3 ms-2 position-relative">
+                        <div class="timeline-dot bg-secondary"></div>
+                        <div class="small text-muted">{{ leave_request.created_at|format_datetime('%b %d, %Y') }}</div>
+                        <div>{{ _("Request created") }}</div>
+                    </div>
+                    {% if leave_request.submitted_at %}
+                    <div class="timeline-item pb-3 border-start ps-3 ms-2 position-relative">
+                        <div class="timeline-dot bg-warning"></div>
+                        <div class="small text-muted">{{ leave_request.submitted_at|format_datetime('%b %d, %Y') }}</div>
+                        <div>{{ _("Submitted for approval") }}</div>
+                    </div>
+                    {% endif %}
+                    {% if leave_request.reviewed_at %}
+                    <div class="timeline-item pb-3 border-start ps-3 ms-2 position-relative">
+                        <div class="timeline-dot {% if leave_request.status.name == 'APPROVED' %}bg-success{% elif leave_request.status.name == 'DENIED' %}bg-danger{% else %}bg-info{% endif %}"></div>
+                        <div class="small text-muted">{{ leave_request.reviewed_at|format_datetime('%b %d, %Y') }}</div>
+                        <div>
+                            {% if leave_request.status.name == 'APPROVED' %}
+                            {{ _("Approved by") }} {{ leave_request.reviewed_by.first_name }}
+                            {% elif leave_request.status.name == 'DENIED' %}
+                            {{ _("Denied by") }} {{ leave_request.reviewed_by.first_name }}
+                            {% else %}
+                            {{ _("Reviewed by") }} {{ leave_request.reviewed_by.first_name }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modals"></div>
+
+<!-- Request Changes Modal -->
+<div class="modal fade" id="requestChangesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('pto_bp.request_changes', request_id=leave_request.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="redirect" value="detail">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Request Changes") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">{{ _("Send a note to") }} {{ leave_request.member.user.first_name }}:</p>
+                    <div class="mb-3">
+                        <textarea name="notes" class="form-control" rows="3" required
+                                  placeholder="{{ _('Please adjust the dates...') }}"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-outline-warning">{{ _("Send Feedback") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Deny Modal -->
+<div class="modal fade" id="denyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('pto_bp.deny_request', request_id=leave_request.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="redirect" value="detail">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Deny Request") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">{{ _("Deny leave request for") }} {{ leave_request.member.user.first_name }}?</p>
+                    <div class="mb-3">
+                        <label class="form-label">{{ _("Reason") }} <span class="text-danger">*</span></label>
+                        <textarea name="notes" class="form-control" rows="3" required
+                                  placeholder="{{ _('Reason for denial...') }}"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger">{{ _("Deny Request") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline-dot {
+    position: absolute;
+    left: -6px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('submit', function(e) {
+    var t = e.target.closest('[data-confirm]');
+    if (t && !confirm(t.dataset.confirm)) e.preventDefault();
+});
+</script>
+{% endblock %}

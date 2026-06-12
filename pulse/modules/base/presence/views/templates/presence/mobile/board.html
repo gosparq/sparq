@@ -1,0 +1,34 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("In/Out Board") }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">{{ _("In/Out Board") }}</h5>
+    <small class="text-muted">
+        <i class="fas fa-sync-alt fa-spin"></i> {{ _("Live") }}
+    </small>
+</div>
+
+<!-- Summary Card -->
+{% set clocked_in_count = members | selectattr('is_clocked_in') | list | length %}
+<div class="d-flex gap-2 mb-3">
+    <div class="flex-fill p-3 rounded text-center" style="background: var(--color-success-light);">
+        <div class="fs-4 fw-bold" style="color: var(--color-success-dark);">{{ clocked_in_count }}</div>
+        <div class="small" style="color: var(--color-success-dark);">{{ _("Clocked In") }}</div>
+    </div>
+    <div class="flex-fill p-3 rounded text-center" style="background: var(--color-gray-100);">
+        <div class="fs-4 fw-bold" style="color: var(--color-gray-500);">{{ members | length - clocked_in_count }}</div>
+        <div class="small" style="color: var(--color-gray-500);">{{ _("Clocked Out") }}</div>
+    </div>
+</div>
+
+<!-- People List -->
+<div id="board-list"
+     hx-get="{{ url_for('board_bp.partial') }}"
+     hx-trigger="every 10s"
+     hx-swap="innerHTML">
+    {% include "presence/mobile/partials/board_list.html" %}
+</div>
+{% endblock %}

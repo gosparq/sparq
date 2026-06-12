@@ -1,0 +1,15 @@
+services:
+  sparq:
+    build: pulse/
+    env_file:
+      - pulse/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - sparq-data:/data
+    environment:
+      - SPARQ_DATA_DIR=/data
+    restart: unless-stopped
+
+volumes:
+  sparq-data:

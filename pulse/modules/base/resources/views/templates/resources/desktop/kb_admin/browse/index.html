@@ -1,0 +1,55 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("Knowledge Base") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ _("Knowledge Base") }}</h2>
+        <div class="d-flex gap-2">
+            <form action="{{ url_for('kb_staff_bp.search') }}" method="get" class="d-flex">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="{{ _('Search articles...') }}"
+                           value="{{ request.args.get('q', '') }}">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Grid -->
+    {% if categories %}
+    <div class="row g-4">
+        {% for category in categories %}
+        <div class="col-md-4">
+            <div class="card h-100">
+                <a href="{{ url_for('kb_staff_bp.category', category_slug=category.slug) }}" class="text-decoration-none text-reset">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="rounded p-2 me-3" style="background-color: var(--color-primary); color: white;">
+                                <i class="{{ category.icon_class }}"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-1">{{ category.name }}</h5>
+                                {% if category.description %}
+                                <p class="text-muted small mb-2">{{ category.description }}</p>
+                                {% endif %}
+                                <small class="text-muted">{{ category.article_count }} {{ _("articles") }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fas fa-book-open fa-3x mb-3"></i>
+        <p>{{ _("No articles available yet.") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

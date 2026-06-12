@@ -1,0 +1,170 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ _("Complete Interview") }}{% endblock %}
+
+{% block module_content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-clipboard-check me-2"></i>{{ _("Interview Feedback") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Interview Info -->
+                <div class="alert alert-light border mb-3">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fas {{ interview.type_icon }} me-2"></i>
+                                <strong>{{ interview.interview_type.value }}</strong>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('people_bp.hiring_application_detail', application_id=interview.application_id) }}" class="text-decoration-none">
+                                    {{ interview.application.candidate.full_name }}
+                                </a>
+                                <span class="text-muted mx-1">for</span>
+                                <a href="{{ url_for('people_bp.hiring_job_detail', job_id=interview.application.job_posting.id) }}" class="text-decoration-none">
+                                    {{ interview.application.job_posting.title }}
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-auto text-end small text-muted">
+                            <i class="far fa-clock me-1"></i>{{ interview.scheduled_at|format_datetime('%b %d at %I:%M %p') }}
+                            {% if interview.interviewer %}
+                            <br><i class="far fa-user me-1"></i>{{ interview.interviewer.full_name }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post" action="{{ url_for('people_bp.hiring_interview_complete', interview_id=interview.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="row g-3">
+                        <!-- Recommendation -->
+                        <div class="col-12">
+                            <label class="form-label small mb-2">
+                                {{ _("Recommendation") }} <span class="text-danger">*</span>
+                            </label>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for rec in InterviewRecommendation %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="recommendation"
+                                           id="rec_{{ rec.name }}" value="{{ rec.name }}"
+                                           {% if rec.name == 'MAYBE' %}checked{% endif %}>
+                                    <label class="form-check-label
+                                        {% if rec.name in ['STRONG_HIRE', 'HIRE'] %}text-success
+                                        {% elif rec.name in ['STRONG_NO_HIRE', 'NO_HIRE'] %}text-danger
+                                        {% else %}text-muted{% endif %}"
+                                           for="rec_{{ rec.name }}">
+                                        {% if rec.name == 'STRONG_HIRE' %}
+                                        <i class="fas fa-thumbs-up me-1"></i>
+                                        {% elif rec.name == 'HIRE' %}
+                                        <i class="far fa-thumbs-up me-1"></i>
+                                        {% elif rec.name == 'STRONG_NO_HIRE' %}
+                                        <i class="fas fa-thumbs-down me-1"></i>
+                                        {% elif rec.name == 'NO_HIRE' %}
+                                        <i class="far fa-thumbs-down me-1"></i>
+                                        {% else %}
+                                        <i class="fas fa-minus me-1"></i>
+                                        {% endif %}
+                                        {{ rec.value }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Feedback -->
+                        <div class="col-12">
+                            <label for="feedback" class="form-label small mb-1">
+                                {{ _("Feedback & Notes") }}
+                            </label>
+                            <textarea class="form-control form-control-sm"
+                                      id="feedback"
+                                      name="feedback"
+                                      rows="6"
+                                      placeholder="{{ _('Share your observations about the candidate...') }}">{{ interview.feedback or '' }}</textarea>
+                            <div class="form-text small">
+                                {{ _("Include strengths, areas of concern, and any other relevant observations.") }}
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top">
+                            <a href="{{ url_for('people_bp.hiring_application_detail', application_id=interview.application_id) }}" class="btn btn-outline-secondary btn-sm">
+                                {{ _("Cancel") }}
+                            </a>
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-check me-1"></i>{{ _("Save Feedback") }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reference -->
+    <div class="col-lg-4">
+        <!-- Candidate Summary -->
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-user me-2"></i>{{ _("Candidate") }}
+                </h6>
+            </div>
+            <div class="card-body small">
+                <h6 class="mb-1">{{ interview.application.candidate.full_name }}</h6>
+                {% if interview.application.candidate.current_title %}
+                <p class="text-muted mb-2">
+                    {{ interview.application.candidate.current_title }}
+                    {% if interview.application.candidate.current_company %}@ {{ interview.application.candidate.current_company }}{% endif %}
+                </p>
+                {% endif %}
+                <div class="mb-1">
+                    <i class="fas fa-envelope text-muted me-2"></i>
+                    <a href="mailto:{{ interview.application.candidate.email }}">{{ interview.application.candidate.email }}</a>
+                </div>
+                {% if interview.application.candidate.phone %}
+                <div>
+                    <i class="fas fa-phone text-muted me-2"></i>{{ interview.application.candidate.phone }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Rating Guide -->
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>{{ _("Rating Guide") }}
+                </h6>
+            </div>
+            <div class="card-body small">
+                <div class="mb-2">
+                    <span class="text-success"><i class="fas fa-thumbs-up me-1"></i>{{ _("Strong Hire") }}</span>
+                    <div class="text-muted">{{ _("Exceptional candidate, would hire immediately") }}</div>
+                </div>
+                <div class="mb-2">
+                    <span class="text-success"><i class="far fa-thumbs-up me-1"></i>{{ _("Hire") }}</span>
+                    <div class="text-muted">{{ _("Good fit, recommend moving forward") }}</div>
+                </div>
+                <div class="mb-2">
+                    <span class="text-muted"><i class="fas fa-minus me-1"></i>{{ _("Maybe") }}</span>
+                    <div class="text-muted">{{ _("Need more information or another interview") }}</div>
+                </div>
+                <div class="mb-2">
+                    <span class="text-danger"><i class="far fa-thumbs-down me-1"></i>{{ _("No Hire") }}</span>
+                    <div class="text-muted">{{ _("Not a good fit for this role") }}</div>
+                </div>
+                <div>
+                    <span class="text-danger"><i class="fas fa-thumbs-down me-1"></i>{{ _("Strong No Hire") }}</span>
+                    <div class="text-muted">{{ _("Significant concerns, do not proceed") }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock module_content %}

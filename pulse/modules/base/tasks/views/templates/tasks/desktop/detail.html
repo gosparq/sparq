@@ -1,0 +1,263 @@
+{% extends "tasks/desktop/layout.html" %}
+
+{% block title %}{{ item.title[:50] }}{% endblock %}
+
+{% block module_content %}
+<div id="mru-entry" hidden
+     data-mru-type="task"
+     data-mru-id="{{ item.id }}"
+     data-mru-name="{{ (item.title | resolve_gh_chips('task', item.id)) | forceescape if github_connected else item.title }}"
+     data-mru-rawname="{{ item.title | e }}"
+     data-mru-url="{{ url_for('tasks_bp.detail', item_id=item.id) }}"></div>
+<div class="content-card" x-data="{ showResolveNote: false, showLogs: true }">
+    {# ── Back link + status badges ── #}
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <a href="{{ back_url }}" class="text-muted text-decoration-none small">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back") }}
+        </a>
+        {% if workflow_statuses is defined %}
+        {% set ws_info = workflow_statuses|selectattr('key', 'equalto', item.workflow_status|default('todo'))|first %}
+        {% if ws_info %}
+        <span class="badge task-status-badge" style="background:{{ ws_info.color }}22;color:{{ ws_info.color }};">{{ ws_info.label }}</span>
+        {% endif %}
+        {% endif %}
+        {% if item.status == 'dismissed' %}
+        <span class="badge task-status-badge task-status-badge--dismissed">{{ _("Dismissed") }}</span>
+        {% elif item.status == 'canceled' %}
+        <span class="badge task-status-badge task-status-badge--canceled">{{ _("Canceled") }}</span>
+        {% endif %}
+    </div>
+
+    {% include "tasks/desktop/partials/_inline_title_display.html" %}
+
+    <div class="row g-4">
+        {# ── Left: Description + Activity + Comments ── #}
+        <div class="col-md-8 task-detail-cards">
+            {% include "tasks/desktop/partials/_inline_description_display.html" %}
+
+            {% if item.resolution_note %}
+            <div class="task-detail-card">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title">{{ _("Resolution Note") }}</span>
+                </div>
+                <div class="task-detail-card-body">
+                    <div class="text-content small" style="white-space:pre-wrap;">{{ item.resolution_note|urlize(none, true, '_blank') }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── Linked Blocker ── #}
+            {% if linked_blocker %}
+            <div class="task-detail-card">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title">
+                        <i class="fas fa-hand text-danger me-1"></i>{{ _("Linked Blocker") }}
+                    </span>
+                </div>
+                <div class="task-detail-card-body--lg">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if linked_blocker.resolved %}
+                        <i class="fas fa-check-circle text-success"></i>
+                        <span class="small" style="text-decoration:line-through;">{{ linked_blocker.title }}</span>
+                        {% else %}
+                        <i class="fas fa-circle text-danger" style="font-size:0.5rem;"></i>
+                        <span class="small">{{ linked_blocker.title }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── Attachments (inline, with image previews) ── #}
+            <div id="attachments-section" class="task-detail-card" style="display:none;">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title">
+                        <i class="fas fa-paperclip me-1"></i>{{ _("Attachments") }}
+                    </span>
+                </div>
+                <div class="task-detail-card-body">
+                    {% with entity_type='task', entity_id=item.id %}
+                        {% include 'tasks/desktop/partials/_attachments_inline.html' %}
+                    {% endwith %}
+                </div>
+            </div>
+
+            {# ── Activity Log ── #}
+            {% if logs %}
+            <div class="task-detail-card">
+                <div class="task-activity-toggle" @click="showLogs = !showLogs">
+                    <span class="task-detail-card-title">
+                        <i class="fas text-3xs" :class="showLogs ? 'fa-chevron-down' : 'fa-chevron-right'" style="width:12px"></i>
+                        {{ _("Activity") }} <span class="text-muted">({{ logs|length }})</span>
+                    </span>
+                </div>
+                <div x-show="showLogs" class="task-activity-body">
+                    {% for log in logs %}
+                    <div class="d-flex gap-2 py-2 small {% if not loop.last %}border-bottom{% endif %}">
+                        <span class="text-muted task-activity-timestamp">{{ log.created_at|format_datetime('%b %d %I:%M %p') }}</span>
+                        <span>
+                            {% if log.event_type == 'created' %}
+                            <i class="fas fa-plus-circle text-primary task-activity-icon"></i> {{ _("Created") }}
+                            {% elif log.event_type == 'resolved' %}
+                            <i class="fas fa-check-circle text-success task-activity-icon"></i> {{ _("Resolved") }}
+                            {% elif log.event_type == 'dismissed' %}
+                            <i class="fas fa-minus-circle text-muted task-activity-icon"></i> {{ _("Dismissed") }}
+                            {% elif log.event_type == 'canceled' %}
+                            <i class="fas fa-ban text-danger task-activity-icon"></i> {{ _("Canceled") }}
+                            {% elif log.event_type == 'reopened' %}
+                            <i class="fas fa-undo text-warning task-activity-icon"></i> {{ _("Reopened") }}
+                            {% elif log.event_type == 'snoozed' %}
+                            <i class="fas fa-clock text-warning task-activity-icon"></i> {{ _("Snoozed") }}
+                            {% elif log.event_type == 'auto_resolved' %}
+                            <i class="fas fa-link text-success task-activity-icon"></i> {{ _("Auto-resolved") }}
+                            {% elif log.event_type == 'edited' %}
+                            <i class="fas fa-pen text-muted task-activity-icon"></i> {{ _("Edited") }}
+                            {% else %}
+                            <i class="fas fa-circle text-muted" style="font-size:0.4rem;"></i> {{ log.event_type }}
+                            {% endif %}
+                            {% if log.actor and log.actor.user %}
+                            <span class="text-muted">{{ _("by") }} {{ log.actor.user.first_name }}</span>
+                            {% endif %}
+                        </span>
+                        {% if log.detail %}
+                        <span class="text-muted text-truncate min-w-0" style="flex:1">{{ log.detail }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── Comments ── #}
+            {% include 'tasks/desktop/partials/_comments_card.html' %}
+        </div>
+
+        {# ── Right Sidebar: Properties + Actions ── #}
+        <div class="col-md-4 task-detail-cards">
+            {# ── Properties ── #}
+            <div class="task-detail-card">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title">{{ _("Properties") }}</span>
+                </div>
+                <div class="task-detail-card-body">
+                    {% include "tasks/desktop/partials/_inline_properties_display.html" %}
+                </div>
+            </div>
+
+            {# ── GitHub ── #}
+            {% if github_connected %}
+            <div class="task-detail-card">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title"><i class="fa-brands fa-github me-1"></i>{{ _("GitHub") }}</span>
+                </div>
+                <div class="task-detail-card-body--lg" id="task-github-card-body">
+                    {% if gh_ref %}
+                        {% from "github/desktop/partials/_issue_chip.html" import issue_chip %}
+                        {{ issue_chip(gh_ref) | safe }}
+                    {% else %}
+                    <div id="gh-modal-slot"></div>
+                    <button class="btn btn-sm btn-outline-secondary w-100"
+                            hx-get="{{ url_for('github_bp.github_issues_new_modal', object_type='task', object_id=item.id, context=item.title, link_mode='1') }}"
+                            hx-target="#gh-modal-slot"
+                            hx-swap="innerHTML">
+                        <i class="fa-brands fa-github me-1"></i>{{ _("Create GitHub Issue") }}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── Actions ── #}
+            {% if item.status == 'open' %}
+            <div class="task-detail-card">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title">{{ _("Actions") }}</span>
+                </div>
+                <div class="task-detail-card-body--lg">
+                    {# Post Now CTA (missed check-in / periodic items) #}
+                    {% if post_now_url %}
+                    <a href="{{ post_now_url }}" class="btn btn-sm btn-primary w-100 mb-2">
+                        <i class="fas fa-paper-plane me-1"></i>{{ _("Post Now") }}
+                    </a>
+                    {% endif %}
+
+                    {# Claim (unassigned items — any member) #}
+                    {% if is_unassigned %}
+                    <form method="POST" action="{{ url_for('tasks_bp.claim', item_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-primary w-100 mb-2">
+                            <i class="fas fa-hand-point-up me-1"></i>{{ _("Assign to Me") }}
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {# Resolve (user-raised items only) #}
+                    {% if is_assignee or is_admin %}
+                    {% if item.raised_by_id %}
+                    <div x-show="!showResolveNote">
+                        <button class="btn btn-sm btn-outline-success w-100 mb-2" @click="showResolveNote = true">
+                            <i class="fas fa-check me-1"></i>{{ _("Done") }}
+                        </button>
+                    </div>
+                    <div x-show="showResolveNote" x-cloak>
+                        <form method="POST" action="{{ url_for('tasks_bp.resolve', item_id=item.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="next" value="{{ back_url }}">
+                            <textarea name="resolution_note" class="form-control form-control-sm mb-2" rows="2"
+                                      maxlength="1024" placeholder="{{ _('Note (optional)') }}"></textarea>
+                            <button type="submit" class="btn btn-sm btn-outline-success w-100 mb-2">
+                                <i class="fas fa-check me-1"></i>{{ _("Confirm Done") }}
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {# Dismiss (system-generated items only) #}
+                    {% if not item.raised_by_id %}
+                    <form method="POST" action="{{ url_for('tasks_bp.dismiss', item_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="next" value="{{ back_url }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary w-100 mb-2">
+                            <i class="fas fa-minus-circle me-1"></i>{{ _("Dismiss") }}
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+
+                    {# Cancel (raiser only) #}
+                    {% if is_raiser %}
+                    <form method="POST" action="{{ url_for('tasks_bp.cancel', item_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="next" value="{{ back_url }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                            <i class="fas fa-ban me-1"></i>{{ _("Cancel") }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif item.status == 'resolved' and item.can_reopen() and is_raiser %}
+            <div class="task-detail-card">
+                <div class="task-detail-card-header">
+                    <span class="task-detail-card-title">{{ _("Actions") }}</span>
+                </div>
+                <div class="task-detail-card-body--lg">
+                    <form method="POST" action="{{ url_for('tasks_bp.reopen', item_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-warning w-100">
+                            <i class="fas fa-undo me-1"></i>{{ _("Reopen") }}
+                        </button>
+                    </form>
+                    <p class="text-muted mt-2 mb-0 small">{{ _("Can reopen within 24 hours of resolution") }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% if github_connected %}
+{% include "tasks/desktop/partials/_slash_palette.html" %}
+{% endif %}
+{% endblock %}

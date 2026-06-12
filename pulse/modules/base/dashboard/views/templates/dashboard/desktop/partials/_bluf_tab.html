@@ -1,0 +1,156 @@
+{# BLUF Tab — expanded detail view: blocking relationships, slipped items, shipped this week #}
+
+<div class="bluf-tab-body">
+<div class="bluf-col bluf-col-left">
+
+    {# ══ Section 1: Blocking ══ #}
+    <div class="bluf-section">
+        <div class="bluf-section-header">
+            <span class="bluf-section-title">{{ _("BLOCKING") }}</span>
+            {% if bluf_open_blockers %}
+            <span class="bluf-section-count">{{ bluf_open_blockers | length }}</span>
+            {% endif %}
+        </div>
+
+        {% if bluf_open_blockers %}
+        <div class="bluf-item-list">
+            {% for blocker in bluf_open_blockers %}
+            {% set assignee = blocker.assignee.user if blocker.assignee and blocker.assignee.user else None %}
+            {% set raiser = blocker.raised_by.user if blocker.raised_by and blocker.raised_by.user else None %}
+            <a href="{{ url_for('tasks_bp.detail', item_id=blocker.id) }}" class="bluf-item dash-link-item">
+                <div class="bluf-blocking-row">
+                    {% if assignee %}
+                    <span class="dash-item-avatar bluf-avatar" style="--avatar-bg: {{ assignee.avatar_color|default('#6b7280') }};">
+                        {{ assignee.first_name[0]|upper }}{{ assignee.last_name[0]|upper }}
+                    </span>
+                    {% else %}
+                    <span class="dash-item-avatar bluf-avatar dash-item-avatar-blocker">
+                        <i class="fas fa-user"></i>
+                    </span>
+                    {% endif %}
+
+                    <i class="fas fa-arrow-right bluf-blocking-arrow"></i>
+
+                    {% if raiser %}
+                    <span class="dash-item-avatar bluf-avatar" style="--avatar-bg: {{ raiser.avatar_color|default('#6b7280') }};">
+                        {{ raiser.first_name[0]|upper }}{{ raiser.last_name[0]|upper }}
+                    </span>
+                    {% else %}
+                    <span class="dash-item-avatar bluf-avatar dash-item-avatar-blocker">
+                        <i class="fas fa-hand"></i>
+                    </span>
+                    {% endif %}
+
+                    <div class="bluf-item-body">
+                        <div class="bluf-item-title">{{ blocker.title | truncate(70) }}</div>
+                        <div class="bluf-item-meta">
+                            {% if assignee %}{{ assignee.first_name }}{% endif %}
+                            {% if assignee and raiser %} {{ _("blocking") }} {% endif %}
+                            {% if raiser %}{{ raiser.first_name }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bluf-empty-state">
+            <i class="fas fa-check-circle text-success opacity-50"></i>
+            <span>{{ _("No active blockers") }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ══ Section 2: Slipped ══ #}
+    <div class="bluf-section">
+        <div class="bluf-section-header">
+            <span class="bluf-section-title">{{ _("SLIPPED") }}</span>
+            {% if bluf_overdue_items %}
+            <span class="bluf-section-count bluf-count-warning">{{ bluf_overdue_items | length }}</span>
+            {% endif %}
+        </div>
+
+        {% if bluf_overdue_items %}
+        <div class="bluf-item-list">
+            {% for item in bluf_overdue_items %}
+            <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="bluf-item dash-link-item">
+                {% if item.assignee_first_name %}
+                <span class="dash-item-avatar bluf-avatar" style="--avatar-bg: {{ item.assignee_avatar_color|default('#6b7280') }};">
+                    {{ item.assignee_first_name[0]|upper }}{{ item.assignee_last_name[0]|upper if item.assignee_last_name else '' }}
+                </span>
+                {% else %}
+                <span class="dash-item-avatar bluf-avatar dash-item-avatar-blocker">
+                    <i class="fas fa-user"></i>
+                </span>
+                {% endif %}
+                <div class="bluf-item-body">
+                    <div class="bluf-item-title">{{ item.title | truncate(70) }}</div>
+                    <div class="bluf-item-meta">
+                        {% if item.assignee_first_name %}{{ item.assignee_first_name }} &middot; {% endif %}
+                        <span class="bluf-overdue-text">{{ item.days_overdue }} {{ _("day overdue") if item.days_overdue == 1 else _("days overdue") }}</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bluf-empty-state">
+            <i class="fas fa-calendar-check text-success opacity-50"></i>
+            <span>{{ _("Nothing slipped") }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+</div>{# /bluf-col-left #}
+
+<div class="bluf-col bluf-col-right">
+
+    {# ══ Section 3: Shipped This Week ══ #}
+    <div class="bluf-section">
+        <div class="bluf-section-header">
+            <span class="bluf-section-title">{{ _("SHIPPED THIS WEEK") }}</span>
+            {% if bluf_completed_items %}
+            <span class="bluf-section-count bluf-count-success">{{ bluf_completed_items | length }}</span>
+            {% endif %}
+        </div>
+
+        {% if bluf_completed_items %}
+        <div class="bluf-item-list bluf-completed-scroll">
+            {% set ns = namespace(current_day='') %}
+            {% for item in bluf_completed_items %}
+            {% set day = item.resolved_at | format_datetime('%m/%d') if item.resolved_at else '' %}
+            {% set is_new_day = day and day != ns.current_day %}
+            {% if is_new_day %}{% set ns.current_day = day %}{% endif %}
+            <div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}">
+                <span class="happening-date-col">{% if is_new_day %}{{ day }}{% endif %}</span>
+                <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="bluf-item happening-item dash-link-item">
+                    {% if item.assignee_first_name %}
+                    <span class="dash-item-avatar bluf-avatar" style="--avatar-bg: {{ item.assignee_avatar_color|default('#6b7280') }};">
+                        {{ item.assignee_first_name[0]|upper }}{{ item.assignee_last_name[0]|upper if item.assignee_last_name else '' }}
+                    </span>
+                    {% else %}
+                    <span class="dash-item-avatar bluf-avatar" style="--avatar-bg: #16a34a;">
+                        <i class="fas fa-check"></i>
+                    </span>
+                    {% endif %}
+                    <div class="bluf-item-body">
+                        <div class="bluf-item-title">{{ item.title | truncate(70) }}</div>
+                        <div class="bluf-item-meta">
+                            {% if item.assignee_first_name %}{{ item.assignee_first_name }} &middot; {% endif %}
+                            {{ item.resolved_at | format_datetime('%-I:%M%p') | lower if item.resolved_at else '' }}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bluf-empty-state">
+            <i class="fas fa-inbox opacity-50"></i>
+            <span>{{ _("Nothing shipped yet this week") }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+</div>{# /bluf-col-right #}
+</div>

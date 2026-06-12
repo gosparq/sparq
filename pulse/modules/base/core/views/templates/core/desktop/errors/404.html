@@ -1,0 +1,29 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Page Not Found") }}{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQOne" class="error-logo">
+        <h1>{{ _("Oops! Page Not Found") }}</h1>
+        <p>{{ _("The page you're looking for doesn't exist or has been moved.") }}</p>
+        <div class="error-actions">
+            <a href="{{ url_for('core_bp.index') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-home"></i> {{ _("Return Home") }}
+            </a>
+            <button data-action="go-back" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> {{ _("Go Back") }}
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action="go-back"]')) { window.history.back(); }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}projects-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('projects_bp.static', filename='css/projects.css') }}">
+<link rel="stylesheet" href="{{ url_for('projects_bp.static', filename='css/projects-mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('tasks_bp.static', filename='css/tasks.css') }}">
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}
+
+{% block content %}
+<div class="mobile-page-container" style="padding:1rem;">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}

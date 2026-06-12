@@ -1,0 +1,5 @@
+{% extends "finance/desktop/layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block module_content %}
+<div class="content-card"><div class="coming-soon"><i class="{{ page_icon }}" style="color: {{ icon_color }}"></i><h2>{{ title }}</h2><p>{{ _("This feature is coming soon.") }}</p></div></div>
+{% endblock %}

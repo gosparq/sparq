@@ -1,0 +1,1672 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block app_class %}chat-page{% endblock %}
+
+{% block title %}{{ _('Chat') }} - {{ _('Sync') }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/chat.css') }}">
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/chat-messages.css') }}">
+<link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/chat-extra.css') }}">
+<style>
+    [x-cloak] { display: none !important; }
+
+    /* Section unread badges */
+    .section-unread-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f472b6;
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 600;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 5px;
+        border-radius: 8px;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 20px;
+        font-size: 0.75rem;
+        color: var(--text-muted, #6b7280);
+        background: var(--bg-primary, #fff);
+        flex-shrink: 0;
+    }
+
+    .typing-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+    }
+
+    .typing-dots span {
+        width: 6px;
+        height: 6px;
+        background: var(--text-muted, #6b7280);
+        border-radius: 50%;
+        animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0s; }
+
+    @keyframes typingBounce {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.5;
+        }
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<script nonce="{{ g.csp_nonce }}">
+window._channelNames = {'general': '{{ _("general") }}', 'announcements': '{{ _("announcements") }}', 'events': '{{ _("events") }}'};
+window._channelDescs = {'general': '{{ _("General discussion channel") }}', 'announcements': '{{ _("Important company announcements") }}', 'events': '{{ _("Company events and activities") }}'};
+window._channelIds = { {% for ch in channels %}'{{ ch.name }}': {{ ch.id }}{% if not loop.last %}, {% endif %}{% endfor %} };
+window._channelFollows = { {% for ch in channels %}{{ ch.id }}: {{ 'true' if ch.id in channel_follow_ids else 'false' }}{% if not loop.last %}, {% endif %}{% endfor %} };
+</script>
+<div class="chat-content-card">
+    <div class="chat-container"
+         data-current-user-id="{{ current_user.id }}"
+         data-current-user-name="{{ current_user.display_name }}"
+         data-current-user-avatar="{{ current_user.avatar_color }}"
+         x-data="chatApp('{{ default_channel.name }}', '{{ default_channel.description|e }}', {{ unread_channel_count }}, {{ unread_dm_count }}, {{ unread_mention_count }}, {{ remaining_channel_slots }})"
+         x-init="init(); {% if default_view == 'dm' and dm_target_member_id %}$nextTick(() => { activeView = 'dm'; activeDmUser = {{ dm_target_member_id }}; htmx.ajax('GET', '/sync/chat/dms/{{ dm_target_member_id }}', '#chat-messages'); });{% endif %}"
+
+        <!-- Channel Sidebar -->
+        <aside class="chat-sidebar">
+            <div class="sidebar-header">
+                <h3>{{ _('Channels') }}</h3>
+                {% if current_user.is_admin %}
+                <button class="btn btn-sm btn-link" @click="showNewChannelModal = true" x-show="remainingChannelSlots > 0">
+                    <i class="fas fa-plus"></i>
+                </button>
+                {% endif %}
+            </div>
+
+            <div class="channel-list" id="channel-list">
+                {% for channel in channels %}
+                {% set unread = UpdateChannelReadState.get_unread_count(current_member_id, channel.id) %}
+                {% set mention_count = UpdateChannelReadState.get_mention_count(current_member_id, channel.id) %}
+                <div class="channel{% if unread > 0 %} has-unread{% endif %}"
+                     :class="{ 'active': activeChannel === '{{ channel.name }}' }"
+                     id="channel-{{ channel.name }}"
+                     hx-get="{{ url_for('sync_bp.get_channel_messages', channel_name=channel.name) }}"
+                     hx-target="#chat-messages"
+                     hx-swap="innerHTML"
+                     hx-trigger="click"
+                     @click="activeChannel = '{{ channel.name }}'; localStorage.setItem('sync_last_channel', '{{ channel.name }}'); activeDmThread = null; activeChannelDescription = '{{ channel.description|e }}'; searchQuery = ''; pinFilterActive = false; activeView = 'channel'; if (window.clearTypingIndicator) window.clearTypingIndicator(); if (window.emitViewing) window.emitViewing('channel', '{{ channel.name }}'); (function(el) { el.classList.remove('has-unread'); var mb = document.getElementById('mention-{{ channel.name }}'); if (mb) { var mc = parseInt(mb.textContent || '0'); if (mc > 0) unreadMentionCount = Math.max(0, unreadMentionCount - mc); mb.style.display = 'none'; } })(document.getElementById('channel-{{ channel.name }}')); unreadChannelCount = document.querySelectorAll('.channel.has-unread').length; document.querySelectorAll('.dm-item').forEach(function(el) { el.classList.remove('active'); }); if (window.syncChatBadge) window.syncChatBadge();">
+                    <div class="channel-content">
+                        <div class="channel-name">
+                            <span class="channel-prefix">#</span>{{ _(channel.name) if channel.name in ('general', 'announcements', 'events') else channel.name }}
+                        </div>
+                    </div>
+                    <div class="channel-meta">
+                        {% if mention_count > 0 %}
+                        <span class="mention-badge" id="mention-{{ channel.name }}">{{ mention_count }}</span>
+                        {% endif %}
+                        {% if current_user.is_admin and channel.name != 'general' %}
+                        <div class="channel-actions" x-data="{ open: false }">
+                            <button class="btn btn-link btn-sm channel-options"
+                                    type="button"
+                                    @click.stop="open = !open">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" :class="{ 'show': open }" @click.outside="open = false">
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#"
+                                       @click.prevent="open = false"
+                                       hx-delete="{{ url_for('sync_bp.delete_channel', channel_name=channel.name) }}"
+                                       hx-confirm="{{ _('Delete this channel and all messages?') }}"
+                                       hx-target="#channel-{{ channel.name }}"
+                                       hx-swap="outerHTML">
+                                        <i class="fas fa-trash-alt me-2"></i>{{ _('Delete Channel') }}
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Direct Messages Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <h3>
+                        {{ _('Direct Messages') }}
+                        <span class="section-unread-badge" x-show="unreadDmCount > 0" x-text="unreadDmCount > 99 ? '99+' : unreadDmCount" x-cloak></span>
+                    </h3>
+                </div>
+                <div class="dm-list" id="dm-list"
+                     hx-get="{{ url_for('sync_bp.get_dm_threads') }}"
+                     hx-trigger="load">
+                    <div class="text-center text-muted py-2">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main" id="chat-main">
+            <!-- Channel header - only shown when viewing channel -->
+            <header class="chat-header" x-show="activeView === 'channel'">
+                <div class="chat-header-top">
+                    <div class="chat-header-info">
+                        <h2><span class="channel-prefix">#</span><span x-text="(window._channelNames || {})[activeChannel] || activeChannel"></span>
+                            <span class="channel-description-inline" x-text="(window._channelDescs || {})[activeChannel] || activeChannelDescription"></span>
+                        </h2>
+                    </div>
+                    <div class="chat-header-actions">
+                        <button class="btn btn-link pin-filter"
+                                :class="{ 'active': pinFilterActive }"
+                                @click="pinFilterActive = !pinFilterActive; htmx.ajax('GET', '/sync/chat/channels/' + activeChannel + '/messages' + (pinFilterActive ? '?pinned=1' : ''), '#chat-messages')">
+                            <i class="fas fa-thumbtack"></i> {{ _('Pins') }}
+                        </button>
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text"
+                                   x-model="searchQuery"
+                                   @input.debounce.300ms="htmx.ajax('GET', '/sync/chat/channels/' + activeChannel + '/messages' + (searchQuery ? '?search=' + encodeURIComponent(searchQuery) : ''), '#chat-messages')"
+                                   placeholder="{{ _('Search messages...') }}"
+                                   class="form-control">
+                        </div>
+                        <button class="follow-btn"
+                                :class="{ 'following': channelFollows[(window._channelIds || {})[activeChannel]] }"
+                                @click="toggleFollowChannel()"
+                                :title="channelFollows[(window._channelIds || {})[activeChannel]] ? '{{ _('Unfollow channel') }}' : '{{ _('Follow channel') }}'">
+                            <i :class="channelFollows[(window._channelIds || {})[activeChannel]] ? 'fas fa-bell' : 'far fa-bell'"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="chat-messages-container">
+                <div class="chat-messages" id="chat-messages"
+                     hx-swap="innerHTML">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin"></i> {{ _('Loading messages...') }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Typing Indicator (above input) -->
+            <div id="typing-indicator" class="typing-indicator" style="display: none;"></div>
+
+            {# Deprecation notice — channel chat composer hidden in favor of post-based content #}
+            <footer class="message-input-area" x-show="activeView === 'channel'" style="padding:0.75rem 1rem;">
+                <div class="d-flex align-items-center gap-2 text-sm" style="color:var(--color-gray-500)">
+                    <i class="fas fa-info-circle"></i>
+                    <span>{{ _("Channel messaging has moved to") }} <a :href="'/updates/channels/' + activeChannel + '/'" style="color:var(--color-primary);">{{ _("Updates") }}</a>. {{ _("This is a read-only archive.") }}</span>
+                </div>
+            </footer>
+
+            {# Original channel compose form — hidden (kept for reference, not rendered) #}
+            <footer class="message-input-area" style="display:none !important;">
+                <form id="message-form"
+                      @submit.prevent="sendMessageOptimistic()">
+                    <div class="input-group">
+                        <input type="hidden" name="channel" :value="activeChannel">
+                        <input type="hidden" name="attachment_ids" :value="getAttachmentIds()">
+                        <div class="input-wrapper">
+                            <textarea x-show="!previewMode"
+                                      x-ref="messageInput"
+                                      class="form-control"
+                                      x-model="messageContent"
+                                      name="content"
+                                      :placeholder="'{{ _('Message #') }}' + activeChannel"
+                                      rows="2"
+                                      @input="handleMentionInput($event); if (window.emitTyping) window.emitTyping('channel', activeChannel)"
+                                      @keydown.enter="if (!$event.shiftKey && messageContent.trim()) { $event.preventDefault(); if (window.emitStopTyping) window.emitStopTyping('channel', activeChannel); sendMessageOptimistic(); }"
+                                      @keydown.escape="showMentionDropdown = false"
+                                      @keydown.arrow-down.prevent="if(showMentionDropdown && mentionResults.length) { $refs.mentionList?.querySelector('.mention-item')?.focus(); }"
+                            ></textarea>
+                            <div x-show="previewMode" x-cloak class="preview-pane form-control" x-html="previewContent || '<em class=\'text-muted\'>{{ _('Nothing to preview') }}</em>'"></div>
+
+                            <!-- Mention Autocomplete Dropdown -->
+                            <div class="mention-dropdown" x-show="showMentionDropdown" x-cloak @click.outside="showMentionDropdown = false" x-ref="mentionList">
+                                <template x-if="!mentionQuery || 'channel'.startsWith(mentionQuery.toLowerCase())">
+                                    <div class="mention-item mention-channel" @click="insertChannelMention()" tabindex="0" @keydown.enter.prevent="insertChannelMention()">
+                                        <div class="user-avatar-sm avatar-ai">
+                                            <i class="fas fa-bullhorn text-3xs"></i>
+                                        </div>
+                                        <span class="mention-name">@channel <span class="text-muted small">{{ _('Notify everyone') }}</span></span>
+                                    </div>
+                                </template>
+                                <template x-for="user in mentionResults" :key="user.id">
+                                    <div class="mention-item" @click="insertMention(user)" tabindex="0" @keydown.enter.prevent="insertMention(user)">
+                                        <div class="user-avatar-sm" :style="'background-color: ' + user.avatar_color">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        <span class="mention-name" x-text="user.full_name"></span>
+                                    </div>
+                                </template>
+                                <div class="mention-empty" x-show="mentionResults.length === 0 && mentionQuery && !'channel'.startsWith(mentionQuery.toLowerCase())">
+                                    {{ _('No users found') }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attachment Preview -->
+                        <div class="attachment-preview" x-show="pendingAttachments.length > 0" x-cloak>
+                            <template x-for="(att, index) in pendingAttachments" :key="att.id">
+                                <div class="attachment-item">
+                                    <template x-if="att.is_image">
+                                        <img :src="'/sync/chat/attachments/' + att.uuid" :alt="att.filename" class="attachment-thumb">
+                                    </template>
+                                    <template x-if="!att.is_image">
+                                        <div class="attachment-file">
+                                            <i class="fas fa-file"></i>
+                                        </div>
+                                    </template>
+                                    <span class="attachment-name" x-text="att.filename"></span>
+                                    <span class="attachment-size" x-text="att.size_display"></span>
+                                    <button type="button" class="btn btn-link btn-sm attachment-remove" @click="removeAttachment(index)">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="message-footer">
+                        <div class="message-actions">
+                            <!-- Hidden file input -->
+                            <input type="file" x-ref="fileInput" @change="handleFileSelect($event)" class="d-none"
+                                   accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.rtf,.json,.xml,.html,.css,.js,.py,.yaml,.yml,.md,.log,.sql,.sh,.ini,.toml,.cfg,.env" multiple>
+                            <button type="button" class="btn btn-link" :class="{ 'uploading': isUploading }" @click="triggerFileInput()" title="{{ _('Add attachment') }}">
+                                <i class="fas" :class="isUploading ? 'fa-spinner fa-spin' : 'fa-plus-circle'"></i>
+                            </button>
+                            <div class="emoji-picker-container">
+                                <button type="button" class="btn btn-link" @click="showEmojiPicker = !showEmojiPicker" title="{{ _('Add emoji') }}">
+                                    <i class="far fa-smile"></i>
+                                </button>
+                                <div class="emoji-picker" x-show="showEmojiPicker" x-cloak @click.outside="showEmojiPicker = false">
+                                    <div class="emoji-grid">
+                                        <template x-for="item in emojiList" :key="item.shortcode">
+                                            <button type="button" class="emoji-btn" @click="insertEmoji(item.emoji)" :title="item.shortcode" x-text="item.emoji"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-link" @click="$refs.messageInput.focus(); messageContent += '@'; handleMentionInput({target: $refs.messageInput})" title="{{ _('Mention someone') }}">
+                                <i class="fas fa-at"></i>
+                            </button>
+                            <div class="toolbar-divider"></div>
+                            <button type="button" class="btn btn-sm btn-link" @click="formatBold()" title="{{ _('Bold') }}">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link" @click="formatItalic()" title="{{ _('Italic') }}">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link" @click="formatStrike()" title="{{ _('Strikethrough') }}">
+                                <i class="fas fa-strikethrough"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link" @click="formatCodeBlock()" title="{{ _('Code Block') }}">
+                                <i class="fas fa-code"></i>
+                            </button>
+                        </div>
+                        <button type="submit" class="btn btn-send" :disabled="!messageContent.trim() && pendingAttachments.length === 0" title="{{ _('Send message') }}">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+            </footer>
+        </main>
+
+        <!-- New Channel Modal -->
+        {% if current_user.is_admin %}
+        <div x-show="showNewChannelModal"
+             x-cloak
+             class="modal-overlay"
+             @click.self="showNewChannelModal = false"
+             @keydown.escape.window="showNewChannelModal = false">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ _('Create New Channel') }}</h5>
+                        <button type="button" class="btn-close" @click="showNewChannelModal = false" aria-label="Close"></button>
+                    </div>
+                    <form @submit.prevent="createChannel()">
+                        <div class="modal-body">
+                            <div class="alert alert-danger" x-show="channelError" x-text="channelError" x-cloak></div>
+                            <div class="text-muted small mb-3">
+                                <span x-text="remainingChannelSlots"></span> {{ _('channel slot(s) remaining') }}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="channel-name" class="form-label">{{ _('Channel Name') }}</label>
+                                <input type="text" class="form-control" id="channel-name" x-model="newChannelName" required pattern="[a-z0-9\-]+" placeholder="general-discussion">
+                                <small class="form-text text-muted">{{ _('Channel names can only contain lowercase letters, numbers, and hyphens.') }}</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="channel-description" class="form-label">{{ _('Description') }}</label>
+                                <textarea class="form-control" id="channel-description" x-model="newChannelDescription" rows="2" placeholder="{{ _('What is this channel about?') }}"></textarea>
+                            </div>
+                            <!-- Private channels: hidden until implemented -->
+                            <div class="mb-3 form-check d-none">
+                                <input type="checkbox" class="form-check-input" id="channel-private" x-model="newChannelPrivate">
+                                <label class="form-check-label" for="channel-private">{{ _('Private Channel') }}</label>
+                                <small class="form-text text-muted d-block">{{ _('Private channels are only visible to invited members.') }}</small>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="channel-ten-four" x-model="newChannelRequireTenFour">
+                                <label class="form-check-label" for="channel-ten-four">{{ _('Require 10-4 Acknowledgment') }}</label>
+                                <small class="form-text text-muted d-block">{{ _('Members must acknowledge each message with a 10-4 checkmark.') }}</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @click="showNewChannelModal = false">{{ _('Cancel') }}</button>
+                            <button type="submit" class="btn btn-sm btn-primary">{{ _('Create Channel') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Image Lightbox (Slack-style) -->
+<div id="image-lightbox" class="image-lightbox" style="display: none;" data-action="close-lightbox-overlay">
+    <div class="lightbox-container" @click.stop="">
+        <div class="lightbox-header">
+            <div class="lightbox-sender">
+                <div id="lightbox-avatar" class="lightbox-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="lightbox-info">
+                    <div class="lightbox-name-row">
+                        <span id="lightbox-name" class="lightbox-name"></span>
+                        <span id="lightbox-time" class="lightbox-time"></span>
+                    </div>
+                    <span id="lightbox-channel" class="lightbox-channel"></span>
+                </div>
+            </div>
+            <button class="lightbox-close" data-action="close-lightbox" title="{{ _('Close') }}">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="lightbox-image-container">
+            <img id="lightbox-image" src="" alt="">
+        </div>
+        <div class="lightbox-footer">
+            <a id="lightbox-download" href="" download="" class="lightbox-download">
+                <i class="fas fa-download"></i>
+                <span>{{ _('Download') }}</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('sync_bp.static', filename='js/vendor/socket.io.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('sync_bp.static', filename='js/chat-socket.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
+// Alpine.js chat app component
+function chatApp(defaultChannel, defaultDescription, initialUnreadChannels, initialUnreadDms, initialUnreadMentions, initialRemainingSlots) {
+    return {
+        activeChannel: defaultChannel,
+        activeChannelDescription: defaultDescription,
+        messageContent: '',
+        searchQuery: '',
+        pinFilterActive: false,
+        showNewChannelModal: false,
+        newChannelName: '',
+        newChannelDescription: '',
+        newChannelPrivate: false,
+        newChannelRequireTenFour: false,
+        channelError: '',
+        remainingChannelSlots: initialRemainingSlots || 0,
+        previewMode: false,
+        previewContent: '',
+        showEmojiPicker: false,
+        emojiList: [],
+        activeView: 'channel',
+        activeDmUser: null,
+        activeDmThread: null,
+        // Unread counts
+        unreadChannelCount: initialUnreadChannels || 0,
+        unreadDmCount: initialUnreadDms || 0,
+        unreadMentionCount: initialUnreadMentions || 0,
+
+        // Mention autocomplete
+        mentionQuery: '',
+        mentionResults: [],
+        showMentionDropdown: false,
+        mentionStartPos: null,
+        mentionMap: {},  // Maps display name to user ID for mention conversion
+
+        // Attachments
+        pendingAttachments: [],
+        isUploading: false,
+
+        // Follow state
+        channelFollows: window._channelFollows || {},
+
+        toggleFollowChannel() {
+            const channelId = (window._channelIds || {})[this.activeChannel];
+            if (!channelId) return;
+            const formData = new FormData();
+            formData.append('entity_type', 'channel');
+            formData.append('entity_id', channelId);
+            formData.append('csrf_token', document.querySelector('meta[name=csrf-token]').content);
+            fetch('/sync/follow/toggle', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => { this.channelFollows[channelId] = data.is_following; });
+        },
+
+        init() {
+            if (new URLSearchParams(window.location.search).get('action') === 'new_channel') {
+                this.showNewChannelModal = true;
+                const url = new URL(window.location); url.searchParams.delete('action'); history.replaceState(null, '', url);
+            }
+
+            // Restore last visited channel if no explicit channel requested
+            const params = new URLSearchParams(window.location.search);
+            if (!params.get('channel')) {
+                const saved = localStorage.getItem('sync_last_channel');
+                if (saved && saved !== this.activeChannel && document.getElementById('channel-' + saved)) {
+                    this.activeChannel = saved;
+                    this.activeChannelDescription = (window._channelDescs || {})[saved] || '';
+                }
+            }
+            // Save and load messages for the active channel (skip if opening a DM)
+            localStorage.setItem('sync_last_channel', this.activeChannel);
+            if (params.get('view') !== 'dms') {
+                htmx.ajax('GET', '/sync/chat/channels/' + this.activeChannel + '/messages', '#chat-messages');
+            }
+
+            fetch('/sync/chat/emojis')
+                .then(r => r.json())
+                .then(d => { this.emojiList = d; })
+                .catch(() => {});
+
+            // Set initial desktop badge (title + favicon)
+            if (window.updateDesktopBadge) {
+                window.updateDesktopBadge(this.unreadChannelCount + this.unreadDmCount);
+            }
+        },
+
+        createChannel() {
+            this.channelError = '';
+            if (!this.newChannelName.trim()) { this.channelError = '{{ _("Channel name is required") }}'; return; }
+            fetch('/sync/chat/channels', {
+                method: 'POST',
+                body: new URLSearchParams({ name: this.newChannelName.trim(), description: this.newChannelDescription.trim(), is_private: this.newChannelPrivate, require_ten_four: this.newChannelRequireTenFour, csrf_token: document.querySelector('meta[name=csrf-token]').content })
+            })
+            .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t) }))
+            .then(data => {
+                this.newChannelName = ''; this.newChannelDescription = ''; this.newChannelPrivate = false; this.newChannelRequireTenFour = false; this.showNewChannelModal = false; this.remainingChannelSlots = Math.max(0, this.remainingChannelSlots - 1);
+                // Add channel to chat sidebar
+                var list = document.getElementById('channel-list');
+                var div = document.createElement('div');
+                div.className = 'channel';
+                div.id = 'channel-' + data.name;
+                div.setAttribute('hx-get', '/sync/chat/channels/' + data.name + '/messages');
+                div.setAttribute('hx-target', '#chat-messages');
+                div.setAttribute('hx-swap', 'innerHTML');
+                div.setAttribute('hx-trigger', 'click');
+                var content = document.createElement('div');
+                content.className = 'channel-content';
+                var nameDiv = document.createElement('div');
+                nameDiv.className = 'channel-name';
+                var prefix = document.createElement('span');
+                prefix.className = 'channel-prefix';
+                prefix.textContent = '#';
+                nameDiv.appendChild(prefix);
+                nameDiv.appendChild(document.createTextNode(data.name));
+                content.appendChild(nameDiv);
+                div.appendChild(content);
+                var meta = document.createElement('div');
+                meta.className = 'channel-meta';
+                div.appendChild(meta);
+                div.addEventListener('click', function() {
+                    document.querySelectorAll('#channel-list .channel').forEach(function(el) { el.classList.remove('active'); });
+                    div.classList.add('active');
+                });
+                list.appendChild(div);
+                htmx.process(div);
+                // Add channel to secondary nav
+                var navMenu = document.querySelector('.sec-nav-menu');
+                if (navMenu) {
+                    var addBtn = navMenu.querySelector('a[href*="action=new_channel"]');
+                    if (addBtn) {
+                        var li = document.createElement('li');
+                        li.className = 'sec-nav-item';
+                        var a = document.createElement('a');
+                        a.href = '/sync/chat?channel=' + data.name;
+                        a.className = 'sec-nav-link';
+                        a.innerHTML = '<span class="sync-text-subtle" style="margin-right:0.125rem">#</span> ' + data.name;
+                        li.appendChild(a);
+                        navMenu.insertBefore(li, addBtn.closest('li'));
+                    }
+                }
+                this.activeChannel = data.name;
+                this.activeChannelDescription = data.description || '';
+                htmx.ajax('GET', '/sync/chat/channels/' + data.name + '/messages', '#chat-messages');
+            })
+            .catch(e => { this.channelError = e.message; });
+        },
+
+        formatBold() { this.wrapSelection('**', '**'); },
+        formatItalic() { this.wrapSelection('*', '*'); },
+        formatStrike() { this.wrapSelection('~~', '~~'); },
+        formatCodeBlock() { this.wrapSelection('```\n', '\n```'); },
+
+        findMarkerBefore(text, pos, marker) {
+            const allMarkers = ['**', '~~', '*', '`'];
+            let searchPos = pos;
+            while (searchPos > 0) {
+                let foundAny = false;
+                for (const m of allMarkers) {
+                    if (text.substring(searchPos - m.length, searchPos) === m) {
+                        if (m === marker) {
+                            return searchPos - m.length;
+                        } else {
+                            searchPos -= m.length;
+                            foundAny = true;
+                            break;
+                        }
+                    }
+                }
+                if (!foundAny) break;
+            }
+            return -1;
+        },
+
+        findMarkerAfter(text, pos, marker) {
+            const allMarkers = ['**', '~~', '*', '`'];
+            let searchPos = pos;
+            while (searchPos < text.length) {
+                let foundAny = false;
+                for (const m of allMarkers) {
+                    if (text.substring(searchPos, searchPos + m.length) === m) {
+                        if (m === marker) {
+                            return searchPos;
+                        } else {
+                            searchPos += m.length;
+                            foundAny = true;
+                            break;
+                        }
+                    }
+                }
+                if (!foundAny) break;
+            }
+            return -1;
+        },
+
+        wrapSelection(before, after) {
+            const textarea = this.$refs.messageInput;
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = this.messageContent;
+            const selected = text.substring(start, end);
+
+            // Scenario A: Selection includes the markers (e.g., user selected "*hello*")
+            if (selected.startsWith(before) && selected.endsWith(after) && selected.length >= before.length + after.length) {
+                const unwrapped = selected.substring(before.length, selected.length - after.length);
+                this.messageContent = text.substring(0, start) + unwrapped + text.substring(end);
+                this.$nextTick(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(start, start + unwrapped.length);
+                });
+                return;
+            }
+
+            // Scenario B: Search for markers in the wrapper chain around selection
+            const markerPosBefore = this.findMarkerBefore(text, start, before);
+            const markerPosAfter = this.findMarkerAfter(text, end, after);
+            if (markerPosBefore !== -1 && markerPosAfter !== -1) {
+                this.messageContent = text.substring(0, markerPosBefore) +
+                                      text.substring(markerPosBefore + before.length, markerPosAfter) +
+                                      text.substring(markerPosAfter + after.length);
+                this.$nextTick(() => {
+                    textarea.focus();
+                    const newStart = start - before.length;
+                    const newEnd = end - before.length;
+                    textarea.setSelectionRange(newStart, newEnd);
+                });
+                return;
+            }
+
+            // Default: Add markers
+            this.messageContent = text.substring(0, start) + before + selected + after + text.substring(end);
+            this.$nextTick(() => {
+                textarea.focus();
+                textarea.setSelectionRange(start + before.length, end + before.length);
+            });
+        },
+
+        updatePreview() {
+            let c = this.messageContent;
+            // Escape HTML first
+            c = c.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            // Apply formatting
+            c = c.replace(/`([^`]+)`/g, '<code>$1</code>');
+            c = c.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            c = c.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            c = c.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+            // Show @Name mentions nicely in preview (names already escaped above)
+            var names = Object.keys(this.mentionMap).sort(function(a, b) { return b.length - a.length; });
+            for (var i = 0; i < names.length; i++) {
+                var name = names[i].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                c = c.split('@' + name).join('<span class="mention">@' + name + '</span>');
+            }
+            // Render @channel
+            c = c.replace(/@channel\b/g, '<span class="mention">@channel</span>');
+            c = c.replace(/\n/g, '<br>');
+            this.previewContent = c;
+        },
+
+        insertEmoji(emoji) {
+            const textarea = this.$refs.messageInput;
+            if (!textarea) return;
+            const pos = textarea.selectionStart || 0;
+            this.messageContent = this.messageContent.slice(0, pos) + emoji + this.messageContent.slice(pos);
+            this.showEmojiPicker = false;
+            this.$nextTick(() => {
+                textarea.focus();
+                textarea.setSelectionRange(pos + emoji.length, pos + emoji.length);
+            });
+        },
+
+        // Mention handling
+        handleMentionInput(e) {
+            const textarea = e.target;
+            const pos = textarea.selectionStart;
+            const text = this.messageContent;
+            const before = text.slice(0, pos);
+
+            // Find @ pattern before cursor
+            const atMatch = before.match(/@(\w*)$/);
+            if (atMatch) {
+                this.mentionQuery = atMatch[1];
+                this.mentionStartPos = pos - atMatch[0].length;
+                this.fetchMentionResults();
+            } else {
+                this.showMentionDropdown = false;
+            }
+        },
+
+        async fetchMentionResults() {
+            try {
+                const res = await fetch('/sync/chat/users/search?q=' + encodeURIComponent(this.mentionQuery));
+                this.mentionResults = await res.json();
+                this.showMentionDropdown = this.mentionResults.length > 0;
+            } catch (e) {
+                this.showMentionDropdown = false;
+            }
+        },
+
+        insertChannelMention() {
+            const textarea = this.$refs.messageInput;
+            const before = this.messageContent.slice(0, this.mentionStartPos);
+            const after = this.messageContent.slice(textarea.selectionStart);
+            this.messageContent = before + '@channel ' + after;
+            this.showMentionDropdown = false;
+            this.$nextTick(() => {
+                textarea.focus();
+                const newPos = this.mentionStartPos + '@channel '.length;
+                textarea.setSelectionRange(newPos, newPos);
+            });
+        },
+
+        insertMention(user) {
+            const textarea = this.$refs.messageInput;
+            const before = this.messageContent.slice(0, this.mentionStartPos);
+            const after = this.messageContent.slice(textarea.selectionStart);
+            // Show display name in textarea (e.g. "@Lisa") instead of raw "@[7]"
+            const displayName = user.name;
+            this.messageContent = before + '@' + displayName + ' ' + after;
+            this.mentionMap[displayName] = user.id;
+            this.showMentionDropdown = false;
+            this.$nextTick(() => {
+                textarea.focus();
+                const newPos = this.mentionStartPos + ('@' + displayName + ' ').length;
+                textarea.setSelectionRange(newPos, newPos);
+            });
+        },
+
+        // Convert display mentions (@Name) back to wire format (@[id]) before sending
+        convertMentionsForSend(content) {
+            // Replace @channel
+            let result = content.replace(/@channel\b/g, '@[channel]');
+            // Replace @Name with @[id] using mention map (longest names first to avoid partial matches)
+            const names = Object.keys(this.mentionMap).sort((a, b) => b.length - a.length);
+            for (const name of names) {
+                const id = this.mentionMap[name];
+                result = result.split('@' + name).join('@[' + id + ']');
+            }
+            return result;
+        },
+
+        // Attachment handling
+        triggerFileInput() {
+            this.$refs.fileInput.click();
+        },
+
+        async handleFileSelect(e) {
+            const files = e.target.files;
+            if (!files.length) return;
+
+            this.isUploading = true;
+            for (const file of files) {
+                await this.uploadFile(file);
+            }
+            this.isUploading = false;
+            e.target.value = ''; // Reset input
+        },
+
+        async uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
+
+            try {
+                const res = await fetch('/sync/chat/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.pendingAttachments.push(data);
+                } else {
+                    alert(data.error || 'Upload failed');
+                }
+            } catch (e) {
+                alert('Upload failed');
+            }
+        },
+
+        removeAttachment(index) {
+            this.pendingAttachments.splice(index, 1);
+        },
+
+        getAttachmentIds() {
+            return this.pendingAttachments.map(a => a.id).join(',');
+        },
+
+        clearAfterSend() {
+            this.messageContent = '';
+            this.pendingAttachments = [];
+            this.mentionMap = {};
+        },
+
+        // =====================================================
+        // Optimistic Message Sending
+        // =====================================================
+
+        getCurrentUser() {
+            const container = document.querySelector('.chat-container');
+            return {
+                id: parseInt(container.dataset.currentUserId),
+                name: container.dataset.currentUserName,
+                avatarColor: container.dataset.currentUserAvatar
+            };
+        },
+
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        },
+
+        formatMessageContent(content) {
+            let c = this.escapeHtml(content);
+            // Apply markdown formatting
+            c = c.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            c = c.replace(/`([^`]+)`/g, '<code>$1</code>');
+            c = c.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            c = c.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            c = c.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+            // Render @Name display mentions (from textarea) as styled spans
+            var self = this;
+            var names = Object.keys(this.mentionMap).sort(function(a, b) { return b.length - a.length; });
+            for (var i = 0; i < names.length; i++) {
+                var name = names[i];
+                c = c.split('@' + self.escapeHtml(name)).join('<span class="mention">@' + self.escapeHtml(name) + '</span>');
+            }
+            // Render @channel
+            c = c.replace(/@channel\b/g, '<span class="mention">@channel</span>');
+            // Convert newlines
+            c = c.replace(/\n/g, '<br>');
+            // Convert URLs to links with copy button
+            c = c.replace(/(https?:\/\/[^\s<]+)/g, '<span class="chat-link-wrapper"><a href="$1" target="_blank" class="chat-link">$1</a><button class="chat-link-copy" data-action="copy-url" data-url="$1" title="Copy URL"><i class="fas fa-copy"></i></button></span>');
+            return c;
+        },
+
+        sendMessageOptimistic() {
+            const content = this.messageContent.trim();
+            if (!content && !this.pendingAttachments.length) return;
+
+            // Convert display mentions (@Name) to wire format (@[id]) for server
+            const wireContent = this.convertMentionsForSend(content);
+
+            const tempId = 'temp-' + Date.now();
+            const channel = this.activeChannel;
+            const attachmentIds = this.getAttachmentIds();
+
+            // 1. Optimistically render message immediately (use display content for formatting)
+            this.appendOptimisticMessage(tempId, content);
+
+            // 2. Clear input immediately (feels snappy)
+            const savedContent = wireContent;
+            const savedAttachments = [...this.pendingAttachments];
+            this.messageContent = '';
+            this.pendingAttachments = [];
+
+            // 3. POST in background
+            fetch('{{ url_for('sync_bp.create_message') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    channel: channel,
+                    content: savedContent,
+                    attachment_ids: attachmentIds,
+                    csrf_token: document.querySelector('meta[name=csrf-token]').content
+                })
+            }).then(response => {
+                if (!response.ok) {
+                    this.markMessageFailed(tempId, savedContent, savedAttachments);
+                }
+                // Success: socket event will reconcile
+            }).catch(() => {
+                this.markMessageFailed(tempId, savedContent, savedAttachments);
+            });
+        },
+
+        appendOptimisticMessage(tempId, content) {
+            const container = document.getElementById('chat-messages');
+            if (!container) return;
+
+            const user = this.getCurrentUser();
+            const formattedContent = this.formatMessageContent(content);
+
+            // Check if previous message is from same author for continuation styling
+            const lastMsg = container.querySelector('.message:last-child');
+            const isContinuation = lastMsg && lastMsg.dataset.authorId == user.id;
+
+            const messageHtml = `
+                <div class="message optimistic${isContinuation ? ' continuation' : ''}" id="${tempId}" data-author-id="${user.id}">
+                    <span class="hover-time"></span>
+                    <div class="message-avatar" style="background-color: ${user.avatarColor}">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="message-body">
+                        <div class="message-meta">
+                            <span class="author">${this.escapeHtml(user.name)}</span>
+                            <span class="timestamp">{{ _('Just now') }}</span>
+                            <span class="sending-indicator"><i class="fas fa-circle-notch fa-spin"></i></span>
+                        </div>
+                        <div class="message-content">${formattedContent}</div>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', messageHtml);
+            this.scrollToBottom();
+        },
+
+        markMessageFailed(tempId, originalContent, originalAttachments) {
+            const msg = document.getElementById(tempId);
+            if (msg) {
+                msg.classList.remove('optimistic');
+                msg.classList.add('failed');
+                const indicator = msg.querySelector('.sending-indicator');
+                if (indicator) {
+                    indicator.innerHTML = `<i class="fas fa-exclamation-circle text-danger"></i> <span class="retry-text">{{ _('Failed') }}</span>`;
+                    indicator.style.cursor = 'pointer';
+                    indicator.onclick = () => this.retryMessage(tempId, originalContent, originalAttachments);
+                }
+            }
+        },
+
+        retryMessage(tempId, content, attachments) {
+            // Remove the failed message
+            const msg = document.getElementById(tempId);
+            if (msg) msg.remove();
+
+            // Restore content and retry
+            this.messageContent = content;
+            this.pendingAttachments = attachments || [];
+            this.sendMessageOptimistic();
+        },
+
+        scrollToBottom() {
+            const container = document.querySelector('.chat-messages-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+    };
+}
+
+// Alpine.js DM thread component (for dynamically loaded DM views)
+function dmThreadApp() {
+    return {
+        dmContent: '',
+        dmPreviewMode: false,
+        dmPreviewContent: '',
+        showDmEmojiPicker: false,
+
+        // Mention autocomplete
+        dmMentionQuery: '',
+        dmMentionResults: [],
+        showDmMentionDropdown: false,
+        dmMentionStartPos: null,
+        dmMentionMap: {},  // Maps display name to user ID for mention conversion
+
+        // Attachments
+        dmPendingAttachments: [],
+        dmIsUploading: false,
+
+        init() {
+            // DM thread initialized
+        },
+
+        formatDmBold() { this.wrapDmSelection('**', '**'); },
+        formatDmItalic() { this.wrapDmSelection('*', '*'); },
+        formatDmStrike() { this.wrapDmSelection('~~', '~~'); },
+        formatDmCodeBlock() { this.wrapDmSelection('```\n', '\n```'); },
+
+        findDmMarkerBefore(text, pos, marker) {
+            const allMarkers = ['**', '~~', '*', '`'];
+            let searchPos = pos;
+            while (searchPos > 0) {
+                let foundAny = false;
+                for (const m of allMarkers) {
+                    if (text.substring(searchPos - m.length, searchPos) === m) {
+                        if (m === marker) {
+                            return searchPos - m.length;
+                        } else {
+                            searchPos -= m.length;
+                            foundAny = true;
+                            break;
+                        }
+                    }
+                }
+                if (!foundAny) break;
+            }
+            return -1;
+        },
+
+        findDmMarkerAfter(text, pos, marker) {
+            const allMarkers = ['**', '~~', '*', '`'];
+            let searchPos = pos;
+            while (searchPos < text.length) {
+                let foundAny = false;
+                for (const m of allMarkers) {
+                    if (text.substring(searchPos, searchPos + m.length) === m) {
+                        if (m === marker) {
+                            return searchPos;
+                        } else {
+                            searchPos += m.length;
+                            foundAny = true;
+                            break;
+                        }
+                    }
+                }
+                if (!foundAny) break;
+            }
+            return -1;
+        },
+
+        wrapDmSelection(before, after) {
+            const textarea = this.$refs.dmInput;
+            if (!textarea) return;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = this.dmContent;
+            const selected = text.substring(start, end);
+
+            // Scenario A: Selection includes the markers (e.g., user selected "*hello*")
+            if (selected.startsWith(before) && selected.endsWith(after) && selected.length >= before.length + after.length) {
+                const unwrapped = selected.substring(before.length, selected.length - after.length);
+                this.dmContent = text.substring(0, start) + unwrapped + text.substring(end);
+                this.$nextTick(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(start, start + unwrapped.length);
+                });
+                return;
+            }
+
+            // Scenario B: Search for markers in the wrapper chain around selection
+            const markerPosBefore = this.findDmMarkerBefore(text, start, before);
+            const markerPosAfter = this.findDmMarkerAfter(text, end, after);
+            if (markerPosBefore !== -1 && markerPosAfter !== -1) {
+                this.dmContent = text.substring(0, markerPosBefore) +
+                                 text.substring(markerPosBefore + before.length, markerPosAfter) +
+                                 text.substring(markerPosAfter + after.length);
+                this.$nextTick(() => {
+                    textarea.focus();
+                    const newStart = start - before.length;
+                    const newEnd = end - before.length;
+                    textarea.setSelectionRange(newStart, newEnd);
+                });
+                return;
+            }
+
+            // Default: Add markers
+            this.dmContent = text.substring(0, start) + before + selected + after + text.substring(end);
+            this.$nextTick(() => {
+                textarea.focus();
+                textarea.setSelectionRange(start + before.length, end + before.length);
+            });
+        },
+
+        updateDmPreview() {
+            let c = this.dmContent;
+            c = c.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            c = c.replace(/`([^`]+)`/g, '<code>$1</code>');
+            c = c.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            c = c.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            c = c.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+            // Show @Name mentions nicely in preview (names already escaped above)
+            var names = Object.keys(this.dmMentionMap).sort(function(a, b) { return b.length - a.length; });
+            for (var i = 0; i < names.length; i++) {
+                var name = names[i].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                c = c.split('@' + name).join('<span class="mention">@' + name + '</span>');
+            }
+            c = c.replace(/\n/g, '<br>');
+            this.dmPreviewContent = c;
+        },
+
+        insertDmEmoji(emoji) {
+            const textarea = this.$refs.dmInput;
+            if (!textarea) return;
+            const pos = textarea.selectionStart || 0;
+            this.dmContent = this.dmContent.slice(0, pos) + emoji + this.dmContent.slice(pos);
+            this.showDmEmojiPicker = false;
+            this.$nextTick(() => {
+                textarea.focus();
+                textarea.setSelectionRange(pos + emoji.length, pos + emoji.length);
+            });
+        },
+
+        // Mention handling
+        handleDmMentionInput(e) {
+            const textarea = e.target;
+            const pos = textarea.selectionStart;
+            const text = this.dmContent;
+            const before = text.slice(0, pos);
+            const atMatch = before.match(/@(\w*)$/);
+            if (atMatch) {
+                this.dmMentionQuery = atMatch[1];
+                this.dmMentionStartPos = pos - atMatch[0].length;
+                this.fetchDmMentionResults();
+            } else {
+                this.showDmMentionDropdown = false;
+            }
+        },
+
+        async fetchDmMentionResults() {
+            try {
+                let url = '/sync/chat/users/search?q=' + encodeURIComponent(this.dmMentionQuery);
+                if (this.activeDmUser) url += '&dm_member_id=' + this.activeDmUser;
+                const res = await fetch(url);
+                this.dmMentionResults = await res.json();
+                this.showDmMentionDropdown = this.dmMentionResults.length > 0;
+            } catch (e) {
+                this.showDmMentionDropdown = false;
+            }
+        },
+
+        insertDmMention(user) {
+            const textarea = this.$refs.dmInput;
+            const before = this.dmContent.slice(0, this.dmMentionStartPos);
+            const after = this.dmContent.slice(textarea.selectionStart);
+            const displayName = user.name;
+            this.dmContent = before + '@' + displayName + ' ' + after;
+            this.dmMentionMap[displayName] = user.id;
+            this.showDmMentionDropdown = false;
+            this.$nextTick(() => {
+                textarea.focus();
+                const newPos = this.dmMentionStartPos + ('@' + displayName + ' ').length;
+                textarea.setSelectionRange(newPos, newPos);
+            });
+        },
+
+        // Convert display mentions (@Name) back to wire format (@[id]) before sending
+        convertDmMentionsForSend(content) {
+            let result = content;
+            const names = Object.keys(this.dmMentionMap).sort((a, b) => b.length - a.length);
+            for (const name of names) {
+                const id = this.dmMentionMap[name];
+                result = result.split('@' + name).join('@[' + id + ']');
+            }
+            return result;
+        },
+
+        // Attachment handling
+        triggerDmFileInput() {
+            this.$refs.dmFileInput.click();
+        },
+
+        async handleDmFileSelect(e) {
+            const files = e.target.files;
+            if (!files.length) return;
+            this.dmIsUploading = true;
+            for (const file of files) {
+                await this.uploadDmFile(file);
+            }
+            this.dmIsUploading = false;
+            e.target.value = '';
+        },
+
+        async uploadDmFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
+            try {
+                const res = await fetch('/sync/chat/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    this.dmPendingAttachments.push(data);
+                } else {
+                    alert(data.error || 'Upload failed');
+                }
+            } catch (e) {
+                alert('Upload failed');
+            }
+        },
+
+        removeDmAttachment(index) {
+            this.dmPendingAttachments.splice(index, 1);
+        },
+
+        getDmAttachmentIds() {
+            return this.dmPendingAttachments.map(a => a.id).join(',');
+        },
+
+        clearDmAfterSend() {
+            this.dmContent = '';
+            this.dmPendingAttachments = [];
+            this.dmMentionMap = {};
+        }
+    };
+}
+
+// Image Lightbox functions (Slack-style)
+function openImageLightbox(data) {
+    var lightbox = document.getElementById('image-lightbox');
+    var img = document.getElementById('lightbox-image');
+    var download = document.getElementById('lightbox-download');
+    var avatar = document.getElementById('lightbox-avatar');
+    var name = document.getElementById('lightbox-name');
+    var time = document.getElementById('lightbox-time');
+    var channel = document.getElementById('lightbox-channel');
+
+    // Set image
+    img.src = data.src;
+    img.alt = data.filename;
+    download.href = data.src + '?download=1';
+    download.download = data.filename;
+
+    // Set sender info (Slack-style: "Name 1m" on first line, "in: #channel" on second)
+    name.textContent = data.senderName;
+    time.textContent = data.relativeTime;
+    channel.textContent = 'in: #' + data.channelName;
+
+    // Set avatar
+    avatar.style.backgroundColor = data.avatarColor;
+    avatar.innerHTML = data.isAi ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+
+    lightbox.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Close on Escape key
+    document.addEventListener('keydown', handleLightboxKeydown);
+}
+
+function closeImageLightbox() {
+    var lightbox = document.getElementById('image-lightbox');
+    lightbox.style.display = 'none';
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', handleLightboxKeydown);
+}
+
+function handleLightboxKeydown(e) {
+    if (e.key === 'Escape') {
+        closeImageLightbox();
+    }
+}
+
+// Expose to global scope for onclick handlers
+window.openImageLightbox = openImageLightbox;
+window.closeImageLightbox = closeImageLightbox;
+
+// =====================================================
+// Emoji Reactions
+// =====================================================
+
+var currentReactionPicker = null;
+var currentReactionMessageId = null;
+
+// Frequently used emojis (top row)
+var frequentEmojis = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀'];
+
+// All emojis (organized)
+var allEmojis = [
+    '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
+    '😇', '🙂', '😉', '😍', '🥰', '😘', '😋', '😛',
+    '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣',
+    '😥', '😮', '🤐', '😯', '😪', '😫', '🥱', '😴',
+    '😌', '😛', '😜', '😝', '🤤', '😒', '😓', '😔',
+    '😕', '🙃', '🤑', '😲', '☹️', '🙁', '😖', '😞',
+    '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+    '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪',
+    '😵', '🥴', '😠', '😡', '🤬', '😷', '🤒', '🤕',
+    '👍', '👎', '👏', '🙌', '🤝', '👊', '✊', '🤛',
+    '🤜', '🤞', '✌️', '🤟', '🤘', '👌', '🤌', '🤏',
+    '👋', '🤚', '🖐️', '✋', '🖖', '👆', '👇', '👈',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+    '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘',
+    '🎉', '🎊', '🎈', '🎁', '🏆', '🥇', '🥈', '🥉',
+    '⭐', '🌟', '✨', '💫', '🔥', '💥', '💯', '💢',
+    '👀', '👁️', '👅', '👄', '💋', '🧠', '🦷', '🦴',
+    '✅', '❌', '⚠️', '❓', '❗', '💡', '🔔', '📌'
+];
+
+function showReactionPicker(event, messageId) {
+    event.stopPropagation();
+
+    // Close existing picker
+    closeReactionPicker();
+
+    currentReactionMessageId = messageId;
+
+    // Create picker element
+    var picker = document.createElement('div');
+    picker.className = 'reaction-picker';
+    picker.id = 'reaction-picker';
+
+    // Frequently Used section
+    var frequentSection = document.createElement('div');
+    frequentSection.className = 'reaction-picker-section';
+    frequentSection.innerHTML = '<div class="reaction-picker-label">{{ _("Frequently Used") }}</div>';
+    var frequentGrid = document.createElement('div');
+    frequentGrid.className = 'reaction-picker-grid';
+    frequentEmojis.forEach(function(emoji) {
+        var btn = document.createElement('button');
+        btn.className = 'reaction-picker-btn';
+        btn.textContent = emoji;
+        btn.onclick = function() { selectReaction(emoji); };
+        frequentGrid.appendChild(btn);
+    });
+    frequentSection.appendChild(frequentGrid);
+    picker.appendChild(frequentSection);
+
+    // Divider
+    var divider = document.createElement('div');
+    divider.className = 'reaction-picker-divider';
+    picker.appendChild(divider);
+
+    // All emojis section
+    var allSection = document.createElement('div');
+    allSection.className = 'reaction-picker-section';
+    allSection.innerHTML = '<div class="reaction-picker-label">{{ _("All Emojis") }}</div>';
+    var allGrid = document.createElement('div');
+    allGrid.className = 'reaction-picker-grid';
+    allGrid.style.maxHeight = '200px';
+    allGrid.style.overflowY = 'auto';
+    allEmojis.forEach(function(emoji) {
+        var btn = document.createElement('button');
+        btn.className = 'reaction-picker-btn';
+        btn.textContent = emoji;
+        btn.onclick = function() { selectReaction(emoji); };
+        allGrid.appendChild(btn);
+    });
+    allSection.appendChild(allGrid);
+    picker.appendChild(allSection);
+
+    document.body.appendChild(picker);
+    currentReactionPicker = picker;
+
+    // Position picker near the button
+    var rect = event.target.getBoundingClientRect();
+    var pickerRect = picker.getBoundingClientRect();
+
+    var left = rect.left;
+    var top = rect.bottom + 5;
+
+    // Keep within viewport
+    if (left + pickerRect.width > window.innerWidth) {
+        left = window.innerWidth - pickerRect.width - 10;
+    }
+    if (top + pickerRect.height > window.innerHeight) {
+        top = rect.top - pickerRect.height - 5;
+    }
+
+    picker.style.left = left + 'px';
+    picker.style.top = top + 'px';
+
+    // Close on click outside
+    setTimeout(function() {
+        document.addEventListener('click', closeReactionPickerOnClick);
+    }, 10);
+}
+
+function closeReactionPicker() {
+    if (currentReactionPicker) {
+        currentReactionPicker.remove();
+        currentReactionPicker = null;
+        currentReactionMessageId = null;
+        document.removeEventListener('click', closeReactionPickerOnClick);
+    }
+}
+
+function closeReactionPickerOnClick(e) {
+    if (currentReactionPicker && !currentReactionPicker.contains(e.target)) {
+        closeReactionPicker();
+    }
+}
+
+function selectReaction(emoji) {
+    if (currentReactionMessageId) {
+        toggleReaction(currentReactionMessageId, emoji);
+    }
+    closeReactionPicker();
+}
+
+function toggleReaction(messageId, emoji) {
+    fetch('/sync/chat/messages/' + messageId + '/react', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'emoji=' + encodeURIComponent(emoji) + '&csrf_token=' + encodeURIComponent(document.querySelector('meta[name=csrf-token]').content)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        // Socket will broadcast the update, but we can update locally too
+        updateReactionsUI(messageId, data.reactions);
+    })
+    .catch(function(err) {
+        console.error('Error toggling reaction:', err);
+    });
+}
+
+function updateReactionsUI(messageId, reactions) {
+    var message = document.getElementById('message-' + messageId);
+    if (!message) return;
+
+    var existingReactions = message.querySelector('.message-reactions');
+    var currentUserId = parseInt(document.querySelector('.chat-container').dataset.currentUserId);
+
+    if (Object.keys(reactions).length === 0) {
+        // No reactions - remove the reactions div
+        if (existingReactions) {
+            existingReactions.remove();
+        }
+        return;
+    }
+
+    // Build new reactions HTML
+    var html = '';
+    for (var emoji in reactions) {
+        var data = reactions[emoji];
+        var isUserReacted = data.user_ids.indexOf(currentUserId) !== -1;
+        html += '<button class="reaction-badge ' + (isUserReacted ? 'user-reacted' : '') + '" data-action="toggle-reaction" data-message-id="' + messageId + '" data-emoji="' + emoji + '" title="' + data.users.join(', ') + '">';
+        html += '<span class="reaction-emoji">' + emoji + '</span>';
+        html += '<span class="reaction-count">' + data.count + '</span>';
+        html += '</button>';
+    }
+    html += '<button class="reaction-add-btn" data-action="show-reaction-picker" data-message-id="' + messageId + '" title="{{ _("Add reaction") }}"><i class="far fa-smile"></i></button>';
+
+    if (existingReactions) {
+        existingReactions.innerHTML = html;
+    } else {
+        // Create new reactions div
+        var reactionsDiv = document.createElement('div');
+        reactionsDiv.className = 'message-reactions';
+        reactionsDiv.id = 'reactions-' + messageId;
+        reactionsDiv.innerHTML = html;
+
+        // Insert before message-actions
+        var actions = message.querySelector('.message-actions');
+        if (actions) {
+            actions.parentNode.insertBefore(reactionsDiv, actions);
+        }
+    }
+}
+
+// Expose reaction functions globally
+window.showReactionPicker = showReactionPicker;
+window.toggleReaction = toggleReaction;
+window.updateReactionsUI = updateReactionsUI;
+
+// =====================================================
+// DM Emoji Reactions
+// =====================================================
+
+function showDmReactionPicker(event, messageId) {
+    event.stopPropagation();
+    closeReactionPicker();
+
+    currentReactionMessageId = messageId;
+
+    var picker = document.createElement('div');
+    picker.className = 'reaction-picker';
+    picker.id = 'reaction-picker';
+
+    var frequentSection = document.createElement('div');
+    frequentSection.className = 'reaction-picker-section';
+    frequentSection.innerHTML = '<div class="reaction-picker-label">{{ _("Frequently Used") }}</div>';
+    var frequentGrid = document.createElement('div');
+    frequentGrid.className = 'reaction-picker-grid';
+    frequentEmojis.forEach(function(emoji) {
+        var btn = document.createElement('button');
+        btn.className = 'reaction-picker-btn';
+        btn.textContent = emoji;
+        btn.onclick = function() { selectDmReaction(emoji); };
+        frequentGrid.appendChild(btn);
+    });
+    frequentSection.appendChild(frequentGrid);
+    picker.appendChild(frequentSection);
+
+    var divider = document.createElement('div');
+    divider.className = 'reaction-picker-divider';
+    picker.appendChild(divider);
+
+    var allSection = document.createElement('div');
+    allSection.className = 'reaction-picker-section';
+    allSection.innerHTML = '<div class="reaction-picker-label">{{ _("All Emojis") }}</div>';
+    var allGrid = document.createElement('div');
+    allGrid.className = 'reaction-picker-grid';
+    allGrid.style.maxHeight = '200px';
+    allGrid.style.overflowY = 'auto';
+    allEmojis.forEach(function(emoji) {
+        var btn = document.createElement('button');
+        btn.className = 'reaction-picker-btn';
+        btn.textContent = emoji;
+        btn.onclick = function() { selectDmReaction(emoji); };
+        allGrid.appendChild(btn);
+    });
+    allSection.appendChild(allGrid);
+    picker.appendChild(allSection);
+
+    document.body.appendChild(picker);
+    currentReactionPicker = picker;
+
+    var rect = event.target.getBoundingClientRect();
+    var pickerRect = picker.getBoundingClientRect();
+
+    var left = rect.left;
+    var top = rect.bottom + 5;
+
+    if (left + pickerRect.width > window.innerWidth) {
+        left = window.innerWidth - pickerRect.width - 10;
+    }
+    if (top + pickerRect.height > window.innerHeight) {
+        top = rect.top - pickerRect.height - 5;
+    }
+
+    picker.style.left = left + 'px';
+    picker.style.top = top + 'px';
+
+    setTimeout(function() {
+        document.addEventListener('click', closeReactionPickerOnClick);
+    }, 10);
+}
+
+function selectDmReaction(emoji) {
+    if (currentReactionMessageId) {
+        toggleDmReaction(currentReactionMessageId, emoji);
+    }
+    closeReactionPicker();
+}
+
+function toggleDmReaction(messageId, emoji) {
+    fetch('/sync/chat/dms/messages/' + messageId + '/react', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'emoji=' + encodeURIComponent(emoji) + '&csrf_token=' + encodeURIComponent(document.querySelector('meta[name=csrf-token]').content)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        updateDmReactionsUI(messageId, data.reactions);
+    })
+    .catch(function(err) {
+        console.error('Error toggling DM reaction:', err);
+    });
+}
+
+function updateDmReactionsUI(messageId, reactions) {
+    var message = document.getElementById('dm-message-' + messageId);
+    if (!message) return;
+
+    var existingReactions = message.querySelector('.message-reactions');
+    var currentUserId = parseInt(document.querySelector('.chat-container').dataset.currentUserId);
+
+    if (Object.keys(reactions).length === 0) {
+        if (existingReactions) {
+            existingReactions.remove();
+        }
+        return;
+    }
+
+    var html = '';
+    for (var emoji in reactions) {
+        var data = reactions[emoji];
+        var isUserReacted = data.user_ids.indexOf(currentUserId) !== -1;
+        html += '<button class="reaction-badge ' + (isUserReacted ? 'user-reacted' : '') + '" data-action="toggle-dm-reaction" data-message-id="' + messageId + '" data-emoji="' + emoji + '" title="' + data.users.join(', ') + '">';
+        html += '<span class="reaction-emoji">' + emoji + '</span>';
+        html += '<span class="reaction-count">' + data.count + '</span>';
+        html += '</button>';
+    }
+    html += '<button class="reaction-add-btn" data-action="show-dm-reaction-picker" data-message-id="' + messageId + '" title="{{ _("Add reaction") }}"><i class="far fa-smile"></i></button>';
+
+    if (existingReactions) {
+        existingReactions.innerHTML = html;
+    } else {
+        var reactionsDiv = document.createElement('div');
+        reactionsDiv.className = 'message-reactions';
+        reactionsDiv.id = 'dm-reactions-' + messageId;
+        reactionsDiv.innerHTML = html;
+
+        var actions = message.querySelector('.message-actions');
+        if (actions) {
+            actions.parentNode.insertBefore(reactionsDiv, actions);
+        }
+    }
+}
+
+window.showDmReactionPicker = showDmReactionPicker;
+window.toggleDmReaction = toggleDmReaction;
+window.updateDmReactionsUI = updateDmReactionsUI;
+
+// =====================================================
+// 10-4 Acknowledgment
+// =====================================================
+
+function toggleTenFour(messageId) {
+    fetch('/sync/chat/messages/' + messageId + '/acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'csrf_token=' + encodeURIComponent(document.querySelector('meta[name=csrf-token]').content)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        updateTenFourUI(messageId, data.ack_data);
+    })
+    .catch(function(err) {
+        console.error('Error toggling 10-4:', err);
+    });
+}
+
+function updateTenFourUI(messageId, ackData) {
+    var container = document.getElementById('ten4-' + messageId);
+    if (!container) return;
+
+    var html = '';
+
+    // Acked members
+    for (var i = 0; i < ackData.acked.length; i++) {
+        var m = ackData.acked[i];
+        html += '<span class="ten4-check-item acked" title="' + m.name + '">✓ ' + m.initials + '</span>';
+    }
+    // Pending members
+    for (var j = 0; j < ackData.pending.length; j++) {
+        var p = ackData.pending[j];
+        html += '<span class="ten4-check-item pending" title="' + p.name + '">· ' + p.initials + '</span>';
+    }
+    // Only show button if current user hasn't acked yet
+    if (!ackData.current_user_acked) {
+        html += '<button class="ten4-inline-btn" data-action="toggle-ten-four" data-message-id="' + messageId + '">10-4</button>';
+    }
+
+    container.innerHTML = html;
+}
+
+window.toggleTenFour = toggleTenFour;
+window.updateTenFourUI = updateTenFourUI;
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="copy-url"]');
+    if (t) {
+        e.preventDefault();
+        navigator.clipboard.writeText(t.dataset.url).then(function() {
+            var icon = t.querySelector('i');
+            icon.className = 'fas fa-check text-success';
+            setTimeout(function() { icon.className = 'fas fa-copy'; }, 1500);
+        });
+        return;
+    }
+    t = e.target.closest('[data-action="toggle-ten-four"]');
+    if (t) { toggleTenFour(parseInt(t.dataset.messageId)); return; }
+    t = e.target.closest('[data-action="toggle-reaction"]');
+    if (t) { toggleReaction(parseInt(t.dataset.messageId), t.dataset.emoji); return; }
+    t = e.target.closest('[data-action="show-reaction-picker"]');
+    if (t) { showReactionPicker(e, parseInt(t.dataset.messageId)); return; }
+    t = e.target.closest('[data-action="toggle-dm-reaction"]');
+    if (t) { toggleDmReaction(parseInt(t.dataset.messageId), t.dataset.emoji); return; }
+    t = e.target.closest('[data-action="show-dm-reaction-picker"]');
+    if (t) { showDmReactionPicker(e, parseInt(t.dataset.messageId)); return; }
+    t = e.target.closest('[data-action="open-image-lightbox"]');
+    if (t) { e.preventDefault(); window.openImageLightbox({ src: t.dataset.src, filename: t.dataset.filename, senderName: t.dataset.senderName, avatarColor: t.dataset.avatarColor, relativeTime: t.dataset.relativeTime, channelName: t.dataset.channelName, isAi: t.dataset.isAi === 'true' }); return; }
+    t = e.target.closest('[data-action="close-lightbox-overlay"]');
+    if (t && e.target === t) { closeImageLightbox(); return; }
+    t = e.target.closest('[data-action="close-lightbox"]');
+    if (t) { closeImageLightbox(); return; }
+});
+</script>
+{% endblock %}

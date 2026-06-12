@@ -1,0 +1,40 @@
+{# DM thread list for the popup widget — uses vanilla JS (not Alpine) since loaded via fetch #}
+{# sparQy AI bot — always first #}
+<div class="dm-popup-thread"
+     onclick="document.dispatchEvent(new CustomEvent('dm-popup-open-thread', { detail: { sparqy: true, name: 'sparQy' } }))">
+    <div class="dm-popup-avatar" style="background:var(--color-ai);">
+        <i class="fas fa-robot text-xs"></i>
+    </div>
+    <div class="dm-popup-thread-info">
+        <div class="dm-popup-thread-name">sparQy</div>
+        <div class="dm-popup-thread-preview">{{ _("AI assistant") }}</div>
+    </div>
+</div>
+{% for member in members %}
+{% if member.user and member.user.is_active %}
+{% set thread_info = thread_map.get(member.id) %}
+{% set thread = thread_info[0] if thread_info else None %}
+{% set unread = thread_info[1] if thread_info else 0 %}
+<div class="dm-popup-thread"
+     onclick="document.dispatchEvent(new CustomEvent('dm-popup-open-thread', { detail: { memberId: {{ member.id }}, name: '{{ member.user.full_name|e }}', threadId: {{ thread.id if thread else 0 }} } }))">
+    <div class="dm-popup-avatar" style="background:{{ member.user.avatar_color|default('var(--color-gray-500)') }};">
+        {{ member.user.first_name[0]|upper }}{{ member.user.last_name[0]|upper }}
+    </div>
+    <div class="dm-popup-thread-info">
+        <div class="dm-popup-thread-name">
+            {{ member.user.full_name }}
+        </div>
+        {% if unread > 0 %}
+        <div class="dm-popup-thread-preview">{{ unread }} {{ _("unread") }}</div>
+        {% endif %}
+    </div>
+    {% if unread > 0 %}
+    <div class="dm-popup-unread">{{ unread }}</div>
+    {% endif %}
+</div>
+{% endif %}
+{% else %}
+<div class="text-center text-muted py-4 text-sm">
+    {{ _("No one else in your organization yet") }}
+</div>
+{% endfor %}

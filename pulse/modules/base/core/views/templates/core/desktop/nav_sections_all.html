@@ -1,0 +1,191 @@
+{# Unified sidebar nav — four fixed sections: Today / Connect / Work / People #}
+{# Included unconditionally by nav_secondary.html #}
+
+{# ── Organization Switcher ── #}
+{% set org_count = user_organizations|default([])|length %}
+<div class="sidebar-ts-switcher sidebar-org-switcher" x-data="{ orgOpen: false }">
+    <button class="sidebar-ts-btn" @click="orgOpen = !orgOpen" @click.outside="orgOpen = false" type="button">
+        <div class="sidebar-ts-eyebrow">{{ _("Organization") }}</div>
+        <div class="sidebar-ts-name">
+            <i class="fas fa-building sidebar-org-icon"></i>
+            <span class="sidebar-ts-label">{{ current_organization.name if current_organization else _('Organization') }}</span>
+            <i class="fas fa-chevron-down sidebar-ts-caret" :class="{ 'sidebar-ts-caret-open': orgOpen }"></i>
+        </div>
+    </button>
+    <div class="sidebar-ts-dropdown" x-show="orgOpen" x-cloak x-transition.opacity.duration.150ms>
+        {% for org in user_organizations %}
+        <form method="POST" action="{{ url_for('core_bp.switch_organization', organization_id=org.id) }}" class="sidebar-ts-item {% if org.is_current %}active{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" @click="orgOpen = false">
+                <span class="sidebar-ts-item-swatch" style="background:var(--color-gray-500)">{{ org.name[0]|upper }}</span>
+                <span>{{ org.name }}</span>
+                {% if org.is_current %}
+                <i class="fas fa-check text-3xs" style="color:var(--color-primary); margin-left:auto"></i>
+                {% endif %}
+            </button>
+        </form>
+        {% endfor %}
+        <div class="sidebar-ts-divider"></div>
+        <button class="sidebar-ts-new-btn" data-bs-toggle="modal" data-bs-target="#newOrganizationModal" @click="orgOpen = false" type="button">
+            <i class="fas fa-plus"></i> {{ _("New organization") }}
+        </button>
+    </div>
+</div>
+
+{# ── Workspace Switcher ── #}
+{% set ts_count = user_workspaces|default([])|length %}
+{% if ts_count > 0 %}
+{% set active_ts = user_workspaces|selectattr('id', 'equalto', active_workspace_id)|first|default(none) %}
+{% if not active_ts and ts_count == 1 %}{% set active_ts = user_workspaces[0] %}{% endif %}
+<div class="sidebar-ts-switcher" x-data="{ tsOpen: false }">
+    <button class="sidebar-ts-btn" @click="{% if ts_count >= 2 or is_organization_admin %}tsOpen = !tsOpen{% endif %}" @click.outside="tsOpen = false" type="button"
+            style="{% if ts_count < 2 and not is_organization_admin %}cursor:default;{% endif %}">
+        <div class="sidebar-ts-eyebrow">{{ _("Workspace") }}</div>
+        <div class="sidebar-ts-name">
+            <span class="sidebar-ts-swatch" style="background:{{ active_ts.color if active_ts else 'var(--color-primary)' }}"></span>
+            <span class="sidebar-ts-label">{{ active_ts.name if active_ts else _('Workspace') }}</span>
+            {% if ts_count >= 2 or is_organization_admin %}
+            <i class="fas fa-chevron-down sidebar-ts-caret" :class="{ 'sidebar-ts-caret-open': tsOpen }"></i>
+            {% endif %}
+        </div>
+    </button>
+    {% if ts_count >= 2 or is_organization_admin %}
+    <div class="sidebar-ts-dropdown" x-show="tsOpen" x-cloak x-transition.opacity.duration.150ms>
+        {% for ts in user_workspaces %}
+        <form method="POST" action="{{ url_for('core_bp.switch_workspace', workspace_id=ts.id) }}" class="sidebar-ts-item {% if ts.id == active_workspace_id %}active{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" @click="tsOpen = false">
+                <span class="sidebar-ts-item-swatch" style="background:{{ ts.color }}">{{ ts.name[0]|upper }}</span>
+                <span>{{ ts.name }}</span>
+                {% if ts.id == active_workspace_id %}
+                <i class="fas fa-check text-3xs" style="color:var(--color-primary); margin-left:auto"></i>
+                {% endif %}
+            </button>
+        </form>
+        {% endfor %}
+        {% if is_organization_admin %}
+        <div class="sidebar-ts-divider"></div>
+        <button class="sidebar-ts-new-btn" data-bs-toggle="modal" data-bs-target="#createWorkspaceModal" @click="tsOpen = false" type="button">
+            <i class="fas fa-plus"></i> {{ _("New workspace") }}
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{# Active-state macro: match_exact → match_prefix (with optional exclude_prefix / exclude_prefixes list) #}
+{% macro is_active_item(item) -%}
+    {%- if item.get('match_exact') and request.path in item['match_exact'] -%}active
+    {%- elif item.get('match_prefix') and request.path.startswith(item['match_prefix']) -%}
+        {%- set _excl = item['exclude_prefixes'] if item.get('exclude_prefixes') else (item['exclude_prefix'] if item.get('exclude_prefix') and item['exclude_prefix'] is sequence and item['exclude_prefix'] is not string else ([item['exclude_prefix']] if item.get('exclude_prefix') else [])) -%}
+        {%- set _ns = namespace(blocked=false) -%}
+        {%- for ex in _excl -%}{%- if request.path.startswith(ex) -%}{%- set _ns.blocked = true -%}{%- endif -%}{%- endfor -%}
+        {%- if not _ns.blocked -%}active{%- endif -%}
+    {%- endif -%}
+{%- endmacro %}
+
+{% for section_id in default_section_order %}
+{% set section = nav_sections.get(section_id) %}
+{% if section %}
+
+{# Section-level visibility guards #}
+{% set show_section = true %}
+{% if section.get('module_check') and not module_enabled(section['module_check']) %}{% set show_section = false %}{% endif %}
+{% if section.get('admin_only') and not current_user.is_admin %}{% set show_section = false %}{% endif %}
+{% if section.get('requires_access') and not current_user.has_access(section['requires_access']) %}{% set show_section = false %}{% endif %}
+
+{% if show_section %}
+
+{% if section.get('collapsible') %}
+{# ── Collapsible section (People) ── #}
+<div class="sec-nav-section-group" x-data="{ open: localStorage.getItem('sparq-nav-{{ section.id }}-open') === 'true' }">
+    <button class="sec-nav-label sec-nav-label--toggle" @click="open = !open; localStorage.setItem('sparq-nav-{{ section.id }}-open', open)" type="button">
+        <span>{{ _(section['label']) }}</span>
+        <i class="fas fa-chevron-down" :class="{ 'sec-nav-chevron-open': open }"></i>
+    </button>
+    <ul class="sec-nav-menu" x-show="open" x-collapse>
+        {% for item in section['items'] %}
+        {% set show_item = true %}
+        {% if item.get('module_check') and not module_enabled(item['module_check']) %}{% set show_item = false %}{% endif %}
+        {% if item.get('admin_only') and not current_user.is_admin %}{% set show_item = false %}{% endif %}
+        {% if item.get('requires_access') and not current_user.has_access(item['requires_access']) %}{% set show_item = false %}{% endif %}
+        {% if show_item %}
+        <li class="sec-nav-item">
+            <a href="{{ item['url'] }}" class="sec-nav-link {{ is_active_item(item) }}">
+                <i class="{{ item['icon'] }}"></i> {{ _(item['label']) }}
+            </a>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ul>
+</div>
+
+{% else %}
+{# ── Regular section ── #}
+<div class="sec-nav-label">{{ _(section['label']) }}</div>
+<ul class="sec-nav-menu">
+    {% for item in section['items'] %}
+    {% set show_item = true %}
+    {% if item.get('module_check') and not module_enabled(item['module_check']) %}{% set show_item = false %}{% endif %}
+    {% if item.get('admin_only') and not current_user.is_admin %}{% set show_item = false %}{% endif %}
+    {% if item.get('requires_access') and not current_user.has_access(item['requires_access']) %}{% set show_item = false %}{% endif %}
+    {% if show_item %}
+    <li class="sec-nav-item">
+        <a href="{{ item['url'] }}" class="sec-nav-link {{ is_active_item(item) }}">
+            <i class="{{ item['icon'] }}"></i> {{ _(item['label']) }}
+            {% if item['id'] == 'blockers' and open_blockers_count|default(0) > 0 %}
+            <span class="sec-nav-badge ms-auto">{{ open_blockers_count }}</span>
+            {% endif %}
+            {% if item['id'] == 'inbox' and notification_count|default(0) > 0 %}
+            <span class="sec-nav-badge ms-auto">{{ notification_count if notification_count <= 99 else '99+' }}</span>
+            {% endif %}
+        </a>
+    </li>
+    {% endif %}
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% endif %}{# end show_section #}
+{% endif %}{# end section exists #}
+{% endfor %}
+
+{# ── Recents ── client-side MRU, hidden when empty #}
+<div class="sec-nav-recents" x-data="{ items: [] }"
+     x-init="(function(){
+         var e=document.getElementById('mru-entry');
+         if(e) SparqMRU.add(e.dataset.mruType, e.dataset.mruId, e.dataset.mruName, e.dataset.mruUrl, e.dataset.mruRawname);
+         items=SparqMRU.read();
+         var taskIds = items.filter(function(i){ return i.type==='task' && i.id; }).map(function(i){ return i.id; });
+         if (taskIds.length > 0) {
+             fetch('/integrations/github/task-chips?ids=' + taskIds.join(','))
+                 .then(function(r){ return r.ok ? r.json() : {}; })
+                 .then(function(chips){
+                     items = items.map(function(item){
+                         if (item.type === 'task' && chips[item.id] !== undefined) {
+                             item.name = chips[item.id]
+                                 ? (item.rawTitle || item.name) + ' ' + chips[item.id]
+                                 : (item.rawTitle || item.name);
+                         }
+                         return item;
+                     });
+                 })
+                 .catch(function(){});
+         }
+     })()"
+     x-show="items.length > 0"
+     x-cloak>
+    <div class="sec-nav-label">{{ _("Recents") }}</div>
+    <ul class="sec-nav-menu">
+        <template x-for="item in items" :key="item.url">
+            <li class="sec-nav-item">
+                <a :href="item.url" class="sec-nav-link">
+                    <i :class="'fas ' + (item.type === 'project' ? 'fa-folder' : item.type === 'task' ? 'fa-list-check' : 'fa-user')"></i>
+                    <span class="sec-nav-recents-name" x-html="item.name"></span>
+                </a>
+            </li>
+        </template>
+    </ul>
+</div>
+

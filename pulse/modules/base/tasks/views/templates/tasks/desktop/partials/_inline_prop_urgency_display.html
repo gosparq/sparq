@@ -1,0 +1,18 @@
+<div id="prop-urgency" class="task-prop-section">
+    <div class="task-prop-header">
+        <span class="task-prop-label">{{ _("Urgency") }}</span>
+        {% if can_inline_edit %}
+        <button class="task-prop-edit-trigger"
+                hx-get="{{ url_for('tasks_bp.inline_edit_prop', item_id=item.id, prop='urgency') }}"
+                hx-target="#prop-urgency"
+                hx-swap="outerHTML">
+            <i class="fas fa-pen"></i>
+        </button>
+        {% endif %}
+    </div>
+    <div>
+        <span class="task-tier-badge small" style="background:{{ tier_defaults[item.urgency_tier].color }}22;color:{{ tier_defaults[item.urgency_tier].color }};">
+            {{ _("Tier") }} {{ item.urgency_tier }} — {{ tier_defaults[item.urgency_tier].label }}
+        </span>
+    </div>
+</div>

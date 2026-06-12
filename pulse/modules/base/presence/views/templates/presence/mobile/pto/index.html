@@ -1,0 +1,147 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("PTO / Leave") }}{% endblock %}
+
+{% block module_content %}
+<!-- Header -->
+<h5 class="mb-3">{{ _("My Leave Requests") }}</h5>
+
+<!-- Filter Pills -->
+<div class="filter-pills mb-3">
+    <a href="{{ url_for('pto_bp.index', status='all') }}"
+       class="filter-pill {% if status_filter == 'all' %}active{% endif %}">
+        {{ _("All") }}
+    </a>
+    <a href="{{ url_for('pto_bp.index', status='pending') }}"
+       class="filter-pill {% if status_filter == 'pending' %}active{% endif %}">
+        {{ _("Pending") }}
+    </a>
+    <a href="{{ url_for('pto_bp.index', status='approved') }}"
+       class="filter-pill {% if status_filter == 'approved' %}active{% endif %}">
+        {{ _("Approved") }}
+    </a>
+    <a href="{{ url_for('pto_bp.index', status='denied') }}"
+       class="filter-pill {% if status_filter == 'denied' %}active{% endif %}">
+        {{ _("Denied") }}
+    </a>
+</div>
+
+<!-- Admin: Scheduled Leave -->
+{% if current_user.is_admin and upcoming_count > 0 %}
+<a href="{{ url_for('pto_bp.scheduled') }}" class="mobile-card d-block text-decoration-none leave-approved-border">
+    <div class="mobile-card-body d-flex align-items-center gap-3">
+        <div class="text-success">
+            <i class="fas fa-calendar-check fa-lg"></i>
+        </div>
+        <div class="flex-grow-1">
+            <div class="fw-bold text-dark">{{ upcoming_count }} {{ _("upcoming leave") if upcoming_count == 1 else _("upcoming leaves") }}</div>
+            <small class="text-muted">{{ _("Tap to view scheduled") }}</small>
+        </div>
+        <i class="fas fa-chevron-right text-muted"></i>
+    </div>
+</a>
+{% endif %}
+
+<!-- Request List -->
+{% if my_requests %}
+    {% for req in my_requests %}
+    <a href="{{ url_for('pto_bp.detail', request_id=req.id) }}" class="mobile-card d-block text-decoration-none">
+        <div class="mobile-card-body">
+            <!-- Date + Status -->
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <div class="fw-bold text-dark">
+                        {{ req.start_date.strftime('%b %d') }}{% if req.start_date != req.end_date %} - {{ req.end_date.strftime('%b %d') }}{% endif %}
+                    </div>
+                    <small class="text-muted">{{ req.total_days }} {{ _("day") if req.total_days == 1 else _("days") }}</small>
+                </div>
+                {% if req.status == LeaveRequestStatus.PENDING %}
+                <span class="status-badge pending">{{ _("Pending") }}</span>
+                {% elif req.status == LeaveRequestStatus.APPROVED %}
+                <span class="status-badge approved">{{ _("Approved") }}</span>
+                {% elif req.status == LeaveRequestStatus.DENIED %}
+                <span class="status-badge denied">{{ _("Denied") }}</span>
+                {% elif req.status == LeaveRequestStatus.DRAFT %}
+                <span class="status-badge draft">{{ _("Draft") }}</span>
+                {% elif req.status == LeaveRequestStatus.CANCELLED %}
+                <span class="status-badge draft">{{ _("Cancelled") }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Leave Type -->
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="fas fa-umbrella-beach text-muted"></i>
+                <span class="text-dark">{{ req.leave_type.value }}</span>
+            </div>
+
+            <!-- Notes preview -->
+            {% if req.employee_notes %}
+            <p class="text-muted small mb-0 fst-italic">"{{ req.employee_notes|truncate(80) }}"</p>
+            {% endif %}
+
+            <!-- Admin feedback -->
+            {% if req.admin_notes and req.status in [LeaveRequestStatus.PENDING, LeaveRequestStatus.DENIED] %}
+            <div class="mt-2 p-2 bg-light rounded small">
+                <i class="fas fa-comment-dots text-warning me-1"></i>
+                {{ req.admin_notes|truncate(60) }}
+            </div>
+            {% endif %}
+
+            <!-- Approval info (matches desktop: "Approved by X on DATE") -->
+            {% if req.status == LeaveRequestStatus.APPROVED and req.approved_by and req.approved_at %}
+            <div class="text-muted mt-2" style="font-size:0.75rem;">
+                <i class="fas fa-check-circle text-success me-1"></i>
+                {{ _("Approved by") }}
+                {% if req.approved_by.user %}{{ req.approved_by.user.first_name }}{% endif %}
+                {{ _("on") }} {{ req.approved_at.strftime('%b %d') }}
+            </div>
+            {% endif %}
+
+            <!-- Inline edit/cancel for own pending requests -->
+            {% if req.status == LeaveRequestStatus.PENDING %}
+            <div class="d-flex gap-2 mt-2" @click.stop>
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary flex-grow-1"
+                        style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                        hx-get="{{ url_for('pto_bp.edit_request_modal', request_id=req.id) }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML">
+                    <i class="fas fa-pen me-1"></i>{{ _("Edit") }}
+                </button>
+                <form hx-post="{{ url_for('pto_bp.cancel_request', request_id=req.id) }}"
+                      hx-confirm="{{ _('Cancel this request?') }}"
+                      hx-target="body"
+                      hx-swap="none"
+                      class="flex-grow-1"
+                      style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit"
+                            class="btn btn-sm btn-outline-danger w-100"
+                            style="font-size:0.75rem;padding:0.25rem 0.5rem;">
+                        <i class="fas fa-times me-1"></i>{{ _("Cancel") }}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-umbrella-beach"></i>
+    <h5>{{ _("No requests found") }}</h5>
+    <p>{{ _("Tap the + button to request your first time off.") }}</p>
+</div>
+{% endif %}
+
+<!-- Modals container -->
+<div id="modals"></div>
+
+<!-- Floating Action Button -->
+<button class="fab"
+        hx-get="{{ url_for('pto_bp.new_request_modal') }}"
+        hx-target="#modals"
+        hx-swap="innerHTML">
+    <i class="fas fa-plus"></i>
+</button>
+{% endblock %}

@@ -1,0 +1,209 @@
+/* extends: base.css, desktop.css */
+/* Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0. */
+/* Integrations module styles — chip states, popover, trigger dropdown */
+
+/* ── Issue chip ──────────────────────────────────────────────────────────── */
+
+.gh-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 20px;
+    background: #f5f5f5;
+    border: 1px solid #e8e8e8;
+    padding: 1px 7px 1px 5px;
+    font-size: 0.78rem;
+    cursor: default;
+    position: relative;
+    z-index: 2;
+    color: #111;
+    vertical-align: baseline;
+    white-space: nowrap;
+    text-decoration: none;
+    user-select: none;
+}
+
+.gh-chip__dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.gh-chip--open   .gh-chip__dot { background: #2da44e; }
+.gh-chip--linked .gh-chip__dot { background: #2da44e; }
+.gh-chip--closed .gh-chip__dot { background: #8b949e; }
+.gh-chip--broken .gh-chip__dot { background: #ccc; }
+
+.gh-chip--closed .gh-chip__title {
+    text-decoration: line-through;
+    color: #999;
+}
+.gh-chip--broken .gh-chip__title {
+    font-style: italic;
+    color: #999;
+}
+
+.gh-chip__badge {
+    font-size: var(--font-size-3xs);
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 4px;
+}
+
+/* Pending action chip — shown in the create-task modal before the task is
+   saved, so the user sees a deferred link/create is registered. */
+.gh-chip--pending {
+    border-style: dashed;
+    border-color: var(--color-gray-300);
+    background: var(--color-gray-50);
+    color: var(--color-gray-600);
+}
+
+.gh-chip__remove {
+    margin-left: 4px;
+    font-size: 0.55rem;
+}
+
+/* ── Popover ─────────────────────────────────────────────────────────────── */
+
+.gh-popover {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 1060;
+    width: 320px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 14px 16px;
+    text-align: left;
+    white-space: normal;
+    color: #111;
+}
+
+.gh-popover__repo {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: #666;
+    margin-bottom: 6px;
+}
+
+.gh-popover__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+.gh-popover__status--open   { color: #2da44e; }
+.gh-popover__status--closed { color: #8b949e; }
+
+.gh-popover__status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.gh-popover__status--open   .gh-popover__status-dot { background: #2da44e; }
+.gh-popover__status--closed .gh-popover__status-dot { background: #8b949e; }
+
+.gh-popover__title {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+.gh-popover__title-num {
+    color: #666;
+    font-weight: 400;
+    margin-right: 4px;
+}
+
+.gh-popover__meta {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: #666;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.gh-popover__label {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #e8f0fe;
+    color: #1a56db;
+    font-size: var(--font-size-2xs);
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.gh-popover__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.gh-popover__btn {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    text-decoration: none;
+    cursor: pointer;
+    background: #f0f0f0;
+    color: #333;
+    border: none;
+}
+.gh-popover__btn:hover { background: #e5e5e5; color: #333; }
+
+.gh-no-gh-btn .gh-popover__btn--github { display: none !important; }
+
+/* ── Issue trigger dropdown ──────────────────────────────────────────────── */
+
+.gh-issue-dropdown {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 1055;
+    min-width: 280px;
+}
+
+.gh-issue-dropdown__item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 0.875rem;
+    color: #111;
+    cursor: pointer;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.gh-issue-dropdown__item:last-child { border-bottom: none; }
+
+.gh-issue-dropdown__item:hover,
+.gh-issue-dropdown__item.gh-active {
+    background: #f5f5f5;
+}
+
+.gh-issue-dropdown__num {
+    font-weight: 400;
+    color: #999;
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}

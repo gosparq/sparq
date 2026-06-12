@@ -1,0 +1,59 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block title %}{{ _("Settings") }}{% endblock %}
+
+{% block module_content %}
+{% if current_user.is_admin %}
+<!-- Application Section -->
+<div class="settings-section-header">{{ _("Application") }}</div>
+
+<a href="{{ url_for('core_bp.settings_company') }}" class="settings-nav-card">
+    <div class="settings-nav-card-icon">
+        <i class="fas fa-cog"></i>
+    </div>
+    <div class="settings-nav-card-content">
+        <div class="settings-nav-card-title">{{ _("General") }}</div>
+        <div class="settings-nav-card-desc">{{ _("Workspace name and color") }}</div>
+    </div>
+    <i class="fas fa-chevron-right settings-nav-card-chevron"></i>
+</a>
+
+<a href="{{ url_for('core_bp.settings_regional') }}" class="settings-nav-card">
+    <div class="settings-nav-card-icon">
+        <i class="fas fa-globe"></i>
+    </div>
+    <div class="settings-nav-card-content">
+        <div class="settings-nav-card-title">{{ _("Regional") }}</div>
+        <div class="settings-nav-card-desc">{{ _("Timezone, date, currency, and week start") }}</div>
+    </div>
+    <i class="fas fa-chevron-right settings-nav-card-chevron"></i>
+</a>
+
+
+{% endif %}
+
+<!-- Account Section -->
+<div class="settings-section-header" {% if current_user.is_admin %}style="margin-top: 1.5rem;"{% endif %}>{{ _("Account") }}</div>
+
+<a href="{{ url_for('core_bp.settings_preferences') }}" class="settings-nav-card">
+    <div class="settings-nav-card-icon">
+        <i class="fas fa-sliders-h"></i>
+    </div>
+    <div class="settings-nav-card-content">
+        <div class="settings-nav-card-title">{{ _("Preferences") }}</div>
+        <div class="settings-nav-card-desc">{{ _("Language, start time, and profile") }}</div>
+    </div>
+    <i class="fas fa-chevron-right settings-nav-card-chevron"></i>
+</a>
+
+<a href="{{ url_for('core_bp.logout') }}" class="settings-nav-card logout">
+    <div class="settings-nav-card-icon">
+        <i class="fas fa-sign-out-alt"></i>
+    </div>
+    <div class="settings-nav-card-content">
+        <div class="settings-nav-card-title">{{ _("Logout") }}</div>
+        <div class="settings-nav-card-desc">{{ _("Sign out of your account") }}</div>
+    </div>
+    <i class="fas fa-chevron-right settings-nav-card-chevron"></i>
+</a>
+{% endblock %}

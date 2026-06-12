@@ -1,0 +1,256 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Wins") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Wins") }}</h2>
+            <span class="text-muted text-sm">{{ _("Celebrate team and personal wins") }}</span>
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-plus me-1"></i>{{ _("Share a Win") }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% for tmpl in templates %}
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}">
+                        {{ tmpl.name }}
+                    </a>
+                </li>
+                {% else %}
+                <li><span class="dropdown-item text-muted">{{ _("No templates available") }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    {# ── Inline Compose ── #}
+    {% if templates %}
+    <div class="card mb-4 sync-card">
+        <form action="{{ url_for('sync_bp.post_create') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="template_id" value="{{ templates[0].id }}">
+            <div class="card-body" style="padding:1rem 1.25rem;">
+                <div class="text-muted mb-2 text-sm">
+                    {{ _("Share a win") }}
+                </div>
+                <input type="text" name="field_title" class="form-control border-0 p-0 mb-2 fw-semibold"
+                    placeholder="{{ _('What\'s the win?') }}" style="font-size:0.9rem; box-shadow:none">
+                <textarea name="field_description" class="form-control border-0 p-0 mb-3 text-base" rows="2"
+                    placeholder="{{ _('Tell us more...') }}" style="resize:none; box-shadow:none"></textarea>
+
+                <div class="d-flex align-items-center justify-content-between">
+                    <div></div>
+                    <button type="submit" class="btn btn-sm btn-outline-dark text-sm" style="border-radius:6px; padding:0.25rem 1rem">
+                        {{ _("Share win") }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    {# ── Wins Feed ── #}
+    {% if posts %}
+        {% set ns = namespace(current_date=None) %}
+        {% for post in posts %}
+            {% set post_date = post.created_at|format_datetime('%B %d, %Y') %}
+            {% if post_date != ns.current_date %}
+                {% if not loop.first %}</div>{% endif %}
+                {% set ns.current_date = post_date %}
+                <div class="mb-1 mt-3">
+                    <small class="text-muted fw-semibold text-uppercase text-2xs sync-tracking">{{ post_date }}</small>
+                </div>
+                <div class="post-day-group">
+            {% endif %}
+
+            <div class="card mb-2 sync-card">
+                <div class="card-body py-3 px-4">
+                    <div class="d-flex align-items-start gap-3">
+                        {# Avatar #}
+                        <div class="flex-shrink-0">
+                            {% if not post.is_anonymous and post.member and post.member.user %}
+                            <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8rem;background:{{ post.member.user.avatar_color|default('#f59e0b') }};">
+                                {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                            </span>
+                            {% else %}
+                            <span class="avatar-circle text-sm" style="width:36px; height:36px; background:#6b7280">
+                                <i class="fas fa-user text-2xs"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        {# Content #}
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                                {% if not post.is_anonymous and post.member and post.member.user %}
+                                <span class="fw-semibold text-base">{{ post.member.user.full_name }}</span>
+                                {% else %}
+                                <span class="fw-semibold text-muted text-base">{{ _("Anonymous") }}</span>
+                                {% endif %}
+                                <span class="badge text-3xs badge-template">{{ post.template.name }} <i class="fas fa-trophy ms-1 text-warning"></i></span>
+                                <span class="text-muted ms-auto text-sm">{{ post.created_at|format_datetime('%I:%M %p') }}</span>
+                            </div>
+
+                            {# Render payload fields #}
+                            {% for field in post.template.fields %}
+                                {% set val = post.payload.get(field.key) %}
+                                {% if val %}
+                                    {% if field.type == 'title' %}
+                                    <p class="fw-semibold mb-1 text-base">{{ val|urlize(target="_blank") }}</p>
+                                    {% elif field.type == 'bullets' %}
+                                    <ul class="mb-1 ps-3 text-base">
+                                        {% for item in val %}<li>{{ item|urlize(target="_blank") }}</li>{% endfor %}
+                                    </ul>
+                                    {% elif field.type == 'choice' %}
+                                    {# Choice fields are meta signals — hidden in feed view #}
+                                    {% else %}
+                                    <p class="mb-1 text-base sync-pre-wrap">{{ val|urlize(target="_blank") }}</p>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if loop.last %}</div>{% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-trophy fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-3">{{ _("No wins shared yet.") }}</p>
+            {% if templates %}
+            <a href="{{ url_for('sync_bp.post_new', template_id=templates[0].id) }}" class="btn btn-primary btn-sm">
+                {{ _("Share your first win") }}
+            </a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if current_user.is_admin %}
+    {# Create Win Template Modal #}
+    <div class="modal fade" id="createTemplateModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('core_bp.settings_templates_create') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="next" value="{{ url_for('sync_bp.wins_index') }}">
+                    <input type="hidden" name="post_type" value="win">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ _("New Win Type") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">{{ _("Name") }}</label>
+                                <input type="text" name="name" class="form-control" required placeholder="{{ _('e.g. Team Win') }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ _("Description") }}</label>
+                                <input type="text" name="description" class="form-control" placeholder="{{ _('Short description (optional)') }}">
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6>{{ _("Fields") }}</h6>
+                        <div id="fieldsContainer">
+                            <div class="row g-2 mb-2 field-row">
+                                <div class="col-3">
+                                    <input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="{{ _('Key') }}" value="title">
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="{{ _('Label') }}" value="Title">
+                                </div>
+                                <div class="col-2">
+                                    <select name="field_type[]" class="form-select form-select-sm">
+                                        <option value="title" selected>{{ _("Title") }}</option>
+                                        <option value="text">{{ _("Text") }}</option>
+                                        <option value="bullets">{{ _("Bullets") }}</option>
+                                        <option value="scale">{{ _("Scale") }}</option>
+                                        <option value="choice">{{ _("Choice") }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="{{ _('Placeholder') }}">
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row g-2 mb-2 field-row">
+                                <div class="col-3">
+                                    <input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="{{ _('Key') }}" value="description">
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="{{ _('Label') }}" value="Description">
+                                </div>
+                                <div class="col-2">
+                                    <select name="field_type[]" class="form-select form-select-sm">
+                                        <option value="text" selected>{{ _("Text") }}</option>
+                                        <option value="title">{{ _("Title") }}</option>
+                                        <option value="bullets">{{ _("Bullets") }}</option>
+                                        <option value="scale">{{ _("Scale") }}</option>
+                                        <option value="choice">{{ _("Choice") }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="{{ _('Placeholder') }}">
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addFieldRow()">
+                            <i class="fas fa-plus"></i> {{ _("Add Field") }}
+                        </button>
+
+                        <hr>
+                        <div class="form-check">
+                            <input type="checkbox" name="anonymous" class="form-check-input" id="anonymousCheck">
+                            <label class="form-check-label" for="anonymousCheck">{{ _("Anonymous posts") }}</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                        <button type="submit" class="btn btn-primary">{{ _("Create Template") }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        if (new URLSearchParams(window.location.search).get('action') === 'new_win_type') {
+            new bootstrap.Modal(document.getElementById('createTemplateModal')).show();
+            const url = new URL(window.location); url.searchParams.delete('action'); history.replaceState(null, '', url);
+        }
+    });
+    function addFieldRow() {
+        const container = document.getElementById('fieldsContainer');
+        const row = document.createElement('div');
+        row.className = 'row g-2 mb-2 field-row';
+        row.innerHTML = `
+            <div class="col-3"><input type="text" name="field_key[]" class="form-control form-control-sm" placeholder="Key"></div>
+            <div class="col-3"><input type="text" name="field_label[]" class="form-control form-control-sm" placeholder="Label"></div>
+            <div class="col-2"><select name="field_type[]" class="form-select form-select-sm"><option value="text">Text</option><option value="title">Title</option><option value="bullets">Bullets</option><option value="scale">Scale</option><option value="choice">Choice</option></select></div>
+            <div class="col-3"><input type="text" name="field_placeholder[]" class="form-control form-control-sm" placeholder="Placeholder"></div>
+            <div class="col-1"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.field-row').remove()"><i class="fas fa-times"></i></button></div>
+        `;
+        container.appendChild(row);
+    }
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

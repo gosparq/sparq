@@ -1,0 +1,27 @@
+<div id="prop-due-date" class="task-prop-section">
+    <div class="task-prop-header">
+        <span class="task-prop-label">{{ _("Due on") }}</span>
+        {% if can_inline_edit %}
+        <button class="task-prop-edit-trigger"
+                hx-get="{{ url_for('tasks_bp.inline_edit_prop', item_id=item.id, prop='due_date') }}"
+                hx-target="#prop-due-date"
+                hx-swap="outerHTML">
+            <i class="fas fa-pen"></i>
+        </button>
+        {% endif %}
+    </div>
+    <div>
+        {% if item.due_date %}
+        <span class="{% if item.status == 'open' and item.due_date < today %}text-danger{% endif %}">
+            {{ item.due_date.strftime('%b %d, %Y') }}
+            {% if item.status == 'open' and item.due_date < today %}
+            <small>({{ _("overdue") }})</small>
+            {% elif item.status == 'open' and item.due_date == today %}
+            <small>({{ _("due today") }})</small>
+            {% endif %}
+        </span>
+        {% else %}
+        <span class="text-muted small">{{ _("None") }}</span>
+        {% endif %}
+    </div>
+</div>

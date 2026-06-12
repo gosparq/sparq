@@ -1,0 +1,23 @@
+<nav class="mobile-bottom-nav">
+    <div class="mobile-nav-btn {% if request.endpoint == 'tasks_bp.index' %}active{% endif %}">
+        <a href="{{ url_for('tasks_bp.index') }}" aria-label="{{ _('Inbox') }}">
+            <i class="fas fa-inbox"></i>
+            <span>{{ _("Inbox") }}</span>
+            {% if tasks_open_count and tasks_open_count > 0 %}
+            <span class="mobile-nav-badge" data-tasks-badge></span>
+            {% endif %}
+        </a>
+    </div>
+    <div class="mobile-nav-btn {% if request.endpoint == 'tasks_bp.board' %}active{% endif %}">
+        <a href="{{ url_for('tasks_bp.board') }}" aria-label="{{ _('Overview') }}">
+            <i class="fas fa-chart-bar"></i>
+            <span>{{ _("Overview") }}</span>
+        </a>
+    </div>
+    <div class="mobile-nav-btn {% if request.path.startswith('/projects') %}active{% endif %}">
+        <a href="{{ url_for('projects_bp.index') }}" aria-label="{{ _('Projects') }}">
+            <i class="fas fa-folder"></i>
+            <span>{{ _("Projects") }}</span>
+        </a>
+    </div>
+</nav>

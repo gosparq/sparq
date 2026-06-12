@@ -1,0 +1,127 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("Time Clock") }}{% endblock %}
+
+{% block module_content %}
+<!-- Live Clock Display (card-framed to match desktop) -->
+<div class="text-center mb-3 p-3" style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.625rem;" x-data="liveClock('{{ timezone }}')" x-init="init()">
+    <div class="display-4 fw-bold text-primary" x-text="time"></div>
+    <div class="text-muted" x-text="date"></div>
+</div>
+
+<!-- Clock Status -->
+<div id="clock-status"
+     hx-get="{{ url_for('clock_bp.status') }}"
+     hx-trigger="every 30s"
+     hx-swap="innerHTML">
+    {% include "presence/mobile/partials/clock_status.html" %}
+</div>
+
+<!-- Today's History -->
+<div class="mobile-card mt-4">
+    <div class="mobile-card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-history me-2"></i>{{ _("Today's Activity") }}</span>
+        <span id="todays-total-hours" class="fw-bold text-primary">
+            {% if todays_total_hours is defined and todays_total_hours > 0 %}
+            {{ "%.2f"|format(todays_total_hours) }} {{ _("hrs") }}
+            {% endif %}
+        </span>
+    </div>
+    <div class="mobile-card-body" id="todays-activity">
+        {% if todays_punches %}
+        <div class="list-group list-group-flush">
+            {% for punch in todays_punches %}
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0 flex-wrap gap-1">
+                <div class="d-flex align-items-center gap-1">
+                    {% if pending_requests and punch.id in pending_requests %}
+                    <span class="local-time" data-utc="{{ pending_requests[punch.id].requested_time.isoformat() }}Z"></span>
+                    <span class="badge bg-warning text-dark" style="font-size:0.65rem;">{{ _("Pending Approval") }}</span>
+                    {% else %}
+                    <span class="local-time" data-utc="{{ punch.punch_time.isoformat() }}Z"></span>
+                    {% endif %}
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    {% if punch.punch_type.value == 'in' %}
+                    <span class="status-badge clocked-in">
+                        <i class="fas fa-sign-in-alt me-1"></i>{{ _("Clock In") }}
+                    </span>
+                    {% else %}
+                    <span class="status-badge clocked-out">
+                        <i class="fas fa-sign-out-alt me-1"></i>{{ _("Clock Out") }}
+                    </span>
+                    {% endif %}
+                    {% if punch.outside_geofence %}
+                    <span class="badge bg-warning text-dark" title="{{ _('Outside geofence') }}">
+                        <i class="fas fa-flag"></i>
+                    </span>
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline-secondary punch-edit-btn"
+                            hx-get="{{ url_for('presence_bp.request_punch_edit_modal', punch_id=punch.id) }}"
+                            hx-target="#modals"
+                            hx-swap="innerHTML">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted text-center mb-0">{{ _("No activity recorded today") }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal container for HTMX -->
+<div id="modals"></div>
+
+<script nonce="{{ csp_nonce }}">
+// Company timezone for all time displays
+const companyTimezone = '{{ timezone }}';
+
+// Live clock Alpine.js component
+function liveClock(timezone) {
+    return {
+        time: '',
+        date: '',
+        init() {
+            this.updateTime();
+            setInterval(() => this.updateTime(), 1000);
+        },
+        updateTime() {
+            const now = new Date();
+            this.time = now.toLocaleTimeString('en-US', {
+                timeZone: timezone,
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            this.date = now.toLocaleDateString('en-US', {
+                timeZone: timezone,
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+    };
+}
+
+// Convert UTC times to company timezone
+document.querySelectorAll('.local-time').forEach(function(el) {
+    const utc = el.dataset.utc;
+    if (utc) {
+        const date = new Date(utc);
+        el.textContent = date.toLocaleTimeString('en-US', {
+            timeZone: companyTimezone,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    }
+});
+
+// Refresh page when a punch correction request is submitted
+document.body.addEventListener('punchUpdated', function() {
+    window.location.reload();
+});
+</script>
+{% endblock %}

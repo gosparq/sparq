@@ -1,0 +1,122 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("General") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-cog"></i>{% endblock %}
+{% block page_title_display %}{{ _("General") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Workspace name and regional preferences") }}</p>{% endblock %}
+
+{% block settings_content %}
+{# ── Workspace ── #}
+<form method="POST" action="{{ url_for('core_bp.settings_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_section" value="workspace">
+    <div class="settings-section">
+        <div class="d-flex justify-content-between align-items-center settings-section-title">
+            {{ _("Workspace") }}
+            <button type="submit" class="btn btn-sm btn-primary text-xs">{{ _("Save") }}</button>
+        </div>
+        <div class="row" x-data="{ selectedColor: '{{ workspace.color or 'violet' }}' }">
+            <div class="col-md-4">
+                <label for="company_name" class="form-label">{{ _("Workspace Name") }}</label>
+                <input type="text" class="form-control form-control-sm" id="company_name" name="company_name"
+                       value="{{ workspace.name or '' }}" placeholder="{{ _('Enter workspace name') }}">
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">{{ _("Color") }}</label>
+                <input type="hidden" name="color" :value="selectedColor">
+                <div class="d-flex gap-2 flex-wrap">
+                    {% for name, hex in workspace_colors.items() %}
+                    <button type="button"
+                            class="color-swatch"
+                            :class="{ 'active': selectedColor === '{{ name }}' }"
+                            style="background: {{ hex }}"
+                            @click="selectedColor = '{{ name }}'"
+                            title="{{ name|capitalize }}"></button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+{# ── Regional ── #}
+<form method="POST" action="{{ url_for('core_bp.settings_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_section" value="regional">
+    <div class="settings-section">
+        <div class="d-flex justify-content-between align-items-center settings-section-title">
+            {{ _("Regional") }}
+            <button type="submit" class="btn btn-sm btn-primary text-xs">{{ _("Save") }}</button>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="timezone" class="form-label">{{ _("Timezone") }}</label>
+                <select class="form-select form-select-sm" id="timezone" name="timezone">
+                    {% for tz in timezones %}
+                    <option value="{{ tz }}" {% if settings.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="date_format" class="form-label">{{ _("Date Format") }}</label>
+                <select class="form-select form-select-sm" id="date_format" name="date_format">
+                    <option value="MM/DD/YYYY" {% if settings.date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY" {% if settings.date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY</option>
+                    <option value="YYYY-MM-DD" {% if settings.date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="time_format" class="form-label">{{ _("Time Format") }}</label>
+                <select class="form-select form-select-sm" id="time_format" name="time_format">
+                    <option value="12-hour" {% if settings.time_format == '12-hour' %}selected{% endif %}>{{ _("12-hour") }}</option>
+                    <option value="24-hour" {% if settings.time_format == '24-hour' %}selected{% endif %}>{{ _("24-hour") }}</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="currency" class="form-label">{{ _("Currency") }}</label>
+                <select class="form-select form-select-sm" id="currency" name="currency">
+                    <option value="USD" {% if settings.currency == 'USD' %}selected{% endif %}>USD ($)</option>
+                    <option value="EUR" {% if settings.currency == 'EUR' %}selected{% endif %}>EUR (&euro;)</option>
+                    <option value="GBP" {% if settings.currency == 'GBP' %}selected{% endif %}>GBP (&pound;)</option>
+                    <option value="CAD" {% if settings.currency == 'CAD' %}selected{% endif %}>CAD ($)</option>
+                    <option value="AUD" {% if settings.currency == 'AUD' %}selected{% endif %}>AUD ($)</option>
+                    <option value="MXN" {% if settings.currency == 'MXN' %}selected{% endif %}>MXN ($)</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="first_day_of_week" class="form-label">{{ _("First Day of Week") }}</label>
+                <select class="form-select form-select-sm" id="first_day_of_week" name="first_day_of_week">
+                    <option value="0" {% if settings.first_day_of_week == 0 %}selected{% endif %}>{{ _("Sunday") }}</option>
+                    <option value="1" {% if settings.first_day_of_week == 1 %}selected{% endif %}>{{ _("Monday") }}</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</form>
+
+{# ── Work ── #}
+<form method="POST" action="{{ url_for('core_bp.settings_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_section" value="work">
+    <div class="settings-section">
+        <div class="d-flex justify-content-between align-items-center settings-section-title">
+            {{ _("Work") }}
+            <button type="submit" class="btn btn-sm btn-primary text-xs">{{ _("Save") }}</button>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="stale_days" class="form-label">{{ _("Stale Threshold") }}</label>
+                <select class="form-select form-select-sm" id="stale_days" name="stale_days">
+                    {% for d in range(1, 31) %}
+                    <option value="{{ d }}" {% if settings.stale_days == d %}selected{% endif %}>
+                        {{ d }} {{ _("day") if d == 1 else _("days") }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">{{ _("Projects and tasks idle longer than this are moved to On Hold") }}</div>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

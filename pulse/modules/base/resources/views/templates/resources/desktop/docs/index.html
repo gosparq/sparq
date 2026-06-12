@@ -1,0 +1,721 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("Documents") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Docs & Notes") }}</h2>
+        </div>
+        <div class="d-flex gap-2">
+            {% if current_user.is_admin %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#newFolderModal">
+                <i class="fas fa-folder-plus me-1"></i>{{ _("New Folder") }}
+            </button>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload me-1"></i>{{ _("Upload") }}
+            </button>
+        </div>
+    </div>
+
+    {# ── Two-column layout: section nav | content ── #}
+    <div class="d-flex gap-4 align-items-start">
+
+    {# ── Left: section nav ── #}
+    <div class="flex-shrink-0" style="min-width:130px; max-width:150px">
+        <div class="d-flex flex-column gap-1">
+            <a href="{{ url_for('docs_blueprint.index') }}" class="btn btn-sm text-start btn-dark">
+                <i class="fas fa-folder me-1"></i>{{ _("Documents") }}
+            </a>
+            <a href="{{ url_for('notes_blueprint.index') }}" class="btn btn-sm text-start btn-outline-secondary">
+                <i class="fas fa-sticky-note me-1"></i>{{ _("Notes") }}
+            </a>
+        </div>
+    </div>
+
+    {# ── Right: content ── #}
+    <div class="flex-grow-1 min-width-0">
+
+    {# ── Breadcrumbs ── #}
+    {% if current_folder %}
+    <nav class="mt-3 mb-3 text-sm">
+        <a class="text-decoration-none" href="{{ url_for('docs_blueprint.index') }}" style="color:var(--color-primary)">{{ _("Documents") }}</a>
+        {% for bc in breadcrumbs %}
+        <span style="color:var(--color-gray-400);margin:0 0.25rem;">/</span>
+        {% if not loop.last %}
+        <a class="text-decoration-none" href="{{ url_for('docs_blueprint.view_folder', folder_id=bc.id) }}" style="color:var(--color-primary)">{{ bc.name }}</a>
+        {% else %}
+        <span class="fw-medium" style="color:var(--color-gray-700)">{{ bc.name }}</span>
+        {% endif %}
+        {% endfor %}
+    </nav>
+    {% endif %}
+
+    {# ── Folders Grid ── #}
+    {% if folders %}
+    <div class="fw-bold text-uppercase text-2xs" style="letter-spacing:0.05em; color:var(--color-gray-500); margin-bottom:0.5rem; margin-top:1.5rem">
+        {{ _("FOLDERS") }}
+    </div>
+    <div class="docs-folder-grid">
+        {% for folder in folders %}
+        <a href="{{ url_for('docs_blueprint.view_folder', folder_id=folder.id) }}" class="docs-folder-card">
+            <div class="docs-folder-icon">
+                <i class="fas fa-folder"></i>
+            </div>
+            <div class="docs-folder-name">{{ folder.name }}</div>
+            <div class="docs-folder-meta">{{ folder.document_count|default(0) }} {{ _("docs") }}</div>
+            {% if current_user.is_admin %}
+            <div class="docs-folder-actions" onclick="event.preventDefault();event.stopPropagation();">
+                <button type="button" class="btn btn-sm p-0 text-2xs" style="color:var(--color-gray-400)"
+                        data-bs-toggle="modal" data-bs-target="#renameModal"
+                        data-item-type="folder" data-item-id="{{ folder.id }}" data-item-name="{{ folder.name }}">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn btn-sm p-0 ms-2 text-2xs" style="color:var(--color-gray-400)"
+                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                        data-item-type="folder" data-item-id="{{ folder.id }}" data-item-name="{{ folder.name }}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Documents List ── #}
+    {% if documents %}
+    <div class="fw-bold text-uppercase text-2xs" style="letter-spacing:0.05em; color:var(--color-gray-500); margin-bottom:0.5rem; margin-top:1.5rem">
+        {% if current_folder %}{{ _("FILES") }}{% else %}{{ _("RECENT DOCUMENTS") }}{% endif %}
+    </div>
+    <div class="docs-file-list">
+        {% for doc in documents %}
+        <div class="docs-file-row">
+            <a href="{{ url_for('docs_blueprint.download', doc_id=doc.id) }}" class="docs-file-link">
+                <div class="docs-file-icon">
+                    {% set ext = doc.filename.rsplit('.', 1)[-1]|lower if '.' in doc.filename else '' %}
+                    {% if ext in ['pdf'] %}
+                    <i class="fas fa-file-pdf" style="color:var(--color-danger);"></i>
+                    {% elif ext in ['doc', 'docx'] %}
+                    <i class="fas fa-file-word" style="color:var(--color-info);"></i>
+                    {% elif ext in ['xls', 'xlsx', 'csv'] %}
+                    <i class="fas fa-file-excel" style="color:var(--color-success);"></i>
+                    {% elif ext in ['ppt', 'pptx'] %}
+                    <i class="fas fa-file-powerpoint" style="color:var(--color-warning);"></i>
+                    {% elif ext in ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'] %}
+                    <i class="fas fa-file-image" style="color:var(--color-primary);"></i>
+                    {% elif ext in ['zip', 'gz', 'tar', 'rar'] %}
+                    <i class="fas fa-file-archive" style="color:var(--color-warning-dark);"></i>
+                    {% else %}
+                    <i class="fas fa-file" style="color:var(--color-gray-400);"></i>
+                    {% endif %}
+                </div>
+                <div class="docs-file-info">
+                    <div class="docs-file-name">{{ doc.filename }}</div>
+                    <div class="docs-file-meta">
+                        {{ doc.size_display }}
+                        {% if doc.updated_at %} · {{ doc.updated_at|format_datetime('%b %d') }}{% endif %}
+                    </div>
+                </div>
+            </a>
+            <div class="docs-file-actions">
+                <a href="{{ url_for('docs_blueprint.download', doc_id=doc.id) }}" class="btn btn-sm p-0 text-xs" style="color:var(--color-gray-400)" title="{{ _('Download') }}">
+                    <i class="fas fa-download"></i>
+                </a>
+                {% if current_user.is_admin %}
+                <button type="button" class="btn btn-sm p-0 ms-2 text-2xs" style="color:var(--color-gray-400)"
+                        data-bs-toggle="modal" data-bs-target="#renameModal"
+                        data-item-type="document" data-item-id="{{ doc.id }}" data-item-name="{{ doc.filename }}">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button type="button" class="btn btn-sm p-0 ms-2 text-2xs" style="color:var(--color-gray-400)"
+                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                        data-item-type="document" data-item-id="{{ doc.id }}" data-item-name="{{ doc.filename }}">
+                    <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Attachments List (root only) ── #}
+    {% if attachments %}
+    <div class="fw-bold text-uppercase text-2xs" style="letter-spacing:0.05em; color:var(--color-gray-500); margin-bottom:0.5rem; margin-top:1.5rem">
+        {{ _("RECENT ATTACHMENTS") }}
+    </div>
+    <div class="docs-file-list">
+        {% for att in attachments %}
+        <div class="docs-file-row">
+            <a href="{{ url_for('docs_blueprint.preview_attachment', attachment_id=att.id) }}" class="docs-file-link" target="_blank">
+                <div class="docs-file-icon">
+                    {% set ext = att.filename.rsplit('.', 1)[-1]|lower if '.' in att.filename else '' %}
+                    {% if ext in ['pdf'] %}
+                    <i class="fas fa-file-pdf" style="color:var(--color-danger);"></i>
+                    {% elif ext in ['doc', 'docx'] %}
+                    <i class="fas fa-file-word" style="color:var(--color-info);"></i>
+                    {% elif ext in ['xls', 'xlsx', 'csv'] %}
+                    <i class="fas fa-file-excel" style="color:var(--color-success);"></i>
+                    {% elif ext in ['ppt', 'pptx'] %}
+                    <i class="fas fa-file-powerpoint" style="color:var(--color-warning);"></i>
+                    {% elif ext in ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'] %}
+                    <i class="fas fa-file-image" style="color:var(--color-primary);"></i>
+                    {% elif ext in ['zip', 'gz', 'tar', 'rar'] %}
+                    <i class="fas fa-file-archive" style="color:var(--color-warning-dark);"></i>
+                    {% else %}
+                    <i class="fas fa-file" style="color:var(--color-gray-400);"></i>
+                    {% endif %}
+                </div>
+                <div class="docs-file-info">
+                    <div class="docs-file-name">{{ att.filename }}</div>
+                    <div class="docs-file-meta">
+                        {{ att.size_display }}
+                        {% if att.created_at %} · {{ att.created_at|format_datetime('%b %d') }}{% endif %}
+                        {% if attachment_sources.get(att.id) %}
+                        · <span class="badge bg-secondary text-3xs" style="vertical-align:middle">{{ attachment_sources[att.id] }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            <div class="docs-file-actions">
+                <a href="{{ url_for('docs_blueprint.download_attachment', attachment_id=att.id) }}" class="btn btn-sm p-0 text-xs" style="color:var(--color-gray-400)" title="{{ _('Download') }}">
+                    <i class="fas fa-download"></i>
+                </a>
+                {% if current_user.is_admin %}
+                <form action="{{ url_for('docs_blueprint.delete_attachment', attachment_id=att.id) }}" method="post" class="d-inline ms-2"
+                      onsubmit="return confirm('{{ _("Delete this attachment?") }}');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm p-0 text-2xs" style="color:var(--color-gray-400)" title="{{ _('Delete') }}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── Empty State ── #}
+    {% if not folders and not documents and not attachments %}
+    <div class="text-center py-5">
+        <i class="fas fa-folder-open fa-2x mb-2" style="color:var(--color-gray-400);"></i>
+        <p class="mb-2 text-base" style="color:var(--color-gray-500)">
+            {% if current_folder %}{{ _("This folder is empty") }}{% else %}{{ _("No documents yet") }}{% endif %}
+        </p>
+        <div class="d-flex justify-content-center gap-2">
+            {% if current_user.is_admin %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#newFolderModal">
+                <i class="fas fa-folder-plus me-1"></i>{{ _("New Folder") }}
+            </button>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload me-1"></i>{{ _("Upload") }}
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if google_drive_connected %}
+    <div style="margin-top:1.5rem;padding:0.75rem 1rem;background:var(--color-gray-50);border-radius:0.5rem;border:1px solid var(--color-gray-200);">
+        <div class="d-flex align-items-center gap-2 text-sm">
+            <i class="fab fa-google-drive" style="color:var(--color-primary);"></i>
+            <span>{{ _("Google Drive connected") }}</span>
+            <a href="#" id="drive-tab-trigger" class="ms-auto text-decoration-none text-sm" style="color:var(--color-primary)"
+               hx-get="{{ url_for('drive_blueprint.browse') }}" hx-target="#drive-panel" hx-swap="innerHTML">
+                {{ _("Browse Drive") }} <i class="fas fa-arrow-right text-3xs"></i>
+            </a>
+        </div>
+        <div id="drive-panel"></div>
+    </div>
+    {% endif %}
+
+    </div>{# end right column #}
+    </div>{# end two-column #}
+</div>
+
+{# ── Modals ── #}
+{% if current_user.is_admin %}
+<div class="modal fade" id="newFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('docs_blueprint.create_folder') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("New Folder") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <div class="mb-3">
+                        <label for="folderName" class="form-label">{{ _("Folder Name") }}</label>
+                        <input type="text" class="form-control" id="folderName" name="name" required autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-primary">{{ _("Create") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="uploadForm" action="{{ url_for('docs_blueprint.upload') }}" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Upload Files") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <input type="file" id="fileInput" name="file" multiple required style="display:none;">
+                    <div id="dropZone" class="upload-dropzone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>{{ _("Drag & drop files here") }}</p>
+                        <span>{{ _("or") }}</span>
+                        <button type="button" id="browseBtn" class="btn btn-sm btn-primary mt-2">{{ _("Browse Files") }}</button>
+                        <p class="upload-dropzone-hint">{{ _("Max 100 MB per file") }}</p>
+                    </div>
+                    <div id="fileList" class="upload-file-list" style="display:none;"></div>
+                    <p class="text-muted small mt-2 mb-0">
+                        {{ _("Uploading to:") }}
+                        <strong>{% if current_folder %}{{ current_folder.path }}{% else %}/{% endif %}</strong>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" id="uploadBtn" class="btn btn-sm btn-primary" disabled>{{ _("Upload") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if current_user.is_admin %}
+<div class="modal fade" id="renameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="renameForm" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Rename") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="renameName" class="form-label">{{ _("New Name") }}</label>
+                        <input type="text" class="form-control" id="renameName" name="name" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-primary">{{ _("Rename") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="deleteForm" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _("Confirm Delete") }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ _("Are you sure you want to delete") }} <strong id="deleteItemName"></strong>?</p>
+                    <p class="text-danger small" id="deleteFolderWarning" style="display:none;">
+                        {{ _("This will delete all files and subfolders inside this folder.") }}
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                    <button type="submit" class="btn btn-sm btn-danger">{{ _("Delete") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.getElementById('renameModal').addEventListener('show.bs.modal', function(event) {
+    var btn = event.relatedTarget;
+    var form = document.getElementById('renameForm');
+    if (btn.getAttribute('data-item-type') === 'folder') {
+        form.action = '{{ url_for("docs_blueprint.rename_folder", folder_id=0) }}'.replace('/0/', '/' + btn.getAttribute('data-item-id') + '/');
+    } else {
+        form.action = '{{ url_for("docs_blueprint.rename_document", doc_id=0) }}'.replace('/0/', '/' + btn.getAttribute('data-item-id') + '/');
+    }
+    document.getElementById('renameName').value = btn.getAttribute('data-item-name');
+});
+document.getElementById('deleteModal').addEventListener('show.bs.modal', function(event) {
+    var btn = event.relatedTarget;
+    var form = document.getElementById('deleteForm');
+    if (btn.getAttribute('data-item-type') === 'folder') {
+        form.action = '{{ url_for("docs_blueprint.delete_folder", folder_id=0) }}'.replace('/0/', '/' + btn.getAttribute('data-item-id') + '/');
+        document.getElementById('deleteFolderWarning').style.display = 'block';
+    } else {
+        form.action = '{{ url_for("docs_blueprint.delete_document", doc_id=0) }}'.replace('/0/', '/' + btn.getAttribute('data-item-id') + '/');
+        document.getElementById('deleteFolderWarning').style.display = 'none';
+    }
+    document.getElementById('deleteItemName').textContent = btn.getAttribute('data-item-name');
+});
+</script>
+{% endif %}
+
+<style>
+.docs-folder-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.docs-folder-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.25rem 1rem;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.625rem;
+    background: var(--color-white);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.1s, border-color 0.1s;
+    position: relative;
+}
+
+.docs-folder-card:hover {
+    background: var(--color-gray-50);
+    border-color: var(--color-gray-300);
+    text-decoration: none;
+    color: inherit;
+}
+
+.docs-folder-icon {
+    font-size: 1.5rem;
+    color: var(--color-warning);
+    margin-bottom: 0.5rem;
+}
+
+.docs-folder-name {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-gray-900);
+    text-align: center;
+}
+
+.docs-folder-meta {
+    font-size: 0.7rem;
+    color: var(--color-gray-400);
+    margin-top: 0.125rem;
+}
+
+.docs-folder-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.docs-folder-card:hover .docs-folder-actions {
+    opacity: 1;
+}
+
+.docs-file-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.docs-file-row {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-gray-200);
+    border-bottom: none;
+    background: var(--color-white);
+    transition: background 0.1s;
+}
+
+.docs-file-row:first-child { border-radius: 0.5rem 0.5rem 0 0; }
+.docs-file-row:last-child { border-bottom: 1px solid var(--color-gray-200); border-radius: 0 0 0.5rem 0.5rem; }
+.docs-file-row:first-child:last-child { border-radius: 0.5rem; }
+.docs-file-row:hover { background: var(--color-gray-50); }
+
+.docs-file-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
+}
+
+.docs-file-link:hover { text-decoration: none; color: inherit; }
+
+.docs-file-icon {
+    font-size: 1.1rem;
+    width: 1.5rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.docs-file-info { min-width: 0; }
+
+.docs-file-name {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-gray-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.docs-file-meta {
+    font-size: 0.7rem;
+    color: var(--color-gray-400);
+    margin-top: 0.1rem;
+}
+
+.docs-file-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.docs-file-row:hover .docs-file-actions { opacity: 1; }
+
+/* Upload dropzone */
+.upload-dropzone {
+    border: 2px dashed var(--color-gray-300);
+    border-radius: 0.625rem;
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-gray-400);
+    transition: border-color 0.15s, background 0.15s;
+    cursor: pointer;
+}
+
+.upload-dropzone i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.upload-dropzone p {
+    margin: 0;
+    font-size: var(--font-size-base);
+}
+
+.upload-dropzone span {
+    font-size: 0.75rem;
+}
+
+.upload-dropzone-hint {
+    margin-top: 0.75rem !important;
+    font-size: 0.7rem !important;
+    color: var(--color-gray-400);
+}
+
+.upload-dropzone.drag-over {
+    border-color: var(--color-primary);
+    background: var(--color-primary-lightest, rgba(59,130,246,0.04));
+    color: var(--color-primary);
+}
+
+.upload-file-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.upload-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.upload-file-item:last-child { border-bottom: none; }
+
+.upload-file-item-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+.upload-file-item-size {
+    color: var(--color-gray-400);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+}
+
+.upload-file-item-remove {
+    color: var(--color-gray-400);
+    cursor: pointer;
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.upload-file-item-remove:hover { color: var(--color-error, var(--color-danger)); }
+
+.upload-file-item.upload-file-invalid {
+    background: rgba(239,68,68,0.04);
+}
+
+.upload-file-item.upload-file-invalid .upload-file-item-name {
+    color: var(--color-error, var(--color-danger));
+}
+
+.upload-file-error {
+    font-size: 0.675rem;
+    color: var(--color-error, var(--color-danger));
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var dropZone = document.getElementById('dropZone');
+    var fileInput = document.getElementById('fileInput');
+    var fileList = document.getElementById('fileList');
+    var uploadBtn = document.getElementById('uploadBtn');
+    var browseBtn = document.getElementById('browseBtn');
+    var selectedFiles = [];
+
+    var ALLOWED_EXTENSIONS = new Set([
+        'jpg','jpeg','png','gif','webp',
+        'pdf','doc','docx','xls','xlsx','txt','csv','rtf',
+        'json','xml','html','css','js','py','yaml','yml',
+        'md','log','sql','sh','ini','toml','cfg','env'
+    ]);
+    var MAX_FILE_SIZE = 100 * 1024 * 1024;
+
+    function getExtension(name) {
+        var parts = name.split('.');
+        return parts.length > 1 ? parts.pop().toLowerCase() : '';
+    }
+
+    function validateFile(file) {
+        var ext = getExtension(file.name);
+        if (!ext || !ALLOWED_EXTENSIONS.has(ext)) return 'File type not allowed';
+        if (file.size > MAX_FILE_SIZE) return 'Exceeds 100 MB';
+        return null;
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function updateFileList() {
+        if (selectedFiles.length === 0) {
+            fileList.style.display = 'none';
+            dropZone.style.display = '';
+            uploadBtn.disabled = true;
+            return;
+        }
+        dropZone.style.display = 'none';
+        fileList.style.display = '';
+        fileList.innerHTML = '';
+        var hasValid = false;
+        var allValid = true;
+        selectedFiles.forEach(function(file, idx) {
+            var error = validateFile(file);
+            if (error) { allValid = false; } else { hasValid = true; }
+            var item = document.createElement('div');
+            item.className = 'upload-file-item' + (error ? ' upload-file-invalid' : '');
+            item.innerHTML =
+                '<i class="fas fa-' + (error ? 'exclamation-circle' : 'file') + ' ' + (error ? '' : 'text-muted') + ' me-2 flex-shrink-0 text-xs" style="' + (error ? 'color:var(--color-error,var(--color-danger)); ' : '') + '"></i>' +
+                '<span class="upload-file-item-name">' + file.name.replace(/</g, '&lt;') + '</span>' +
+                (error ? '<span class="upload-file-error">' + error + '</span>' : '') +
+                '<span class="upload-file-item-size">' + formatSize(file.size) + '</span>' +
+                '<span class="upload-file-item-remove" data-idx="' + idx + '" title="Remove"><i class="fas fa-times"></i></span>';
+            fileList.appendChild(item);
+        });
+        uploadBtn.disabled = !hasValid;
+    }
+
+    function addFiles(files) {
+        for (var i = 0; i < files.length; i++) {
+            selectedFiles.push(files[i]);
+        }
+        syncInput();
+        updateFileList();
+    }
+
+    function syncInput() {
+        var dt = new DataTransfer();
+        selectedFiles.forEach(function(f) { dt.items.add(f); });
+        fileInput.files = dt.files;
+    }
+
+    // Click dropzone or browse button to open file picker
+    browseBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        fileInput.click();
+    });
+    dropZone.addEventListener('click', function() { fileInput.click(); });
+
+    fileInput.addEventListener('change', function() {
+        addFiles(fileInput.files);
+    });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+            addFiles(e.dataTransfer.files);
+        }
+    });
+
+    // Remove file
+    fileList.addEventListener('click', function(e) {
+        var removeBtn = e.target.closest('.upload-file-item-remove');
+        if (removeBtn) {
+            var idx = parseInt(removeBtn.getAttribute('data-idx'));
+            selectedFiles.splice(idx, 1);
+            syncInput();
+            updateFileList();
+        }
+    });
+
+    // Reset on modal close
+    document.getElementById('uploadModal').addEventListener('hidden.bs.modal', function() {
+        selectedFiles = [];
+        fileInput.value = '';
+        updateFileList();
+    });
+})();
+</script>
+{% endblock %}

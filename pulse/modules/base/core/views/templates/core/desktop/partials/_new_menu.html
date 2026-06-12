@@ -1,0 +1,76 @@
+{# "+ New" universal composer dropdown — 7 options #}
+{# Rendered inside the content header bar #}
+
+<div x-data="{ newMenuOpen: false }" style="position:relative;">
+    <button class="header-new-btn" @click="newMenuOpen = !newMenuOpen" @click.outside="newMenuOpen = false">
+        <i class="fas fa-plus text-icon"></i> {{ _("New") }}
+    </button>
+    <div class="header-new-dropdown" x-show="newMenuOpen" x-cloak x-transition.opacity.duration.150ms>
+        {# Status update submenu #}
+        {% if header_post_templates is defined and header_post_templates %}
+        {% set status_templates = header_post_templates|selectattr('post_type', 'equalto', 'update')|list %}
+        {% if status_templates %}
+        <div class="header-new-section-label">{{ _("Status") }}</div>
+        {% for tmpl in status_templates %}
+        <a href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}" class="header-new-item" @click="newMenuOpen = false">
+            <i class="fas fa-pen-to-square text-center text-2xs" style="width:16px; color:var(--color-gray-400)"></i>
+            {{ tmpl.name }}
+        </a>
+        {% endfor %}
+        {% endif %}
+
+        {# Task — opens create modal via HTMX on any page #}
+        <a href="#" class="header-new-item"
+           hx-get="{{ url_for('tasks_bp.create_modal', next=request.path) }}"
+           hx-target="#modals"
+           hx-swap="innerHTML"
+           @click="newMenuOpen = false">
+            <i class="fas fa-list-check text-center text-2xs" style="width:16px; color:var(--color-gray-400)"></i>
+            {{ _("Task") }}
+        </a>
+
+        {# Board post submenu #}
+        {% set board_templates = header_post_templates|selectattr('post_type', 'equalto', 'board')|list %}
+        {% if board_templates %}
+        <div class="header-new-section-label">{{ _("Board") }}</div>
+        {% for tmpl in board_templates %}
+        <a href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}" class="header-new-item" @click="newMenuOpen = false">
+            <i class="fas fa-clipboard text-center text-2xs" style="width:16px; color:var(--color-gray-400)"></i>
+            {{ tmpl.name }}
+        </a>
+        {% endfor %}
+        {% endif %}
+
+        {# Win templates #}
+        {% set win_templates = header_post_templates|selectattr('post_type', 'equalto', 'win')|list %}
+        {% if win_templates %}
+        {% for tmpl in win_templates %}
+        <a href="{{ url_for('sync_bp.post_new', template_id=tmpl.id) }}" class="header-new-item" @click="newMenuOpen = false">
+            <i class="fas fa-trophy text-center text-2xs" style="width:16px; color:#d97706"></i>
+            {{ tmpl.name }}
+        </a>
+        {% endfor %}
+        {% endif %}
+        {% endif %}
+
+        <div style="height:1px;background:var(--color-gray-200);margin:4px 0;"></div>
+
+        {# Project #}
+        <a href="{{ url_for('projects_bp.new') }}" class="header-new-item" @click="newMenuOpen = false">
+            <i class="fas fa-folder text-center text-2xs" style="width:16px; color:var(--color-gray-400)"></i>
+            {{ _("Project") }}
+        </a>
+
+        {# Doc #}
+        <a href="{{ url_for('docs_blueprint.index') }}" class="header-new-item" @click="newMenuOpen = false">
+            <i class="fas fa-file-lines text-center text-2xs" style="width:16px; color:var(--color-gray-400)"></i>
+            {{ _("Doc") }}
+        </a>
+
+        {# Note #}
+        <a href="{{ url_for('notes_blueprint.index') }}" class="header-new-item" @click="newMenuOpen = false">
+            <i class="fas fa-sticky-note text-center text-2xs" style="width:16px; color:var(--color-gray-400)"></i>
+            {{ _("Note") }}
+        </a>
+    </div>
+</div>

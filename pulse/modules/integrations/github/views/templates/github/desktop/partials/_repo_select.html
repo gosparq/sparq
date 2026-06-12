@@ -1,0 +1,44 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Select a repository") }}{% endblock %}
+{% block page_icon %}<i class="fa-brands fa-github"></i>{% endblock %}
+{% block page_title_display %}{{ _("Select a repository") }}{% endblock %}
+{% block page_description %}
+<p class="text-muted">{{ _("Connect GitHub") }}</p>
+{% endblock %}
+
+{% block settings_content %}
+<div style="max-width:480px;">
+    <form method="POST" action="{{ url_for('github_bp.github_select_repo') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="installation_id" value="{{ installation_id }}">
+
+        <div class="mb-3">
+            <label for="repo-select" class="form-label">{{ _("Repository") }}</label>
+            {% if repos %}
+            <select id="repo-select" name="repo" class="form-select" required>
+                <option value="" disabled selected>— {{ _("Select a repository") }} —</option>
+                {% for repo in repos %}
+                <option value="{{ repo.full_name }}">{{ repo.full_name }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <p class="text-muted mb-0 text-base">
+                No repositories found for this installation. Install the GitHub App on a
+                repository first, then try connecting again.
+            </p>
+            {% endif %}
+        </div>
+
+        {% if repos %}
+        <button type="submit" class="btn btn-dark btn-sm">
+            {{ _("Connect") }}
+        </button>
+        {% endif %}
+
+        <a href="{{ url_for('integrations_bp.settings_index') }}" class="btn btn-sm btn-outline-secondary ms-2">
+            Cancel
+        </a>
+    </form>
+</div>
+{% endblock %}

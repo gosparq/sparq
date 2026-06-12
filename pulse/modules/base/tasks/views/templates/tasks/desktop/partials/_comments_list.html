@@ -1,0 +1,69 @@
+{# Swappable comment list — target of HTMX create/edit/delete/like responses #}
+{% if comments %}
+{% for comment in comments %}
+{% set cl = like_data.get(comment.id, {}) if like_data is defined else {} %}
+<div class="task-comment {% if not loop.last %}border-bottom{% endif %}" id="comment-{{ comment.id }}">
+    <div class="task-comment-body">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <div>
+                <span class="task-comment-author">
+                    {{ comment.author.user.first_name }} {{ comment.author.user.last_name }}
+                </span>
+                <span class="task-comment-time">
+                    {{ comment.created_at|format_datetime('%b %d, %Y at %I:%M %p') }}
+                </span>
+                {% if comment.updated_at %}
+                <span class="task-comment-time fst-italic">{{ _("(edited)") }}</span>
+                {% endif %}
+            </div>
+            {% if comment.author_id == current_member.id %}
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-link text-muted p-0"
+                        title="{{ _('Edit') }}"
+                        hx-get="{{ url_for('tasks_bp.comment_edit_form', item_id=item.id, comment_id=comment.id) }}"
+                        hx-target="#comment-{{ comment.id }}"
+                        hx-swap="innerHTML">
+                    <i class="fas fa-pencil-alt task-comment-action-icon"></i>
+                </button>
+                <form class="d-inline"
+                      hx-post="{{ url_for('tasks_bp.delete_comment', item_id=item.id, comment_id=comment.id) }}"
+                      hx-target="#comments-list"
+                      hx-swap="innerHTML"
+                      hx-confirm="{{ _('Delete this comment?') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="{{ _('Delete') }}">
+                        <i class="fas fa-trash-alt task-comment-action-icon"></i>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        <div class="task-comment-content" style="white-space:pre-wrap;">{{ comment.content|urlize(none, true, '_blank') }}</div>
+        <div class="task-comment-reactions">
+            {% if cl.get('count', 0) > 0 %}
+            <button class="task-comment-reaction {% if cl.get('liked') %}task-comment-reaction--active{% endif %}"
+                    title="{{ cl.get('names', [])|join(', ') }}"
+                    hx-post="{{ url_for('tasks_bp.toggle_comment_like', item_id=item.id, comment_id=comment.id) }}"
+                    hx-target="#comments-list"
+                    hx-swap="innerHTML">
+                <i class="fas fa-thumbs-up"></i> {{ cl.count }}
+            </button>
+            {% else %}
+            <button class="task-comment-react-add"
+                    title="{{ _('Like') }}"
+                    hx-post="{{ url_for('tasks_bp.toggle_comment_like', item_id=item.id, comment_id=comment.id) }}"
+                    hx-target="#comments-list"
+                    hx-swap="innerHTML">
+                <i class="far fa-thumbs-up"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="text-center text-muted py-2 task-comment-empty">
+    <i class="fas fa-comment-slash me-1 opacity-50 task-comment-action-icon"></i>
+    {{ _("No comments yet") }}
+</div>
+{% endif %}

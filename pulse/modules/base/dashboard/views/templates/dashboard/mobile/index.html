@@ -1,0 +1,295 @@
+{% extends "core/mobile/base.html" %}
+
+{% block title %}{{ _("Workspace Home") }}{% endblock %}
+
+{% block app_class %}dashboard-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('dashboard_bp.static', filename='css/dashboard-mobile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="mobile-home">
+    {# ── Header ── #}
+    <div class="dash-mobile-header">
+        <h1>{{ greeting }}, {{ current_user.first_name }}</h1>
+        <span class="dash-mobile-date">{{ today_display }}</span>
+    </div>
+
+    {# ── BLUF + Pulse Banner ── #}
+    <div class="dash-card dash-banner-mobile">
+        <div class="dash-banner-mobile-section">
+            <div class="dash-card-header">
+                <span class="dash-card-title dash-banner-mobile-title">{{ _("BLUF") }}</span>
+                <span class="dash-banner-mobile-date">{{ today_display }}</span>
+            </div>
+            <div class="dash-bluf-stats">
+                <div class="dash-bluf-stat">
+                    <span class="dash-bluf-value">{{ blocked_count }}</span>
+                    <span class="dash-bluf-label">{{ _("blocked") }}</span>
+                </div>
+                <div class="dash-bluf-stat">
+                    <span class="dash-bluf-value">{{ bluf_slipped }}</span>
+                    <span class="dash-bluf-label">{{ _("slipped") }}</span>
+                </div>
+                <div class="dash-bluf-stat">
+                    <span class="dash-bluf-value">{{ bluf_shipped }}</span>
+                    <span class="dash-bluf-label">{{ _("shipped") }}</span>
+                </div>
+                {% if bluf_decisions %}
+                <div class="dash-bluf-stat">
+                    <span class="dash-bluf-value">{{ bluf_decisions }}</span>
+                    <span class="dash-bluf-label">{{ _("decisions") }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="dash-banner-mobile-divider"></div>
+        <div class="dash-banner-mobile-section">
+            <div class="dash-card-header">
+                <span class="dash-card-title dash-banner-mobile-title">{{ _("PULSE") }}</span>
+                <span class="dash-banner-mobile-date">{{ _("This week") }}</span>
+            </div>
+            <div class="dash-banner-pulse-row">
+                <span class="dash-rag-label-text">{{ pulse_label }}{% if pulse_pct is not none %} &middot; {{ pulse_pct }}%{% endif %}</span>
+                <span class="dash-rag-pill">
+                    <span class="dash-rag-seg rag-r{% if pulse_rag != 'r' %} dim{% endif %}"></span>
+                    <span class="dash-rag-seg rag-a{% if pulse_rag != 'a' %} dim{% endif %}"></span>
+                    <span class="dash-rag-seg rag-g{% if pulse_rag != 'g' %} dim{% endif %}"></span>
+                    <span class="dash-rag-label">{% if pulse_rag == 'g' %}{{ _("Green") }}{% elif pulse_rag == 'a' %}{{ _("Amber") }}{% else %}{{ _("Red") }}{% endif %}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ My Items ═══ #}
+    <div class="dash-card dash-card-tasks">
+        <div class="dash-card-header">
+            <span class="dash-card-title">
+                {{ _("MY ITEMS") }}
+                {% if my_blocker_count %}
+                <span class="text-muted dash-count">({{ my_blocker_count }})</span>
+                {% endif %}
+            </span>
+            <a href="{{ url_for('tasks_bp.board') }}" class="dash-card-action">{{ _("View all") }}</a>
+        </div>
+        {% if my_items %}
+        <div class="dash-action-list">
+            {% for entry in my_items %}
+            {% if entry.type == 'nudge' %}
+            <a href="{{ url_for('sync_bp.updates_index') }}" class="dash-action-item dash-link-item">
+                <span class="dash-item-avatar dash-item-avatar-nudge">
+                    <i class="fas fa-bell"></i>
+                </span>
+                <div class="dash-item-body">
+                    <div class="dash-action-title">{{ _("Pending check-in") }}</div>
+                    <div class="dash-action-meta">{{ _("System nudge") }} · {{ entry.nudge_time|format_datetime('%-I:%M%p')|lower }}</div>
+                </div>
+            </a>
+            {% elif entry.type == 'blocker' %}
+            {% set tier_labels = {1: _('Now'), 2: _('Later'), 3: _('Whenever')} %}
+            <a href="{{ url_for('tasks_bp.detail', item_id=entry.item_id) }}" class="dash-action-item dash-link-item">
+                {% if entry.person_first_name %}
+                <span class="dash-item-avatar" style="--avatar-bg: {{ entry.person_avatar_color|default('#6b7280') }};">
+                    {{ entry.person_first_name[0]|upper }}{{ entry.person_last_name[0]|upper }}
+                </span>
+                {% else %}
+                <span class="dash-item-avatar dash-item-avatar-blocker">
+                    <i class="fas fa-hand"></i>
+                </span>
+                {% endif %}
+                <div class="dash-item-body">
+                    <div class="dash-action-title">{{ entry.title | truncate(60) }}</div>
+                    {% if entry.context_note %}
+                    <div class="dash-action-note">{{ entry.context_note | truncate(80) }}</div>
+                    {% endif %}
+                    <div class="dash-action-meta">
+                        {% if entry.person_first_name %}{{ entry.person_first_name }} · {% endif %}
+                        <span class="dash-tier-badge dash-tier-badge--t{{ entry.urgency_tier }}">{{ tier_labels.get(entry.urgency_tier, '') }}</span>
+                        · {{ entry.time_ago_str }}
+                    </div>
+                </div>
+            </a>
+            {% elif entry.type == 'mention' %}
+            <a href="{{ url_for('sync_bp.post_permalink', post_id=entry.post_id) }}" class="dash-action-item dash-link-item">
+                {% if entry.person_first_name %}
+                <span class="dash-item-avatar" style="--avatar-bg: {{ entry.person_avatar_color|default('#6b7280') }};">
+                    {{ entry.person_first_name[0]|upper }}{{ entry.person_last_name[0]|upper }}
+                </span>
+                {% else %}
+                <span class="dash-item-avatar dash-item-avatar-mention">
+                    <i class="fas fa-at"></i>
+                </span>
+                {% endif %}
+                <div class="dash-item-body">
+                    <div class="dash-action-title">{{ entry.title | truncate(60) }}</div>
+                    <div class="dash-action-meta">
+                        {% if entry.person_first_name %}{{ entry.person_first_name }} · {% endif %}{{ entry.time_ago_str }}
+                    </div>
+                </div>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-sm">
+            <i class="fas fa-check-circle text-success"></i>
+            <p>{{ _("Nothing needs your attention") }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ═══ Team Status ═══ #}
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <span class="dash-card-title">{{ _("TEAM STATUS") }}</span>
+            {% if team_status %}
+            {% set clocked_in_count = team_status | selectattr('is_clocked_in') | list | length %}
+            {% set focus_ns = namespace(count=0) %}
+            {% for ts in team_status %}{% if ts.is_clocked_in and ts.flow_status in ('flow', 'focus') %}{% set focus_ns.count = focus_ns.count + 1 %}{% endif %}{% endfor %}
+            <span class="dash-team-summary">
+                {{ clocked_in_count }} {{ _("in") }}{% if focus_ns.count %}, {{ focus_ns.count }} {{ _("focusing") }}{% endif %}
+            </span>
+            {% endif %}
+        </div>
+        {% if team_status %}
+        <div class="dash-member-list">
+            {% for ts in team_status %}
+            <a href="{% if ts.is_blocked %}{% if ts.blocked_item_ids | length == 1 %}{{ url_for('tasks_bp.detail', item_id=ts.blocked_item_ids[0]) }}{% else %}{{ url_for('tasks_bp.blockers') }}{% endif %}{% elif ts.is_blocking %}{% if ts.blocking_item_ids | length == 1 %}{{ url_for('tasks_bp.detail', item_id=ts.blocking_item_ids[0]) }}{% else %}{{ url_for('tasks_bp.blockers') }}{% endif %}{% else %}{{ url_for('tasks_bp.board', member=ts.member_id) }}{% endif %}" class="dash-member-row dash-link-item">
+                {% if not ts.is_clocked_in %}
+                <span class="dash-status-dot dash-dot-out"></span>
+                {% elif ts.is_blocked %}
+                <span class="dash-status-dot dash-dot-blocked"></span>
+                {% elif ts.is_blocking %}
+                <span class="dash-status-dot dash-dot-blocked"></span>
+                {% elif ts.flow_status in ('flow', 'focus') %}
+                <span class="dash-status-dot dash-dot-focus"></span>
+                {% else %}
+                <span class="dash-status-dot dash-dot-available"></span>
+                {% endif %}
+                <span class="dash-member-name">
+                    {{ ts.first_name }} {{ ts.last_name[0] }}.
+                </span>
+                {% if not ts.is_clocked_in %}
+                <span class="dash-status-badge dash-badge-out">{{ _("Out") }}</span>
+                {% elif ts.is_blocked %}
+                <span class="dash-status-badge dash-badge-blocked">{{ _("Blocked") }}</span>
+                {% elif ts.is_blocking %}
+                <span class="dash-status-badge dash-badge-blocked">{{ _("Blocking") }}{% if ts.blocking_names %} {{ ts.blocking_names | join(", ") }}{% endif %}</span>
+                {% elif ts.flow_status in ('flow', 'focus') %}
+                <span class="dash-status-badge dash-badge-focus">{{ _("Focus") }}</span>
+                {% else %}
+                <span class="dash-status-badge dash-badge-available">{{ _("Available") }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-sm">
+            <i class="fas fa-users"></i>
+            <p>{{ _("No team data available") }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ═══ What's Happening ═══ #}
+    <div class="dash-card dash-card-happening" x-data="{ filterMember: {{ current_member_id|default(0) }} }">
+        <div class="dash-card-header">
+            <span class="dash-card-title">{{ _("WHAT'S HAPPENING") }}</span>
+        </div>
+        <div class="dash-pill-filter">
+            <button class="dash-pill" :class="{ active: filterMember === 0 }" @click="filterMember = 0">{{ _("All") }}</button>
+            {% for ts in team_status %}
+            <button class="dash-pill" :class="{ active: filterMember === {{ ts.member_id }} }" @click="filterMember = {{ ts.member_id }}">
+                {{ ts.first_name }}
+            </button>
+            {% endfor %}
+        </div>
+        {% if whats_happening_items %}
+        <div class="dash-happening-feed">
+            {% for entry in whats_happening_items %}
+
+            {% if entry.type == 'post' %}
+            {% set post = entry.item %}
+            {% set _blocker = (post.template_name == "I'm blocked") %}
+            <div x-data="{ memberId: {{ post.member_id or 0 }} }"
+                 x-show="filterMember === 0 || memberId === filterMember">
+            <a href="{{ url_for('sync_bp.post_permalink', post_id=post.id) }}" class="activity-item activity-item-link">
+                {% if post.post_type == 'win' %}
+                <div class="activity-icon activity-icon-win"><i class="fas fa-trophy"></i></div>
+                {% elif _blocker %}
+                <div class="activity-icon activity-icon-blocked"><i class="fas fa-hand"></i></div>
+                {% elif post.template_name == 'Heads up' %}
+                <div class="activity-icon activity-icon-headsup"><i class="fas fa-bullhorn"></i></div>
+                {% elif post.post_type == 'board' %}
+                <div class="activity-icon activity-icon-board"><i class="fas fa-clipboard-list"></i></div>
+                {% else %}
+                <div class="activity-icon activity-icon-update"><i class="fas fa-bullhorn"></i></div>
+                {% endif %}
+                <div class="activity-body">
+                    <div class="activity-meta">
+                        {% if post.post_type == 'win' %}
+                        <span class="badge activity-badge activity-badge-win">{{ _("Win") }}</span>
+                        {% elif _blocker %}
+                        <span class="badge activity-badge activity-badge-blocked">{{ post.template_name }}</span>
+                        {% elif post.template_name == 'Heads up' %}
+                        <span class="badge activity-badge activity-badge-headsup">{{ post.template_name }}</span>
+                        {% elif post.post_type == 'board' %}
+                        <span class="badge activity-badge activity-badge-board">{{ post.template_name or _("Board") }}</span>
+                        {% elif post.template_name %}
+                        <span class="badge activity-badge activity-badge-update">{{ post.template_name }}</span>
+                        {% endif %}
+                        <span class="text-muted activity-meta-text">
+                            {{ post.member_first_name or _('Team') }}
+                            · {{ post.created_at|format_datetime('%-I:%M%p')|lower if post.created_at else '' }}
+                        </span>
+                    </div>
+                    <div class="activity-text">{{ post.preview_text() | truncate(100) }}</div>
+                </div>
+            </a>
+            </div>
+
+            {% elif entry.type == 'activity' %}
+            {% set activity = entry.item %}
+            <div x-data="{ memberId: {{ activity.member_id or 0 }} }"
+                 x-show="filterMember === 0 || memberId === filterMember">
+            <{% if activity.url %}a href="{{ activity.url }}" class="activity-item activity-item-link"{% else %}div class="activity-item"{% endif %}>
+                {% if activity.color == 'danger' %}
+                <div class="activity-icon activity-icon-blocked">
+                {% elif activity.color == 'success' %}
+                <div class="activity-icon activity-icon-success">
+                {% elif activity.color == 'warning' %}
+                <div class="activity-icon activity-icon-win">
+                {% elif activity.color == 'primary' or activity.color == 'info' %}
+                <div class="activity-icon activity-icon-update">
+                {% else %}
+                <div class="activity-icon activity-icon-default">
+                {% endif %}
+                    <i class="fas {{ activity.icon|default('fa-circle') }}"></i>
+                </div>
+                <div class="activity-body">
+                    <div class="activity-meta">
+                        <span class="activity-text">{{ activity.title }}</span>
+                        <span class="text-muted activity-meta-text">
+                            {% if activity.member_first_name %}{{ activity.member_first_name }} · {% endif %}{{ activity.created_at|format_datetime('%-I:%M%p')|lower if activity.created_at else '' }}
+                        </span>
+                    </div>
+                    {% if activity.description %}
+                    <div class="activity-text">{{ activity.description | truncate(100) }}</div>
+                    {% endif %}
+                </div>
+            </{% if activity.url %}a{% else %}div{% endif %}>
+            </div>
+
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-sm">
+            <i class="fas fa-stream"></i>
+            <p>{{ _("No activity yet. Updates, wins, and team actions will appear here.") }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

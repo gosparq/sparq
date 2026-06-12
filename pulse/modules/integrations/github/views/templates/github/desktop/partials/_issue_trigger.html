@@ -1,0 +1,172 @@
+{# Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+
+# trigger macro — attaches a GitHub issue dropdown to a textarea.
+
+Import:
+    {% from "github/desktop/partials/_issue_trigger.html" import issue_trigger %}
+
+Call (guarded by {% if github_connected %}):
+    {{ issue_trigger('textarea_id', 'task', item.id, github_repo) }}
+
+Args:
+    textarea_id:  DOM id of the target <textarea>.
+    object_type:  sparQ entity type ("task", "post", "blocker").
+    object_id:    Primary key of the entity; pass 0 for new (unsaved) items.
+    github_repo:  Owner/repo string injected from template context; empty string
+                  if not connected (the issues endpoint will return connected:false).
+#}
+{% macro issue_trigger(textarea_id, object_type, object_id, github_repo='') %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var textareaId   = {{ textarea_id | tojson }};
+    var objectType   = {{ object_type | tojson }};
+    var objectId     = {{ object_id | int }};
+    var externalRepo = {{ github_repo | tojson }};
+
+    var textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    var dropdown = null;   // current dropdown DOM node
+    var debounce = null;   // debounce timer
+    var triggerStart = -1; // textarea offset where '#' was typed
+    var activeIdx = -1;    // keyboard-navigation cursor
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function detectTrigger() {
+        var text = textarea.value.substring(0, textarea.selectionStart);
+        var match = text.match(/(^|[\s\n])(#(\w*))$/);
+        if (match) {
+            triggerStart = textarea.selectionStart - match[2].length;
+            return match[3]; // query after '#'
+        }
+        triggerStart = -1;
+        return null;
+    }
+
+    function replaceQuery(issueNum) {
+        if (triggerStart < 0) return;
+        var endPos = textarea.selectionStart;
+        var before = textarea.value.substring(0, triggerStart);
+        var after  = textarea.value.substring(endPos);
+        var token  = '[GH-' + issueNum + ']';
+        textarea.value = before + token + after;
+        var newPos = triggerStart + token.length;
+        textarea.setSelectionRange(newPos, newPos);
+        triggerStart = -1;
+    }
+
+    function dismissDropdown() {
+        if (dropdown) {
+            dropdown.remove();
+            dropdown = null;
+            activeIdx = -1;
+        }
+    }
+
+    function renderDropdown(issues) {
+        dismissDropdown();
+        if (!issues || issues.length === 0) return;
+
+        dropdown = document.createElement('div');
+        dropdown.className = 'gh-issue-dropdown';
+
+        var rect = textarea.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.top  = (rect.bottom + 2) + 'px';
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.width = Math.max(rect.width, 280) + 'px';
+
+        issues.forEach(function(issue, idx) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'gh-issue-dropdown__item';
+            var numSpan = document.createElement('span');
+            numSpan.className = 'gh-issue-dropdown__num';
+            numSpan.textContent = '#' + issue.number;
+            btn.appendChild(numSpan);
+            btn.appendChild(document.createTextNode(issue.title));
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                selectIssue(issue);
+            });
+            dropdown.appendChild(btn);
+        });
+
+        document.body.appendChild(dropdown);
+        activeIdx = -1;
+    }
+
+    function updateActiveItem() {
+        if (!dropdown) return;
+        var items = dropdown.querySelectorAll('.gh-issue-dropdown__item');
+        items.forEach(function(el, i) {
+            el.classList.toggle('gh-active', i === activeIdx);
+        });
+    }
+
+    function selectIssue(issue) {
+        replaceQuery(issue.number);
+        dismissDropdown();
+
+        // POST to create/update the IntegrationRef row.
+        fetch('/integrations/github/refs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                external_id:  issue.number,
+                external_repo: externalRepo,
+                object_type:  objectType,
+                object_id:    objectId,
+            }),
+        }).catch(function() { /* fire-and-forget; chip renders on next page load */ });
+    }
+
+    function fetchIssues(query) {
+        var url = '/integrations/github/issues?q=' + encodeURIComponent(query);
+        fetch(url)
+            .then(function(r) { return r.ok ? r.json() : { connected: false }; })
+            .then(function(data) {
+                if (!data.connected) return;
+                renderDropdown(data.issues || []);
+            })
+            .catch(function() {});
+    }
+
+    // ── Event listeners ───────────────────────────────────────────────────────
+
+    textarea.addEventListener('input', function() {
+        var query = detectTrigger();
+        clearTimeout(debounce);
+        if (query === null) {
+            dismissDropdown();
+            return;
+        }
+        debounce = setTimeout(function() { fetchIssues(query); }, 200);
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+        if (!dropdown) return;
+        var items = dropdown.querySelectorAll('.gh-issue-dropdown__item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIdx = Math.min(activeIdx + 1, items.length - 1);
+            updateActiveItem();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIdx = Math.max(activeIdx - 1, 0);
+            updateActiveItem();
+        } else if (e.key === 'Enter' && activeIdx >= 0) {
+            e.preventDefault();
+            items[activeIdx].dispatchEvent(new MouseEvent('mousedown'));
+        } else if (e.key === 'Escape') {
+            dismissDropdown();
+        }
+    });
+
+    textarea.addEventListener('blur', function() {
+        setTimeout(dismissDropdown, 150);
+    });
+})();
+</script>
+{% endmacro %}

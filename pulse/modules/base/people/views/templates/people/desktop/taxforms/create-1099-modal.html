@@ -1,0 +1,249 @@
+<!-- 1099-NEC Form Modal Content -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-file-invoice-dollar me-2"></i>{{ _("Generate 1099-NEC") }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="generate1099Form" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="modal-body">
+        <!-- Security Notice -->
+        <div class="alert alert-info small mb-3 py-2">
+            <i class="fas fa-shield-alt me-2"></i>
+            <strong>{{ _("Security Notice:") }}</strong>
+            {{ _("TINs are never stored. They are used only to generate the PDF and are immediately discarded.") }}
+        </div>
+
+        <!-- Contractor & Payer Info (Read-only) -->
+        <div class="card bg-light border-0 mb-3">
+            <div class="card-body py-2">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-secondary small">{{ _("Contractor") }}</div>
+                        <div class="fw-medium">{{ employee.user.first_name }} {{ employee.user.last_name }}</div>
+                        {% if employee.user.address %}
+                        <div class="small text-secondary">{{ employee.user.full_address }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-6">
+                        <div class="text-secondary small">{{ _("Payer (Your Company)") }}</div>
+                        <div class="fw-medium">{{ company.company_name or _('Not configured') }}</div>
+                        {% if company.address %}
+                        <div class="small text-secondary">{{ company.address }}{% if company.address_2 %}, {{ company.address_2 }}{% endif %}, {{ company.city }}, {{ company.state }} {{ company.zip_code }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Year -->
+        <div class="mb-3">
+            <label for="tax_year" class="form-label mb-1">{{ _("Tax Year") }} <span class="text-danger">*</span></label>
+            <select class="form-select" id="tax_year" name="tax_year" required style="max-width: 200px;">
+                {% for year in tax_years %}
+                <option value="{{ year }}" {% if year == default_tax_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Tax Identification Numbers Section -->
+        <div class="mb-3">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="payer_tin" class="form-label mb-1">
+                        {{ _("Payer TIN") }} <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="payer_tin" name="payer_tin"
+                           value="{{ company.tax_registration_number or '' }}"
+                           placeholder="XX-XXXXXXX" maxlength="10" required
+                           pattern="\d{2}-\d{7}">
+                    <div class="form-text small">{{ _("Company EIN") }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="recipient_tin" class="form-label mb-1">
+                        {{ _("Recipient TIN") }} <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="recipient_tin" name="recipient_tin"
+                           placeholder="XXX-XX-XXXX" maxlength="11" required>
+                    <div class="form-text small">{{ _("Contractor's SSN or EIN") }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compensation Section -->
+        <div class="mb-2">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="compensation" class="form-label mb-1">
+                        {{ _("Box 1: Nonemployee Compensation") }} <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="compensation" name="compensation"
+                               step="0.01" min="0.01" required
+                               value="{{ '%.2f'|format(suggested_compensation) if suggested_compensation else '' }}"
+                               placeholder="0.00">
+                    </div>
+                    <div class="form-text small">{{ _("Total payments in tax year") }}</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="tax_withheld" class="form-label mb-1">
+                        {{ _("Box 4: Federal Tax Withheld") }}
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="tax_withheld" name="tax_withheld"
+                               step="0.01" min="0" value="0.00" placeholder="0.00">
+                    </div>
+                    <div class="form-text small">{{ _("Usually $0 for contractors") }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+            {{ _("Cancel") }}
+        </button>
+        <button type="button" class="btn btn-sm btn-primary" id="previewBtn">
+            <i class="fas fa-eye me-1"></i>{{ _("Preview") }}
+        </button>
+        <button type="submit" class="btn btn-sm btn-primary" id="generateBtn">
+            <i class="fas fa-download me-1"></i>{{ _("Generate & Download") }}
+        </button>
+    </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    const form = document.getElementById('generate1099Form');
+    const previewBtn = document.getElementById('previewBtn');
+    const generateBtn = document.getElementById('generateBtn');
+
+    // Format TIN inputs
+    const payerTin = document.getElementById('payer_tin');
+    const recipientTin = document.getElementById('recipient_tin');
+
+    payerTin.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 2) {
+            value = value.slice(0, 2) + '-' + value.slice(2, 9);
+        }
+        e.target.value = value;
+    });
+
+    recipientTin.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/[^\d-]/g, '');
+        let digits = value.replace(/-/g, '');
+
+        // Detect EIN format: user typed dash after exactly 2 digits
+        let isEIN = /^\d{2}-/.test(value);
+
+        let formatted;
+        if (isEIN) {
+            // EIN format: XX-XXXXXXX
+            if (digits.length <= 2) {
+                formatted = digits + (value.includes('-') ? '-' : '');
+            } else {
+                formatted = digits.slice(0, 2) + '-' + digits.slice(2, 9);
+            }
+        } else {
+            // SSN format: XXX-XX-XXXX (default)
+            if (digits.length <= 3) {
+                formatted = digits;
+            } else if (digits.length <= 5) {
+                formatted = digits.slice(0, 3) + '-' + digits.slice(3);
+            } else {
+                formatted = digits.slice(0, 3) + '-' + digits.slice(3, 5) + '-' + digits.slice(5, 9);
+            }
+        }
+
+        e.target.value = formatted;
+    });
+
+    // Preview button - open PDF in new tab
+    previewBtn.addEventListener('click', function() {
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const previewUrl = "{{ url_for('people_bp.preview_1099', employee_id=employee.id) }}";
+
+        fetch(previewUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text); });
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        })
+        .catch(error => {
+            alert('Preview failed: ' + error.message);
+        });
+    });
+
+    // Generate button - submit form and download PDF
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        const formData = new FormData(form);
+        const generateUrl = "{{ url_for('people_bp.generate_1099', employee_id=employee.id) }}";
+
+        fetch(generateUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                // If redirect (validation error), follow it
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                throw new Error('Failed to generate PDF');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            if (!blob) return;
+
+            // Download the PDF
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Form-1099-NEC.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            // Close modal and refresh page to show new record
+            const modal = bootstrap.Modal.getInstance(document.getElementById('create1099Modal'));
+            if (modal) modal.hide();
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Generation failed: ' + error.message);
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="fas fa-download me-1"></i>{{ _("Generate & Download") }}';
+        });
+    });
+})();
+</script>

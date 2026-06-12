@@ -1,0 +1,19 @@
+<div id="prop-due-date" class="py-2 border-bottom">
+    <form hx-post="{{ url_for('tasks_bp.inline_save_prop', item_id=item.id, prop='due_date') }}"
+          hx-target="#prop-due-date"
+          hx-swap="outerHTML"
+          hx-disabled-elt="button[type=submit]"
+          class="d-flex flex-column gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="text-muted text-sm">{{ _("Due on") }}</label>
+        <input type="date" name="due_date" class="form-control form-control-sm"
+               value="{{ item.due_date.isoformat() if item.due_date else '' }}">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save") }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for('tasks_bp.inline_display_prop', item_id=item.id, prop='due_date') }}"
+                    hx-target="#prop-due-date"
+                    hx-swap="outerHTML">{{ _("Cancel") }}</button>
+        </div>
+    </form>
+</div>

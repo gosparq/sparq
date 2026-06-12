@@ -1,0 +1,126 @@
+{# Webhook list partial - loaded via HTMX for a channel or DM thread #}
+
+{% if webhooks %}
+<div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead>
+            <tr>
+                <th>{{ _("Webhook URL") }}</th>
+                <th>{{ _("Created") }}</th>
+                <th>{{ _("Status") }}</th>
+                {% if target_type == 'channel' %}
+                <th>{{ _("10-4") }}</th>
+                {% endif %}
+                <th class="text-end">{{ _("Actions") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for webhook in webhooks %}
+            <tr id="webhook-row-{{ webhook.id }}">
+                <td>
+                    <code class="small text-muted">{{ '••••••••' + webhook.token[-8:] }}</code>
+                    <button class="btn btn-sm btn-link p-0 ms-1" data-action="copy-webhook" data-token="{{ webhook.token }}" title="{{ _('Copy URL') }}">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </td>
+                <td class="small text-muted">{{ webhook.created_at|timeago }}</td>
+                <td>
+                    {% if webhook.is_active %}
+                    <span class="badge bg-success">{{ _("Active") }}</span>
+                    {% else %}
+                    <span class="badge bg-danger">{{ _("Inactive") }}</span>
+                    {% endif %}
+                </td>
+                {% if target_type == 'channel' %}
+                <td>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="ten-four-webhook-{{ webhook.id }}"
+                               {% if webhook.enable_ten_four %}checked{% endif %}
+                               data-action="toggle-webhook-ten-four"
+                               data-webhook-id="{{ webhook.id }}">
+                    </div>
+                </td>
+                {% endif %}
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-secondary"
+                            data-action="regenerate-webhook"
+                            data-url="{{ url_for('sync_bp.regenerate_webhook_token', webhook_id=webhook.id) }}"
+                            title="{{ _('Regenerate Token') }}">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                            hx-delete="{{ url_for('sync_bp.delete_webhook', webhook_id=webhook.id) }}"
+                            hx-confirm="{{ _('Delete this webhook? The URL will stop working immediately.') }}"
+                            hx-target="#webhook-row-{{ webhook.id }}"
+                            hx-swap="outerHTML"
+                            title="{{ _('Delete') }}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted small mb-0">{{ _("No webhooks configured.") }}</p>
+{% endif %}
+
+<!-- Add Webhook Form -->
+<div class="mt-3 pt-3 border-top">
+    <h6 class="mb-2">{{ _("Add Webhook") }}</h6>
+    <form hx-post="{{ url_for('sync_bp.create_channel_webhook', channel_name=target_name) if target_type == 'channel' else url_for('sync_bp.create_dm_webhook', thread_id=target_name|int) }}"
+          hx-target="{{ '#channel-webhook-list' if target_type == 'channel' else '#dm-webhook-list' }}"
+          hx-swap="innerHTML"
+          class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label class="form-label small">{{ _("Secret") }} <span class="text-muted">({{ _("optional, for GitHub signature verification") }})</span></label>
+            <input type="text" name="github_secret" class="form-control form-control-sm" placeholder="{{ _('Webhook secret') }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus me-1"></i>{{ _("Create") }}
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-3 p-3 bg-light rounded small">
+        <strong>{{ _("Setup:") }}</strong>
+        <ol class="mb-0 mt-1">
+            <li>{{ _("Create a webhook, then copy the URL") }}</li>
+            <li>{{ _("Paste the URL into your service (GitHub, CI, etc.)") }}</li>
+            <li>{{ _("Set Content-Type to") }} <code>application/json</code></li>
+            <li>{{ _("GitHub events are auto-detected and formatted. Other services can send") }} <code>{"content": "message", "username": "Bot Name"}</code></li>
+        </ol>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="copy-webhook"]');
+    if (t) copyWebhookUrl(t.dataset.token);
+    t = e.target.closest('[data-action="regenerate-webhook"]');
+    if (t) {
+        fetch(t.dataset.url, {method: 'POST'}).then(function(r) { return r.json(); }).then(function(d) {
+            if (d.token) { alert('Token regenerated. New URL copied.'); copyWebhookUrl(d.token); }
+        });
+    }
+});
+if (!window._webhookTenFourBound) {
+    window._webhookTenFourBound = true;
+    document.addEventListener('change', function(e) {
+        var t = e.target.closest('[data-action="toggle-webhook-ten-four"]');
+        if (t) {
+            fetch('/sync/chat/webhooks/' + t.dataset.webhookId + '/ten-four', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'csrf_token=' + encodeURIComponent(document.querySelector('meta[name=csrf-token]').content)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) { t.checked = d.enable_ten_four; })
+            .catch(function() { t.checked = !t.checked; });
+        }
+    });
+}
+</script>

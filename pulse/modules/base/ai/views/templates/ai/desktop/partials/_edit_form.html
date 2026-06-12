@@ -1,0 +1,91 @@
+<div class="ai-edit-form card border-warning mb-3" id="proposal-{{ action.id }}">
+    <div class="card-header bg-warning bg-opacity-10 d-flex align-items-center">
+        <i class="fas fa-edit me-2 text-warning"></i>
+        <span class="fw-semibold">{{ _("Edit") }}: {{ action.tool_name | replace('_', ' ') | title }}</span>
+    </div>
+    <form hx-post="{{ url_for('ai_bp.save_edit', action_id=action.id) }}"
+          hx-target="#proposal-{{ action.id }}"
+          hx-swap="outerHTML">
+        <div class="card-body">
+            {% if action.tool_name == 'create_contact' %}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("First Name") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_first_name"
+                           value="{{ action.args_json.first_name or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("Last Name") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_last_name"
+                           value="{{ action.args_json.last_name or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("Phone") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_phone"
+                           value="{{ action.args_json.phone or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("Email") }}</label>
+                    <input type="email" class="form-control form-control-sm" name="arg_email"
+                           value="{{ action.args_json.email or '' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">{{ _("Company") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_company_name"
+                           value="{{ action.args_json.company_name or '' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">{{ _("Notes") }}</label>
+                    <textarea class="form-control form-control-sm" name="arg_notes" rows="2">{{ action.args_json.notes or '' }}</textarea>
+                </div>
+            </div>
+            {% elif action.tool_name == 'update_contact' %}
+            <input type="hidden" name="arg_contact_id" value="{{ action.args_json.contact_id }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("First Name") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_first_name"
+                           value="{{ action.args_json.first_name or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("Last Name") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_last_name"
+                           value="{{ action.args_json.last_name or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("Phone") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_phone"
+                           value="{{ action.args_json.phone or '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ _("Email") }}</label>
+                    <input type="email" class="form-control form-control-sm" name="arg_email"
+                           value="{{ action.args_json.email or '' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">{{ _("Company") }}</label>
+                    <input type="text" class="form-control form-control-sm" name="arg_company_name"
+                           value="{{ action.args_json.company_name or '' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">{{ _("Notes to Append") }}</label>
+                    <textarea class="form-control form-control-sm" name="arg_notes" rows="2">{{ action.args_json.notes or '' }}</textarea>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-muted">{{ _("Editing not available for this action type.") }}</p>
+            {% endif %}
+        </div>
+        <div class="card-footer bg-transparent">
+            <button type="submit" class="btn btn-sm btn-warning me-2">
+                <i class="fas fa-save me-1"></i> {{ _("Save & Review") }}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for('ai_bp.get_proposal', action_id=action.id) }}"
+                    hx-target="#proposal-{{ action.id }}"
+                    hx-swap="outerHTML">
+                {{ _("Cancel Edit") }}
+            </button>
+        </div>
+    </form>
+</div>

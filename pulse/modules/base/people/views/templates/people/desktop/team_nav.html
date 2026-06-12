@@ -1,0 +1,75 @@
+<nav class="side-nav">
+    <div class="nav-module-header" style="--section-color: {{ g.workspace_color }}">
+        <a href="{{ url_for('dashboard_bp.index') }}" class="nav-module-back">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <span class="nav-module-name">{{ _("Team") }}</span>
+    </div>
+    <ul class="nav-menu">
+        {% if current_user.is_admin %}
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.hiring_index') }}"
+               class="nav-link {% if '/people/hiring' in request.path %}active{% endif %}">
+                <i class="fas fa-user-plus"></i>
+                {{ _("Hiring") }}
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.onboarding_list') }}"
+               class="nav-link {% if '/onboarding' in request.path and '/settings' not in request.path %}active{% endif %}">
+                <i class="fas fa-clipboard-check"></i>
+                {{ _("Onboarding") }}
+            </a>
+        </li>
+        {% elif current_user.workspace_membership and current_user.workspace_membership.has_active_onboarding %}
+        <!-- Non-admin: Link to own onboarding status -->
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.onboarding_wizard') }}"
+               class="nav-link {% if '/onboarding' in request.path %}active{% endif %}">
+                <i class="fas fa-clipboard-check"></i>
+                {{ _("My Onboarding") }}
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.people') }}"
+               class="nav-link {% if '/people' in request.path and '/offboarding' not in request.path %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                {{ _("People") }}
+            </a>
+        </li>
+
+        {% if current_user.is_admin %}
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.offboarding_list') }}"
+               class="nav-link {% if '/offboarding' in request.path and '/people/' not in request.path %}active{% endif %}">
+                <i class="fas fa-user-slash"></i>
+                {{ _("Offboarding") }}
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.one_on_one_index') }}"
+               class="nav-link {% if '/one-on-ones' in request.path %}active{% endif %}">
+                <i class="fas fa-people-arrows"></i>
+                {{ _("1:1s") }}
+            </a>
+        </li>
+
+        {% if current_user.is_admin %}
+        <li class="nav-divider"></li>
+
+        <li class="nav-item">
+            <a href="{{ url_for('people_bp.team_settings') }}"
+               class="nav-link {% if request.path.endswith('/settings') %}active{% endif %}">
+                <i class="fas fa-cog"></i>
+                {{ _("Settings") }}
+            </a>
+        </li>
+        {% endif %}
+
+    </ul>
+</nav>

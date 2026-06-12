@@ -1,0 +1,45 @@
+{# Mobile DM thread list for bottom sheet #}
+{% for thread in threads %}
+{% set other = thread.get_other_user(current_user.id) %}
+{% set unread = thread.get_unread_count(current_user.id) %}
+<button class="mobile-dm-item {% if unread > 0 %}has-unread{% endif %}"
+        id="dm-thread-{{ thread.id }}"
+        data-thread-id="{{ thread.id }}"
+        data-other-id="{{ other.id }}"
+        data-unread="{{ unread }}">
+    <div class="dm-avatar" style="background-color: {{ other.avatar_color }}">
+        <i class="fas fa-user"></i>
+    </div>
+    <div class="dm-info">
+        <div class="dm-name">{{ other.full_name }}</div>
+        {% if thread.last_message_preview %}
+        <div class="dm-preview">{{ thread.last_message_preview|truncate(30) }}</div>
+        {% endif %}
+    </div>
+    {% if unread > 0 %}
+    <span class="dm-unread" id="dm-unread-mobile-{{ thread.id }}">{{ unread }}</span>
+    {% endif %}
+</button>
+{% else %}
+<div class="mobile-dm-empty">
+    <i class="fas fa-comments"></i>
+    <p>{{ _('No conversations yet') }}</p>
+    <p class="small">{{ _('Tap + to start a new message') }}</p>
+</div>
+{% endfor %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var container = document.querySelector('.mobile-dm-list');
+    if (!container) return;
+    container.addEventListener('click', function(e) {
+        var t = e.target.closest('[data-other-id]');
+        if (!t) return;
+        var c = document.querySelector('.mobile-chat-container');
+        var data = c && Alpine.$data(c);
+        if (!data) return;
+        var unread = parseInt(t.dataset.unread) || 0;
+        if (unread > 0) data.unreadDmCount = Math.max(0, (data.unreadDmCount || 0) - unread);
+        data.selectDm(parseInt(t.dataset.otherId), parseInt(t.dataset.threadId));
+    });
+})();
+</script>

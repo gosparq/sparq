@@ -1,0 +1,27 @@
+{% extends "presence/desktop/layout.html" %}
+
+{% block title %}{{ _("In/Out Board") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="content-heading">{{ _("In/Out Board") }}</h2>
+            <p class="text-muted mb-0 mt-1 small">{{ _("Real-time view of who's clocked in.") }}</p>
+        </div>
+        <div class="text-muted small text-sm">
+            <i class="fas fa-sync-alt fa-spin me-1 text-3xs"></i>{{ _("Auto-updates every 10 seconds") }}
+        </div>
+    </div>
+
+    <div id="board-list"
+         hx-get="{{ url_for('board_bp.partial') }}"
+         hx-trigger="every 10s, boardUpdated from:body"
+         hx-swap="innerHTML">
+        {% include "presence/desktop/partials/board_list.html" %}
+    </div>
+</div>
+
+<!-- Modal container for HTMX -->
+<div id="modals"></div>
+{% endblock %}

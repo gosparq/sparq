@@ -1,0 +1,97 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{% if subcategory %}{{ _("Edit Subcategory") }}{% else %}{{ _("New Subcategory") }}{% endif %}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{% if subcategory %}{{ _("Edit Subcategory") }}{% else %}{{ _("New Subcategory") }}{% endif %}</h2>
+        <a href="{{ url_for('knowledge_blueprint.categories_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> {{ _("Back") }}
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <!-- Category -->
+                <div class="mb-3">
+                    <label for="category_id" class="form-label">{{ _("Parent Category") }} <span class="text-danger">*</span></label>
+                    <select class="form-select" id="category_id" name="category_id" required {% if subcategory %}disabled{% endif %}>
+                        <option value="">{{ _("Select Category") }}</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}"
+                                {% if (subcategory and subcategory.category_id == cat.id) or (selected_category_id == cat.id) %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if subcategory %}
+                    <input type="hidden" name="category_id" value="{{ subcategory.category_id }}">
+                    {% endif %}
+                </div>
+
+                <!-- Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">{{ _("Name") }} <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name"
+                           value="{{ subcategory.name if subcategory else '' }}" required>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-3">
+                    <label for="description" class="form-label">{{ _("Description") }}</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ subcategory.description if subcategory else '' }}</textarea>
+                </div>
+
+                {% if subcategory %}
+                <!-- Active Status -->
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                               {% if subcategory.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">{{ _("Active") }}</label>
+                    </div>
+                </div>
+                {% endif %}
+
+                <hr>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% if subcategory %}{{ _("Update") }}{% else %}{{ _("Create") }}{% endif %}
+                    </button>
+                    <a href="{{ url_for('knowledge_blueprint.categories_list') }}" class="btn btn-sm btn-outline-secondary">
+                        {{ _("Cancel") }}
+                    </a>
+                </div>
+            </form>
+
+            {% if subcategory %}
+            <hr>
+            <form action="{{ url_for('knowledge_blueprint.subcategory_delete', subcategory_id=subcategory.id) }}" method="post"
+                  data-confirm="{{ _('Are you sure?') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i> {{ _("Delete Subcategory") }}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+        });
+    });
+});
+</script>
+{% endblock %}

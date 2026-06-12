@@ -1,0 +1,203 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block title %}{{ _("Organization Info") }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .settings-page-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .settings-back-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .settings-back-link:active {
+        background: var(--color-gray-200);
+    }
+
+    .settings-page-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-900);
+        margin: 0;
+    }
+
+    .settings-form-section {
+        background: var(--color-white);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .settings-form-section-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-gray-500);
+        margin-bottom: 0.75rem;
+    }
+
+    .mobile-form-label {
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .mobile-form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 0.5rem;
+        background: var(--color-white);
+        color: var(--color-gray-900);
+    }
+
+    .mobile-form-input:focus {
+        outline: none;
+        border-color: var(--color-gray-500);
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-form-group {
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .section-save-row {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-gray-100);
+    }
+
+    .mobile-btn {
+        display: block;
+        width: 100%;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .mobile-btn-primary {
+        background: var(--workspace-color);
+        color: white;
+    }
+
+    .mobile-btn-primary:active {
+        background: color-mix(in srgb, var(--workspace-color) 80%, black);
+    }
+
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="settings-page-header">
+    <a href="{{ url_for('core_bp.settings') }}" class="settings-back-link">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="settings-page-title">{{ _("Organization Info") }}</h1>
+</div>
+
+<form method="POST" action="{{ url_for('core_bp.settings_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_section" value="organization">
+
+    <div class="settings-form-section">
+        <div class="settings-form-section-title">{{ _("Organization Details") }}</div>
+        <div class="mobile-form-group">
+            <label for="name" class="mobile-form-label">{{ _("Organization Name") }} *</label>
+            <input type="text" class="mobile-form-input" id="name" name="name"
+                   value="{{ organization.name or '' }}" required>
+        </div>
+        <div class="mobile-form-group">
+            <label for="phone" class="mobile-form-label">{{ _("Phone") }}</label>
+            <input type="tel" class="mobile-form-input" id="phone" name="phone"
+                   value="{{ organization.phone or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="email" class="mobile-form-label">{{ _("Organization Email") }}</label>
+            <input type="email" class="mobile-form-input" id="email" name="email"
+                   value="{{ organization.email or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="website" class="mobile-form-label">{{ _("Website") }}</label>
+            <input type="url" class="mobile-form-input" id="website" name="website"
+                   value="{{ organization.website or '' }}" placeholder="https://">
+        </div>
+        <div class="mobile-form-group">
+            <label for="tax_id" class="mobile-form-label">{{ _("Tax ID (EIN/TIN)") }}</label>
+            <input type="text" class="mobile-form-input" id="tax_id" name="tax_id"
+                   value="{{ organization.tax_id or '' }}">
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <div class="settings-form-section-title">{{ _("Address") }}</div>
+        <div class="mobile-form-group">
+            <label for="address" class="mobile-form-label">{{ _("Street Address") }}</label>
+            <input type="text" class="mobile-form-input" id="address" name="address"
+                   value="{{ organization.address or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="address_2" class="mobile-form-label">{{ _("Suite / Unit") }}</label>
+            <input type="text" class="mobile-form-input" id="address_2" name="address_2"
+                   value="{{ organization.address_2 or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="city" class="mobile-form-label">{{ _("City") }}</label>
+            <input type="text" class="mobile-form-input" id="city" name="city"
+                   value="{{ organization.city or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="state" class="mobile-form-label">{{ _("State / Province") }}</label>
+            <input type="text" class="mobile-form-input" id="state" name="state"
+                   value="{{ organization.state or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="zip_code" class="mobile-form-label">{{ _("ZIP / Postal Code") }}</label>
+            <input type="text" class="mobile-form-input" id="zip_code" name="zip_code"
+                   value="{{ organization.zip_code or '' }}">
+        </div>
+        <div class="mobile-form-group">
+            <label for="country" class="mobile-form-label">{{ _("Country") }}</label>
+            <input type="text" class="mobile-form-input" id="country" name="country"
+                   value="{{ organization.country or '' }}">
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <div class="section-save-row" style="margin-top:0;padding-top:0;border-top:none;">
+            <button type="submit" class="mobile-btn mobile-btn-primary">
+                <i class="fas fa-save"></i> {{ _("Save Changes") }}
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,230 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Projects") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-folder"></i>{% endblock %}
+{% block page_title_display %}{{ _("Projects") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Customize project statuses for this workspace. The archive column controls which status locks a project's channel.") }}</p>{% endblock %}
+
+{% block settings_content %}
+
+{# ── Status List ── #}
+<div class="settings-section">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="settings-section-title mb-0">
+            {{ _("Project Statuses") }}
+            <span class="text-muted ms-2 text-sm" style="font-weight:400">{{ statuses|length }} / {{ max_project_statuses }}</span>
+        </div>
+        <button type="button" id="reorder-toggle" class="btn btn-sm btn-outline-secondary" onclick="toggleReorder()" title="{{ _('Unlock to reorder') }}">
+            <i class="fas fa-lock" id="reorder-icon"></i>
+        </button>
+    </div>
+    <p class="text-muted text-base">
+        {{ _("Statuses are shown in this order on the board and list views.") }}
+    </p>
+
+    {% if statuses %}
+    <table class="table table-sm align-middle text-base">
+        <thead>
+            <tr>
+                <th class="drag-col" style="width:1.5rem;display:none;"></th>
+                <th>{{ _("Label") }}</th>
+                <th style="width:5rem;" class="text-center">{{ _("Default") }}</th>
+                <th style="width:5rem;" class="text-center">{{ _("Archive") }}</th>
+                <th style="width:3rem;"></th>
+            </tr>
+        </thead>
+        <tbody id="status-tbody">
+            {% for s in statuses %}
+            <tr data-status-id="{{ s.id }}">
+                <td class="drag-col text-muted" style="display:none;cursor:grab;" title="{{ _('Drag to reorder') }}">
+                    <i class="fas fa-grip-vertical"></i>
+                </td>
+
+                <td>
+                    <form method="POST" action="{{ url_for('core_bp.settings_projects_update', status_id=s.id) }}"
+                          class="d-flex align-items-center gap-2 w-100">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        {% if s.is_default %}<input type="hidden" name="is_default" value="on">{% endif %}
+                        {% if s.is_archived %}<input type="hidden" name="is_archived" value="on">{% endif %}
+                        <input type="color" name="color" value="{{ s.color }}"
+                               class="form-control form-control-color form-control-sm flex-shrink-0" style="width:2.5rem; padding:0.1rem">
+                        <input type="text" name="label" value="{{ s.label|e }}"
+                               class="form-control form-control-sm flex-grow-1" required>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary flex-shrink-0">{{ _("Save") }}</button>
+                    </form>
+                </td>
+
+                {# Default toggle #}
+                <td class="text-center">
+                    {% if s.is_default %}
+                    <span class="badge bg-primary" title="{{ _('New projects start here') }}">
+                        <i class="fas fa-check"></i>
+                    </span>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('core_bp.settings_projects_set_default', status_id=s.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary text-2xs" title="{{ _('Set as default') }}" style="padding:0.15rem 0.4rem">
+                            <i class="fas fa-star"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+
+                {# Archive toggle #}
+                <td class="text-center">
+                    {% if s.is_archived %}
+                    <span class="badge bg-success" title="{{ _('Archive behavior — sets archived_at, locks channel') }}">
+                        <i class="fas fa-archive"></i>
+                    </span>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('core_bp.settings_projects_update', status_id=s.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="label" value="{{ s.label }}">
+                        <input type="hidden" name="color" value="{{ s.color }}">
+                        <input type="hidden" name="is_archived" value="on">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary text-2xs" title="{{ _('Set as archive status') }}" style="padding:0.15rem 0.4rem">
+                            <i class="fas fa-archive"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+
+                {# Delete #}
+                <td class="text-end">
+                    <form method="POST" action="{{ url_for('core_bp.settings_projects_delete', status_id=s.id) }}"
+                          onsubmit="return confirm('{{ _('Delete this status?') }}');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger text-2xs" title="{{ _('Delete') }}" style="padding:0.15rem 0.4rem">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">{{ _("No statuses defined yet.") }}</p>
+    {% endif %}
+</div>
+
+{# ── Add Status ── #}
+<div class="settings-section">
+    <div class="settings-section-title">{{ _("Add Status") }}</div>
+    {% if statuses|length >= max_project_statuses %}
+    <p class="text-muted text-base">{{ _("Maximum of %(max)s statuses reached.") % {"max": max_project_statuses} }}</p>
+    {% else %}
+    <form method="POST" action="{{ url_for('core_bp.settings_projects_add') }}" x-data="{ label: '', code: '' }">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label form-label-sm">{{ _("Label") }}</label>
+                <input type="text" name="label" class="form-control form-control-sm"
+                       placeholder="{{ _('e.g. Review') }}" maxlength="100" required
+                       x-model="label" @input="code = label.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0,50)">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">{{ _("Code") }} <span class="text-muted text-2xs">({{ _("stable key") }})</span></label>
+                <input type="text" name="code" class="form-control form-control-sm"
+                       placeholder="{{ _('e.g. review') }}" maxlength="50" required
+                       pattern="[a-z0-9_]+" :value="code" @input="code = $event.target.value">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label form-label-sm">{{ _("Color") }}</label>
+                <input type="color" name="color" class="form-control form-control-color form-control-sm"
+                       value="#6b7280" style="width:100%;padding:0.1rem;">
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="is_default" id="is_default_new">
+                    <label class="form-check-label text-sm" for="is_default_new">{{ _("Default") }}</label>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">
+                    <i class="fas fa-plus me-1"></i>{{ _("Add") }}
+                </button>
+            </div>
+        </div>
+        <p class="text-muted mt-1 text-xs">{{ _("The code is a stable identifier stored on existing projects — it cannot be changed after creation.") }}</p>
+    </form>
+    {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">
+let reorderActive = false;
+let dragSrc = null;
+
+function toggleReorder() {
+    reorderActive = !reorderActive;
+    const icon = document.getElementById('reorder-icon');
+    const btn = document.getElementById('reorder-toggle');
+    const dragCols = document.querySelectorAll('.drag-col');
+    const rows = document.querySelectorAll('#status-tbody tr');
+
+    icon.className = reorderActive ? 'fas fa-lock-open' : 'fas fa-lock';
+    btn.classList.toggle('btn-warning', reorderActive);
+    btn.classList.toggle('btn-outline-secondary', !reorderActive);
+
+    dragCols.forEach(el => el.style.display = reorderActive ? '' : 'none');
+    rows.forEach(row => {
+        row.draggable = reorderActive;
+        if (reorderActive) {
+            row.addEventListener('dragstart', onDragStart);
+            row.addEventListener('dragover', onDragOver);
+            row.addEventListener('drop', onDrop);
+            row.addEventListener('dragend', onDragEnd);
+        } else {
+            row.removeEventListener('dragstart', onDragStart);
+            row.removeEventListener('dragover', onDragOver);
+            row.removeEventListener('drop', onDrop);
+            row.removeEventListener('dragend', onDragEnd);
+        }
+    });
+
+    if (!reorderActive) saveOrder();
+}
+
+function onDragStart(e) {
+    dragSrc = this;
+    e.dataTransfer.effectAllowed = 'move';
+    this.style.opacity = '0.4';
+}
+
+function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const tbody = document.getElementById('status-tbody');
+    const rows = [...tbody.querySelectorAll('tr')];
+    const targetRow = e.currentTarget;
+    if (dragSrc !== targetRow) {
+        const srcIdx = rows.indexOf(dragSrc);
+        const tgtIdx = rows.indexOf(targetRow);
+        tbody.insertBefore(dragSrc, srcIdx < tgtIdx ? targetRow.nextSibling : targetRow);
+    }
+}
+
+function onDrop(e) {
+    e.stopPropagation();
+    return false;
+}
+
+function onDragEnd(e) {
+    this.style.opacity = '';
+}
+
+async function saveOrder() {
+    const rows = document.querySelectorAll('#status-tbody tr');
+    const payload = Array.from(rows).map((row, i) => ({
+        id: parseInt(row.dataset.statusId),
+        sort_order: i + 1
+    }));
+    await fetch('{{ url_for("core_bp.settings_projects_reorder") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}' },
+        body: JSON.stringify(payload)
+    });
+}
+</script>
+
+{% endblock %}

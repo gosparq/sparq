@@ -1,0 +1,46 @@
+{% extends "resources/desktop/kb_public/layout.html" %}
+{% block title %}{{ _("Search Results") }}{% endblock %}
+
+{% block kb_content %}
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('kb_bp.index') }}">{{ _("Knowledge Base") }}</a></li>
+        <li class="breadcrumb-item active">{{ _("Search") }}</li>
+    </ol>
+</nav>
+
+<h1 class="mb-2">{{ _("Search Results") }}</h1>
+<p class="text-muted mb-4">
+    {{ results|length }} {{ _("results for") }} "<strong>{{ query }}</strong>"
+</p>
+
+{% if results %}
+<div class="list-group">
+    {% for article in results %}
+    <a href="{{ article.public_url }}" class="list-group-item list-group-item-action kb-card mb-2">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h6 class="mb-1">{{ article.title }}</h6>
+                <p class="text-muted small mb-1">{{ article.excerpt }}</p>
+                <small class="text-muted">
+                    {{ article.category.name }}
+                    {% if article.subcategory %} &raquo; {{ article.subcategory.name }}{% endif %}
+                </small>
+            </div>
+            <i class="fas fa-chevron-right text-muted mt-1"></i>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">{{ _("No results found") }}</h4>
+    <p class="text-muted">{{ _("Try different keywords or browse our categories.") }}</p>
+    <a href="{{ url_for('kb_bp.index') }}" class="btn btn-sm btn-primary">
+        {{ _("Browse Knowledge Base") }}
+    </a>
+</div>
+{% endif %}
+{% endblock %}

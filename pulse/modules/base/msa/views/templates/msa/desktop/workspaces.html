@@ -1,0 +1,150 @@
+{% extends "msa/desktop/_base.html" %}
+
+{% block title %}{{ _("Workspaces") }} - MSA{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_for('msa_bp.dashboard') }}">{{ _("Dashboard") }}</a>
+<span class="sep">/</span>
+<span class="current">{{ _("Workspaces") }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Workspace List -->
+<div class="msa-card">
+    <div class="msa-card-header">
+        <span class="msa-card-title">{{ _("All Workspaces") }}</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span class="msa-text-dim" style="font-size:12px;">{{ workspaces|length }} {{ _("total") }}</span>
+            <button id="toggle-view" class="msa-btn msa-btn-secondary msa-btn-sm"
+                    style="font-size:11px;padding:3px 8px;" onclick="toggleView()">
+                <i class="fas fa-layer-group"></i>
+                <span>{{ _("Group by account") }}</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Chronological view (default) -->
+    <div id="chrono-view">
+        <table class="msa-table">
+            <thead>
+                <tr>
+                    <th>{{ _("Workspace") }}</th>
+                    <th>{{ _("Organization") }}</th>
+                    <th>{{ _("Slug") }}</th>
+                    <th>{{ _("Admin") }}</th>
+                    <th>{{ _("Members") }}</th>
+                    <th>{{ _("Plan") }}</th>
+                    <th>{{ _("Status") }}</th>
+                    <th>{{ _("Created") }}</th>
+                    <th style="width:60px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ws in workspaces %}
+                <tr>
+                    <td><a href="{{ url_for('msa_bp.workspace_detail', workspace_id=ws.id) }}" style="font-weight:500;">{{ ws.name }}</a></td>
+                    <td>
+                        {% if ws.organization_id and ws.organization_id in org_map %}
+                        <a href="{{ url_for('msa_bp.organization_detail', org_id=ws.organization_id) }}">{{ org_map[ws.organization_id].name }}</a>
+                        {% else %}
+                        <span class="dim">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono dim">{{ ws.slug }}</td>
+                    <td style="font-size:12px;">{{ admin_map.get(ws.id, '—') }}</td>
+                    <td>{{ member_counts.get(ws.id, 0) }}</td>
+                    <td><span class="msa-badge msa-badge-plan">{{ ws.plan or 'free' }}</span></td>
+                    <td>
+                        {% if ws.is_active %}
+                        <span class="msa-badge msa-badge-active">{{ _("Active") }}</span>
+                        {% else %}
+                        <span class="msa-badge msa-badge-inactive">{{ _("Inactive") }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="dim">{{ ws.created_at|format_datetime('%b %d, %Y') if ws.created_at else '—' }}</td>
+                    <td>
+                        <a href="{{ url_for('msa_bp.workspace_detail', workspace_id=ws.id) }}"
+                           class="msa-btn msa-btn-secondary msa-btn-sm" title="{{ _('View details') }}">
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9"><div class="msa-empty"><i class="fas fa-building"></i> {{ _("No workspaces yet.") }}</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Grouped view (hidden by default) -->
+    <div id="grouped-view" style="display:none;"></div>
+</div>
+
+<script>
+const WS_DATA = {{ workspace_data | safe }};
+let isGrouped = false;
+
+function toggleView() {
+    isGrouped = !isGrouped;
+    const btn = document.getElementById('toggle-view');
+    const chrono = document.getElementById('chrono-view');
+    const grouped = document.getElementById('grouped-view');
+
+    if (isGrouped) {
+        chrono.style.display = 'none';
+        grouped.style.display = 'block';
+        grouped.innerHTML = buildGroupedHTML();
+        btn.innerHTML = '<i class="fas fa-clock"></i> <span>{{ _("Chronological") }}</span>';
+    } else {
+        chrono.style.display = 'block';
+        grouped.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-layer-group"></i> <span>{{ _("Group by account") }}</span>';
+    }
+}
+
+function buildGroupedHTML() {
+    const map = {};
+    for (const ws of WS_DATA) {
+        const key = ws.admin || '\u2014';
+        if (!map[key]) map[key] = [];
+        map[key].push(ws);
+    }
+    const keys = Object.keys(map).sort((a, b) => map[b].length - map[a].length || a.localeCompare(b));
+
+    let html = `<table class="msa-table"><thead><tr>
+        <th>{{ _("Workspace") }}</th><th>{{ _("Organization") }}</th><th>{{ _("Slug") }}</th><th>{{ _("Account") }}</th><th>{{ _("Members") }}</th><th>{{ _("Plan") }}</th><th>{{ _("Status") }}</th><th>{{ _("Created") }}</th><th style="width:60px"></th>
+    </tr></thead><tbody>`;
+    for (const admin of keys) {
+        const wsList = map[admin];
+        html += `<tr><td colspan="9" style="padding:8px 16px 4px;background:var(--msa-bg);font-size:12px;">
+            <i class="fas fa-user-circle" style="color:var(--msa-accent);margin-right:4px;"></i>
+            <strong>${esc(admin)}</strong> <span style="color:var(--msa-text-dim);">(${wsList.length})</span>
+        </td></tr>`;
+        for (const ws of wsList) {
+            const sc = ws.is_active ? 'msa-badge-active' : 'msa-badge-inactive';
+            const st = ws.is_active ? '{{ _("Active") }}' : '{{ _("Inactive") }}';
+            const orgCell = ws.org_url ? `<a href="${esc(ws.org_url)}">${esc(ws.org_name)}</a>` : '<span class="dim">—</span>';
+            html += `<tr>
+                <td><a href="${esc(ws.url)}" style="font-weight:500;">${esc(ws.name)}</a></td>
+                <td>${orgCell}</td>
+                <td class="mono dim">${esc(ws.slug)}</td>
+                <td></td>
+                <td>${ws.members}</td>
+                <td><span class="msa-badge msa-badge-plan">${esc(ws.plan)}</span></td>
+                <td><span class="msa-badge ${sc}">${st}</span></td>
+                <td class="dim">${esc(ws.created_at)}</td>
+                <td><a href="${esc(ws.url)}" class="msa-btn msa-btn-secondary msa-btn-sm" title="{{ _('View details') }}"><i class="fas fa-arrow-right"></i></a></td>
+            </tr>`;
+        }
+    }
+    html += '</tbody></table>';
+    return html;
+}
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+</script>
+{% endblock %}

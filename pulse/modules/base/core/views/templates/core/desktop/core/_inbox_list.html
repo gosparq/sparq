@@ -1,0 +1,54 @@
+{% if items %}
+{% set ns = namespace(current_group="") %}
+{% for item in items %}
+{% set item_date = item.created_at.date() %}
+{% if item_date == today %}
+    {% set group = "Today" %}
+{% elif item_date == yesterday %}
+    {% set group = "Yesterday" %}
+{% else %}
+    {% set group = "Older" %}
+{% endif %}
+{% if group != ns.current_group %}
+{% set ns.current_group = group %}
+<div class="inbox-group-label">{{ _(group) }}</div>
+{% endif %}
+<div class="inbox-row {% if not item.is_read %}inbox-row--unread{% endif %} cursor-pointer"
+     {% if item.action_url %}data-href="{{ item.action_url }}"{% endif %}>
+    <div class="inbox-row-icon" style="color: {{ item.color }};">
+        <i class="fas {{ item.icon }}"></i>
+    </div>
+    <div class="inbox-row-title flex-shrink-0" style="max-width:40%">{{ item.title }}</div>
+    <div class="inbox-row-message">
+        {{ category_labels.get(item.category, item.category) }}{% if item.message %} · {{ item.message }}{% endif %}
+    </div>
+    <div class="inbox-row-time">{{ item.time_ago }}</div>
+    <div class="inbox-row-actions">
+        {% if not item.is_read %}
+        <form hx-post="{{ url_for('core_bp.notification_mark_read', notification_id=item.id) }}"
+              hx-target="#inbox-list"
+              hx-swap="innerHTML"
+              style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="source" value="inbox">
+            <button type="submit" class="inbox-action-btn" title="{{ _('Mark as read') }}"><i class="fas fa-check"></i></button>
+        </form>
+        {% endif %}
+        <form hx-post="{{ url_for('core_bp.notification_dismiss', notification_id=item.id) }}"
+              hx-target="#inbox-list"
+              hx-swap="innerHTML"
+              style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="source" value="inbox">
+            <button type="submit" class="inbox-action-btn inbox-action-btn--danger" title="{{ _('Dismiss') }}"><i class="fas fa-xmark"></i></button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="fas fa-inbox fa-2x mb-3 d-block opacity-50"></i>
+    <p class="mb-1 fw-medium text-base">{{ _("You're all caught up") }}</p>
+    <p class="mb-0 text-base">{{ _("No notifications to show") }}</p>
+</div>
+{% endif %}

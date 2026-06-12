@@ -1,0 +1,357 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("App Manager") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-puzzle-piece"></i>{% endblock %}
+{% block page_title_display %}{{ _("App Manager") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Enable, disable, or remove installed applications") }}</p>{% endblock %}
+
+{% block settings_content %}
+<style>
+.apps-manager-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.app-manager-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s ease;
+}
+
+.app-manager-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.app-manager-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.app-manager-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.app-manager-card-icon i {
+    font-size: 1.25rem;
+}
+
+.app-manager-card-info h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.125rem 0;
+    color: #212529;
+}
+
+.app-manager-card-info h4 .version {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #6c757d;
+    margin-left: 0.5rem;
+}
+
+.app-manager-card-info .short-desc {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin: 0;
+}
+
+.app-manager-card-body {
+    font-size: 0.8rem;
+    color: #495057;
+    flex-grow: 1;
+    margin-bottom: 0.75rem;
+}
+
+.app-manager-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.app-manager-card-footer .form-switch {
+    margin: 0;
+}
+
+.app-manager-card-footer .btn-icon {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.app-manager-card-footer .btn-icon:hover {
+    color: #dc3545;
+}
+</style>
+
+<!-- Core Modules -->
+<h5 class="text-muted mb-3">{{ _("Core Modules") }}</h5>
+<div class="apps-manager-grid mb-4">
+    {% for mod in core_modules %}
+    <div class="app-manager-card">
+        <div class="app-manager-card-header">
+            <div class="app-manager-card-icon">
+                <i class="{{ mod.icon_class }}" style="color: {{ mod.color }}"></i>
+            </div>
+            <div class="app-manager-card-info">
+                <h4>{{ mod.name }} <span class="version">v{{ mod.version }}</span></h4>
+                <p class="short-desc">{{ mod.description }}</p>
+            </div>
+        </div>
+        <div class="app-manager-card-body">
+            {{ mod.long_description }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<hr class="my-4">
+
+<!-- Plugins -->
+<h5 class="text-muted mb-3">{{ _("Plugins") }}</h5>
+{% if plugin_modules %}
+<div class="apps-manager-grid mb-4">
+    {% for mod in plugin_modules %}
+    <div class="app-manager-card">
+        <div class="app-manager-card-header">
+            <div class="app-manager-card-icon">
+                <i class="{{ mod.icon_class }}" style="color: {{ mod.color }}"></i>
+            </div>
+            <div class="app-manager-card-info">
+                <h4>{{ mod.name }} <span class="version">v{{ mod.version }}</span></h4>
+                <p class="short-desc">{{ mod.description }}</p>
+            </div>
+        </div>
+        <div class="app-manager-card-body">
+            {{ mod.long_description }}
+        </div>
+        <div class="app-manager-card-footer">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox"
+                       role="switch"
+                       id="toggle-{{ mod.name|lower }}"
+                       {% if mod.enabled %}checked{% endif %}
+                       data-action="toggle-module" data-name="{{ mod.name }}" data-folder="{{ mod._folder }}">
+            </div>
+            <button class="btn-icon" data-action="confirm-remove" data-name="{{ mod.name }}" title="{{ _('Remove') }}">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted mb-4">{{ _("No plugins installed") }}</p>
+{% endif %}
+
+<hr class="my-4">
+
+<!-- Standalone Apps -->
+<h5 class="text-muted mb-3">{{ _("Apps") }}</h5>
+{% if app_modules %}
+<div class="apps-manager-grid">
+    {% for mod in app_modules %}
+    <div class="app-manager-card">
+        <div class="app-manager-card-header">
+            <div class="app-manager-card-icon">
+                <i class="{{ mod.icon_class }}" style="color: {{ mod.color }}"></i>
+            </div>
+            <div class="app-manager-card-info">
+                <h4>{{ mod.name }} <span class="version">v{{ mod.version }}</span></h4>
+                <p class="short-desc">{{ mod.description }}</p>
+            </div>
+        </div>
+        <div class="app-manager-card-body">
+            {{ mod.long_description }}
+        </div>
+        <div class="app-manager-card-footer">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox"
+                       role="switch"
+                       id="toggle-{{ mod.name|lower }}"
+                       {% if mod.enabled %}checked{% endif %}
+                       data-action="toggle-module" data-name="{{ mod.name }}" data-folder="{{ mod._folder }}">
+            </div>
+            <button class="btn-icon" data-action="confirm-remove" data-name="{{ mod.name }}" title="{{ _('Remove') }}">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">{{ _("No standalone apps installed") }}</p>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+// Add toast container to the page
+document.body.insertAdjacentHTML('beforeend', `
+    <div id="toast-container" style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    "></div>
+`);
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+
+    // Set toast styles based on type
+    toast.style.cssText = `
+        padding: 12px 24px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        color: white;
+        opacity: 0;
+        transition: opacity 0.3s ease-in;
+        max-width: 300px;
+    `;
+
+    // Set background color based on type
+    switch(type) {
+        case 'error':
+            toast.style.backgroundColor = '#dc3545';
+            break;
+        case 'warning':
+            toast.style.backgroundColor = '#ffc107';
+            toast.style.color = '#000';
+            break;
+        case 'success':
+            toast.style.backgroundColor = '#28a745';
+            break;
+        default:
+            toast.style.backgroundColor = '#0d6efd';
+    }
+
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // Trigger fade in
+    setTimeout(() => {
+        toast.style.opacity = '1';
+    }, 10);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            container.removeChild(toast);
+        }, 300);
+    }, 3000);
+}
+
+async function toggleModule(moduleName, folder, enabled) {
+    try {
+        const response = await fetch('/api/modules/toggle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                module: moduleName,
+                folder: folder,
+                enabled: enabled
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to toggle module');
+        }
+
+        const data = await response.json();
+        showToast(data.message);
+
+        // Wait for server to restart and reload
+        await reloadAfterRestart();
+
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Failed to toggle module', 'error');
+    }
+}
+
+async function reloadAfterRestart() {
+    showToast('{{ _("Waiting for server to restart...") }}');
+
+    // First wait for server to go down
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Then wait for it to come back up
+    try {
+        await waitForServer();
+        showToast('{{ _("Server restarted, reloading page...") }}');
+
+        // Force a hard reload of the page
+        window.location.href = window.location.href;
+
+        // If that doesn't work, try a force reload
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
+    } catch (error) {
+        showToast('{{ _("Server failed to restart") }}', 'error');
+    }
+}
+
+async function waitForServer(retries = 20) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const response = await fetch('/login', { method: 'GET' });
+            if (response.ok) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return true;
+            }
+        } catch (e) {
+            console.log('Server not ready, retrying...');
+        }
+    }
+    throw new Error('Server failed to restart');
+}
+
+function confirmRemove(moduleName) {
+    if (confirm(`{{ _("Are you sure you want to remove") }} ${moduleName}? {{ _("This cannot be undone") }}.`)) {
+        removeModule(moduleName);
+    }
+}
+
+async function removeModule(moduleName) {
+    // Implementation for module removal
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.closest('[data-action="toggle-module"]')) {
+        var el = e.target;
+        toggleModule(el.dataset.name, el.dataset.folder, el.checked);
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action="confirm-remove"]')) {
+        var el = e.target.closest('[data-action="confirm-remove"]');
+        confirmRemove(el.dataset.name);
+    }
+});
+</script>
+{% endblock %}

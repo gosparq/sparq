@@ -1,0 +1,128 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Tax Report") }} {{ year }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ _("Business Expense Report") }}</h2>
+            <p class="text-muted mb-0">{{ _("Tax Year") }} {{ year }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('finance_bp.accounting_report', year=year, format='csv') }}"
+               class="btn btn-sm btn-primary">
+                <i class="fas fa-download me-1"></i> {{ _("Download CSV") }}
+            </a>
+            <button data-action="print" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-print me-1"></i> {{ _("Print") }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Grand Total -->
+    <div class="alert alert-primary mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="fs-5">{{ _("Total Deductible Expenses") }}</span>
+            <span class="fs-3 fw-bold">${{ "%.2f"|format(grand_total) }}</span>
+        </div>
+    </div>
+
+    <!-- Summary by Category -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ _("Summary by Category") }}</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ _("Account Code") }}</th>
+                        <th>{{ _("Category") }}</th>
+                        <th class="text-end">{{ _("Amount") }}</th>
+                        <th class="text-end">{{ _("Count") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in category_summary %}
+                    <tr>
+                        <td><code>{{ item.code }}</code></td>
+                        <td>{{ item.name }}</td>
+                        <td class="text-end">${{ "%.2f"|format(item.total) }}</td>
+                        <td class="text-end">{{ item.count }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not category_summary %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-3">{{ _("No expenses recorded") }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+                <tfoot class="table-primary">
+                    <tr>
+                        <th colspan="2">{{ _("Total") }}</th>
+                        <th class="text-end">${{ "%.2f"|format(grand_total) }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Detailed List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">{{ _("Detailed Expense List") }}</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ _("Date") }}</th>
+                        <th>{{ _("Description") }}</th>
+                        <th>{{ _("Account") }}</th>
+                        <th class="text-end">{{ _("Amount") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.entry_date.strftime('%m/%d/%Y') }}</td>
+                        <td>{{ entry.description }}</td>
+                        <td>{{ entry.account.code }} - {{ entry.account.name }}</td>
+                        <td class="text-end">${{ "%.2f"|format(entry.debit) }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not entries %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-3">{{ _("No expenses recorded") }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .side-nav, .btn, .navbar, .no-print {
+        display: none !important;
+    }
+    .content-card {
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .content-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+</style>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action="print"]')) { window.print(); }
+});
+</script>
+{% endblock %}

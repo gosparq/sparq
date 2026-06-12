@@ -1,0 +1,16 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}presence-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('presence_bp.static', filename='css/timesheets.css') }}">
+<link rel="stylesheet" href="{{ url_for('presence_bp.static', filename='css/presence-mobile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="tt-mobile-wrapper">
+    {% block module_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}

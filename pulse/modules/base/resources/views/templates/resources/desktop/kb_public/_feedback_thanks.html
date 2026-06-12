@@ -1,0 +1,11 @@
+{% if submitted %}
+<div class="text-center text-success">
+    <i class="fas fa-check-circle fa-2x mb-2"></i>
+    <p class="mb-0">{{ _("Thank you for your feedback!") }}</p>
+</div>
+{% else %}
+<div class="text-center text-muted">
+    <i class="fas fa-check-circle fa-2x mb-2"></i>
+    <p class="mb-0">{{ _("You've already submitted feedback for this article.") }}</p>
+</div>
+{% endif %}

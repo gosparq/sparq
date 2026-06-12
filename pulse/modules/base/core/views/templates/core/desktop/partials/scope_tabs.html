@@ -1,0 +1,38 @@
+{# =============================================================================
+   scope_tabs.html — secondary-nav Workspace / Organization scope toggle.
+
+   Renders only when the user has 2+ workspaces in the current organization
+   — solo-workspace orgs stay zero-change (their workspace data == the org's
+   data, and no "scope" distinction is meaningful).
+
+   Context required:
+     workspace_path      — URL for the workspace-scope view.
+     organization_path   — URL for the organization-scope view.
+
+   Styling uses Bootstrap `.nav .nav-tabs` — no custom CSS.
+   =========================================================================== #}
+
+{% set workspace_count = g.workspace_count|default(0) %}
+
+{% if workspace_count >= 2 %}
+<ul class="nav nav-tabs nav-fill flex-nowrap mt-2" role="tablist" aria-label="{{ _('Scope') }}">
+    <li class="nav-item" role="presentation" title="{{ _('Workspace') }}">
+        <a class="nav-link py-1 px-1 text-nowrap {% if g.scope != 'organization' %}active{% endif %}"
+           role="tab"
+           aria-selected="{{ 'true' if g.scope != 'organization' else 'false' }}"
+           href="{{ workspace_path }}"
+           style="font-size:0.82rem;">
+            <i class="fas fa-users text-xs" style="margin-right:3px"></i>{{ _("Workspace") }}
+        </a>
+    </li>
+    <li class="nav-item" role="presentation" title="{{ _('Organization') }}">
+        <a class="nav-link py-1 px-1 text-nowrap {% if g.scope == 'organization' %}active{% endif %}"
+           role="tab"
+           aria-selected="{{ 'true' if g.scope == 'organization' else 'false' }}"
+           href="{{ organization_path }}"
+           style="font-size:0.82rem;">
+            <i class="fas fa-building text-xs" style="margin-right:3px"></i>{{ _("Organization") }}
+        </a>
+    </li>
+</ul>
+{% endif %}

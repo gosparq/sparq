@@ -1,0 +1,143 @@
+{% extends "projects/mobile/layout.html" %}
+
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block module_content %}
+<div class="mb-3">
+    <a href="{{ url_for('projects_bp.index') }}" class="text-muted text-decoration-none d-inline-flex align-items-center gap-1 text-base">
+        <i class="fas fa-arrow-left"></i>{{ _("Projects") }}
+    </a>
+</div>
+
+{# Project header #}
+<div class="mb-3">
+    <div class="d-flex align-items-center gap-2 mb-1">
+        {% if project.emoji %}<span style="font-size:1.25rem;">{{ project.emoji }}</span>{% endif %}
+        <h2 class="mb-0" style="font-size:1.25rem;font-weight:600;">{{ project.name }}</h2>
+    </div>
+    <div class="text-muted" style="font-size:0.8125rem;">
+        {% if project.owner and project.owner.user %}
+        {{ _("Owned by") }} {{ project.owner.user.first_name }}
+        <span>&middot;</span>
+        {% endif %}
+        {% set open_count = tier_groups[1]|length + tier_groups[2]|length + tier_groups[3]|length %}
+        {{ open_count }} {{ _("open item") }}{{ "s" if open_count != 1 }}
+    </div>
+    {% if project.description %}
+    <p class="text-content text-muted mt-1 mb-0 text-base" style="white-space:pre-wrap">{{ project.description|urlize(none, true, '_blank') }}</p>
+    {% endif %}
+</div>
+
+{# Status pill #}
+<div class="d-flex align-items-center gap-2 mb-3 text-base">
+    <span class="text-muted fw-semibold text-uppercase" style="font-size:0.7rem;letter-spacing:0.04em;">{{ _("Status") }}</span>
+    <span class="badge" style="background:{{ project.status_color }}22;color:{{ project.status_color }};font-size:0.75rem;padding:0.25em 0.75em;border-radius:999px;">
+        {{ project.status_label }}
+    </span>
+    <a href="{{ url_for('projects_bp.edit', project_id=project.id) }}" class="text-muted ms-auto" style="font-size:0.8rem;">
+        <i class="fas fa-pen"></i>
+    </a>
+</div>
+
+{# Action items list #}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-muted fw-semibold text-uppercase" style="font-size:0.7rem;letter-spacing:0.04em;">
+            {{ _("Tasks") }}
+        </span>
+    </div>
+
+    {% set all_items_count = open_items|length + closed_items|length %}
+    {% if all_items_count > 0 %}
+    <div style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;overflow:hidden;">
+        {% for ws in workflow_statuses %}
+        {% set ws_items = workflow_groups.get(ws.key, []) %}
+        {% if ws_items %}
+        {% set is_done = ws.key == 'done' %}
+        {# Group header #}
+        <div class="d-flex align-items-center gap-2" style="padding:0.5rem 0.75rem;background:var(--color-gray-50);border-bottom:1px solid var(--color-gray-100);">
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:{{ ws.color }};"></span>
+            <span style="font-size:0.8rem;font-weight:600;color:var(--color-gray-600);">{{ ws.label }}</span>
+            <span style="font-size:0.8rem;color:var(--color-gray-400);">{{ ws_items|length }}</span>
+        </div>
+        {# Items #}
+        {% for item in ws_items %}
+        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+           class="d-flex align-items-center gap-2 text-decoration-none"
+           style="padding:0.75rem;border-bottom:1px solid var(--color-gray-100);{% if is_done %}opacity:0.6;{% endif %}">
+            {% if is_done %}<i class="fas fa-check-circle text-success" style="font-size:0.7rem;flex-shrink:0;"></i>{% endif %}
+            <span class="flex-grow-1 text-truncate text-base" style="color:{% if is_done %}var(--color-gray-400){% else %}var(--color-gray-800){% endif %}">
+                {{ item.title }}
+            </span>
+            {% if item.assignee and item.assignee.user %}
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;min-width:24px;border-radius:50%;background:{{ item.assignee.user.avatar_color|default('#6b7280') }};color:#fff;font-size:0.55rem;font-weight:600;text-transform:uppercase;flex-shrink:0;line-height:1;">
+                {{ item.assignee.user.first_name[0]|upper }}{{ item.assignee.user.last_name[0]|upper }}
+            </span>
+            {% endif %}
+            <span style="display:inline-block;padding:0.125rem 0.5rem;border-radius:999px;font-size:0.7rem;background:{{ tier_defaults[item.urgency_tier].color }}15;color:{{ tier_defaults[item.urgency_tier].color }};font-weight:500;flex-shrink:0;">
+                {{ tier_defaults[item.urgency_tier].label }}
+            </span>
+        </a>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted" style="border:1px dashed var(--color-gray-200);border-radius:0.5rem;">
+        <p class="mb-0 text-base">{{ _("No action items yet.") }}</p>
+    </div>
+    {% endif %}
+</div>
+
+{# Recent updates #}
+{% if recent_posts %}
+<div class="mb-4">
+    <span class="text-muted fw-semibold text-uppercase" style="font-size:0.7rem;letter-spacing:0.04em;">{{ _("Recent Updates") }}</span>
+    <div class="mt-2">
+        {% for post in recent_posts %}
+        <div class="d-flex align-items-start gap-2 mb-2" style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.75rem;">
+            {% if post.member and post.member.user %}
+            <span class="avatar-circle" style="width:26px;height:26px;font-size:0.55rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};flex-shrink:0;">
+                {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+            </span>
+            {% endif %}
+            <div class="flex-grow-1" style="min-width:0;">
+                <div class="d-flex align-items-baseline gap-2 mb-1">
+                    {% if post.member and post.member.user %}
+                    <span class="fw-semibold" style="font-size:0.8125rem;">{{ post.member.user.first_name }}</span>
+                    {% endif %}
+                    <span class="badge sync-badge-update" style="font-size:0.6rem;">{{ post.template.name if post.template else post.post_type }}</span>
+                    <span class="text-muted ms-auto" style="font-size:0.75rem;">{{ post.time_ago() }}</span>
+                </div>
+                {% for field in (post.template.fields if post.template else []) %}
+                    {% set val = post.payload.get(field.key) %}
+                    {% if val %}
+                        {% if field.type == 'structured_list' %}
+                        <ul class="mb-0 ps-3" style="font-size:0.8125rem;list-style:none;">
+                            {% for item in val %}<li>{{ item.text if item is mapping else item }}</li>{% endfor %}
+                        </ul>
+                        {% elif field.type == 'bullets' %}
+                        <ul class="mb-0 ps-3" style="font-size:0.8125rem;">
+                            {% for item in val %}<li>{{ item }}</li>{% endfor %}
+                        </ul>
+                        {% elif field.type == 'choice' %}
+                        {% else %}
+                        <p class="mb-0" style="font-size:0.8125rem;">{{ val if val is string else val }}</p>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<button type="button" class="fab" aria-label="{{ _('Add action item') }}"
+        hx-get="{{ url_for('tasks_bp.create_modal') }}?project_id={{ project.id }}"
+        hx-target="#modals"
+        hx-swap="innerHTML">
+    <i class="fas fa-plus"></i>
+</button>
+<div id="modals"></div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{# Partial: single goal item for HTMX swap #}
+<div id="goal-{{ goal.id }}" class="plan-goal-item d-flex align-items-start gap-2 {% if goal.is_complete %}plan-goal-done{% endif %}">
+    <button hx-post="{{ url_for('tasks_bp.plan_goal_toggle', plan_id=plan.id, goal_id=goal.id) }}"
+            hx-target="#goal-{{ goal.id }}"
+            hx-swap="outerHTML"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            class="plan-goal-check" title="{{ _('Toggle') }}">
+        {% if goal.is_complete %}
+        <i class="fas fa-check-square" style="color:var(--color-primary);"></i>
+        {% else %}
+        <i class="far fa-square sync-text-subtle"></i>
+        {% endif %}
+    </button>
+    <span class="plan-goal-text {% if goal.is_complete %}text-muted{% endif %} text-base">{{ goal.text }}</span>
+</div>

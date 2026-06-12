@@ -1,0 +1,164 @@
+/* Settings — Mobile styles */
+
+/* Settings Bottom Nav */
+.settings-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(60px + var(--safe-area-bottom));
+    padding-bottom: var(--safe-area-bottom);
+    background: var(--color-white);
+    border-top: 1px solid var(--color-gray-300);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1030;
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+}
+
+.settings-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-nav-item a,
+.settings-nav-item button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-gray-500);
+    padding: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    cursor: pointer;
+    transition: color 0.2s;
+    text-decoration: none;
+}
+
+.settings-nav-item a:active,
+.settings-nav-item button:active {
+    color: var(--workspace-color);
+}
+
+.settings-nav-item.active a,
+.settings-nav-item.active button {
+    color: var(--workspace-color);
+}
+
+.settings-nav-item.logout-tab a {
+    color: var(--color-danger, #dc2626);
+}
+
+.settings-nav-item.logout-tab a:active {
+    color: var(--color-danger, #dc2626);
+    opacity: 0.7;
+}
+
+.settings-nav-item i {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.settings-nav-item span {
+    font-size: 0.65rem;
+    font-weight: 500;
+}
+
+/* Mobile content wrapper */
+.settings-mobile-wrapper {
+    padding: 1rem;
+    padding-left: calc(1rem + var(--safe-area-left));
+    padding-right: calc(1rem + var(--safe-area-right));
+}
+
+/* Section headers */
+.settings-section-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-left: 0.25rem;
+}
+
+.settings-section-header:first-of-type {
+    margin-top: 0;
+}
+
+/* Navigation cards */
+.settings-nav-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--color-white);
+    border-radius: 0.75rem;
+    margin-bottom: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: background 0.15s ease;
+}
+
+.settings-nav-card:active {
+    background: var(--color-gray-50);
+}
+
+.settings-nav-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 0.75rem;
+    background: var(--color-primary-lightest);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+.settings-nav-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-nav-card-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--color-gray-900);
+}
+
+.settings-nav-card-desc {
+    font-size: 0.8125rem;
+    color: var(--color-gray-500);
+    margin-top: 0.125rem;
+}
+
+.settings-nav-card-chevron {
+    color: var(--color-gray-300);
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+/* Logout card variant */
+.settings-nav-card.logout .settings-nav-card-icon {
+    background: var(--color-danger-light);
+}
+
+.settings-nav-card.logout .settings-nav-card-icon i {
+    color: var(--color-danger);
+}
+
+.settings-nav-card.logout .settings-nav-card-title {
+    color: var(--color-danger);
+}

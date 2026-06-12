@@ -1,0 +1,49 @@
+{% if no_results %}
+<div class="global-search-empty">
+    <i class="fas fa-search"></i>
+    <span>{{ _("No results for") }} "{{ query }}"</span>
+</div>
+{% else %}
+
+{% if projects %}
+<div class="global-search-group">
+    <div class="global-search-group-label">{{ _("Projects") }}</div>
+    {% for project in projects %}
+    <a href="{{ url_for('projects_bp.detail', project_id=project.id) }}" class="global-search-result">
+        <span class="global-search-result-icon">
+            {% if project.emoji %}{{ project.emoji }}{% else %}<i class="fas fa-folder" style="color: {{ project.color or '#6b7280' }}"></i>{% endif %}
+        </span>
+        <div class="global-search-result-text">
+            <span class="global-search-result-title">{{ project.name }}</span>
+            {% if project.description %}
+            <span class="global-search-result-meta">{{ project.description[:80] }}{% if project.description|length > 80 %}&hellip;{% endif %}</span>
+            {% endif %}
+        </div>
+        <span class="global-search-result-badge" style="color: {{ project.status_color }}">{{ _(project.status_label) }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if tasks %}
+<div class="global-search-group">
+    <div class="global-search-group-label">{{ _("Tasks") }}</div>
+    {% for item in tasks %}
+    <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="global-search-result">
+        <span class="global-search-result-icon">
+            <i class="fas fa-bolt" style="color: {{ item.tier_color() }}"></i>
+        </span>
+        <div class="global-search-result-text">
+            <span class="global-search-result-title">{{ item.title }}</span>
+            <span class="global-search-result-meta">
+                {% if item.assignee and item.assignee.user %}{{ item.assignee.user.first_name }} {{ item.assignee.user.last_name }}{% else %}{{ _("Unassigned") }}{% endif %}
+                {% if item.project %} &middot; {{ item.project.name }}{% endif %}
+            </span>
+        </div>
+        <span class="global-search-result-tier" style="background: {{ item.tier_color() }}">{{ item.tier_label() }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}

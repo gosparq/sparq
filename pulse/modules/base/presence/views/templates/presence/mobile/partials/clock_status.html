@@ -1,0 +1,219 @@
+{% if show_map and punch_latitude and punch_longitude %}
+<div x-data="{ visible: true }"
+     x-init="setTimeout(() => visible = false, 5000)"
+     x-show="visible"
+     x-transition:leave.duration.500ms
+     class="mb-3">
+    <div class="position-relative rounded overflow-hidden" style="height: 160px;">
+        <iframe width="100%" height="400" frameborder="0" scrolling="no"
+            style="border:0; position:absolute; top:-130px; left:0;" loading="eager"
+            src="https://maps.google.com/maps?q={{ punch_latitude }},{{ punch_longitude }}&z=15&output=embed">
+        </iframe>
+    </div>
+    <div class="text-center mt-1">
+        <small class="text-muted">
+            <i class="fas fa-map-marker-alt me-1"></i>
+            {{ _("Approximate location") }}{% if punch_address %} · {{ punch_address }}{% endif %}
+            <br>
+            <small><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" class="text-muted">{{ _("© OpenStreetMap") }}</a></small>
+        </small>
+    </div>
+</div>
+{% endif %}
+
+{% if geofence_warning is defined and geofence_warning %}
+<div class="alert alert-warning py-2 mb-3 small" role="alert">
+    <i class="fas fa-flag me-1"></i>
+    {{ _("Outside work area — your time entry has been recorded and flagged for review.") }}
+</div>
+{% endif %}
+
+{% if status.is_clocked_in %}
+<!-- Clocked In State -->
+<div class="text-center">
+    <div class="mb-3">
+        <span class="status-badge clocked-in" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-circle fa-beat me-2"></i>{{ _("Clocked In") }}
+            {% if geofence_warning is defined and geofence_warning %}<i class="fas fa-flag ms-2 text-warning"></i>{% endif %}
+        </span>
+    </div>
+    <div class="text-muted mb-4">
+        {{ _("Since") }} <span class="local-time" data-utc="{{ status.clock_in_time.isoformat() }}Z"></span>
+        <br>
+        <strong class="text-dark">{{ status.elapsed_str }}</strong>
+    </div>
+    <form id="clock-form" hx-post="{{ url_for('clock_bp.punch') }}"
+          hx-target="#clock-status"
+          hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="latitude" id="latitude">
+        <input type="hidden" name="longitude" id="longitude">
+        <input type="hidden" name="location_accuracy" id="location_accuracy">
+        <input type="hidden" name="location_denied" id="location_denied">
+        <button type="button" class="btn btn-danger btn-touch-lg" data-action="submit-with-location">
+            <i class="fas fa-sign-out-alt me-2"></i>{{ _("Clock Out") }}
+        </button>
+    </form>
+</div>
+{% else %}
+<!-- Clocked Out State -->
+<div class="text-center">
+    <div class="mb-3">
+        <span class="status-badge clocked-out" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            <i class="fas fa-circle me-2"></i>{{ _("Clocked Out") }}
+            {% if geofence_warning is defined and geofence_warning %}<i class="fas fa-flag ms-2 text-warning"></i>{% endif %}
+        </span>
+    </div>
+    <div class="text-muted mb-4">
+        {{ _("Ready to clock in") }}
+    </div>
+    <form id="clock-form" hx-post="{{ url_for('clock_bp.punch') }}"
+          hx-target="#clock-status"
+          hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="latitude" id="latitude">
+        <input type="hidden" name="longitude" id="longitude">
+        <input type="hidden" name="location_accuracy" id="location_accuracy">
+        <input type="hidden" name="location_denied" id="location_denied">
+        <button type="button" class="btn btn-success btn-touch-lg" data-action="submit-with-location">
+            <i class="fas fa-sign-in-alt me-2"></i>{{ _("Clock In") }}
+        </button>
+    </form>
+</div>
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+function submitWithLocation(btn) {
+    const form = btn.closest('form');
+    const originalText = btn.innerHTML;
+
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{{ _("Getting location...") }}';
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // Success - set location values
+                document.getElementById('latitude').value = position.coords.latitude;
+                document.getElementById('longitude').value = position.coords.longitude;
+                document.getElementById('location_accuracy').value = position.coords.accuracy;
+                // Submit the form via HTMX
+                htmx.trigger(form, 'submit');
+            },
+            function(error) {
+                // Error or denied - flag and submit
+                console.log('Geolocation error:', error.message);
+                document.getElementById('location_denied').value = 'true';
+                htmx.trigger(form, 'submit');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            }
+        );
+    } else {
+        // Browser doesn't support geolocation - flag and submit
+        document.getElementById('location_denied').value = 'true';
+        htmx.trigger(form, 'submit');
+    }
+}
+
+// Function to convert UTC times to company timezone
+function convertLocalTimes() {
+    document.querySelectorAll('.local-time:not(.converted)').forEach(function(el) {
+        const utc = el.dataset.utc;
+        if (utc && typeof companyTimezone !== 'undefined') {
+            const date = new Date(utc);
+            el.textContent = date.toLocaleTimeString('en-US', {
+                timeZone: companyTimezone,
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+            el.classList.add('converted');
+        }
+    });
+}
+
+// Run on initial load
+convertLocalTimes();
+
+// Run after HTMX swaps content into clock-status
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'clock-status' ||
+        event.detail.target.closest('#clock-status')) {
+        convertLocalTimes();
+    }
+});
+
+document.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-action="submit-with-location"]');
+    if (t) submitWithLocation(t);
+});
+</script>
+
+{% if is_htmx %}
+<!-- Out-of-band update for total hours -->
+<span id="todays-total-hours" class="fw-bold text-primary" hx-swap-oob="outerHTML:#todays-total-hours">
+    {% if todays_total_hours is defined and todays_total_hours > 0 %}
+    {{ "%.2f"|format(todays_total_hours) }} {{ _("hrs") }}
+    {% endif %}
+</span>
+
+<!-- Out-of-band update for Today's Activity -->
+<div id="todays-activity" class="mobile-card-body" hx-swap-oob="outerHTML:#todays-activity">
+    {% if todays_punches %}
+    <div class="list-group list-group-flush">
+        {% for punch in todays_punches %}
+        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <div>
+                <span class="local-time oob-time" data-utc="{{ punch.punch_time.isoformat() }}Z"></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if punch.punch_type.value == 'in' %}
+                <span class="status-badge clocked-in">
+                    <i class="fas fa-sign-in-alt me-1"></i>{{ _("Clock In") }}
+                </span>
+                {% else %}
+                <span class="status-badge clocked-out">
+                    <i class="fas fa-sign-out-alt me-1"></i>{{ _("Clock Out") }}
+                </span>
+                {% endif %}
+                {% if punch.outside_geofence %}
+                <span class="badge bg-warning text-dark" title="{{ _('Outside geofence') }}">
+                    <i class="fas fa-flag"></i>
+                </span>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-secondary punch-edit-btn"
+                        hx-get="{{ url_for('presence_bp.request_punch_edit_modal', punch_id=punch.id) }}"
+                        hx-target="#modals"
+                        hx-swap="innerHTML">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted text-center mb-0">{{ _("No activity recorded today") }}</p>
+    {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">
+// Convert UTC times in activity list (runs after OOB swap)
+setTimeout(function() {
+    document.querySelectorAll('#todays-activity .local-time').forEach(function(el) {
+        const utc = el.dataset.utc;
+        if (utc && typeof companyTimezone !== 'undefined') {
+            const date = new Date(utc);
+            el.textContent = date.toLocaleTimeString('en-US', {
+                timeZone: companyTimezone,
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        }
+    });
+}, 10);
+</script>
+{% endif %}

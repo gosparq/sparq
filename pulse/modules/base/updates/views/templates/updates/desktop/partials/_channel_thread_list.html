@@ -1,0 +1,133 @@
+{# Shared channel thread list. #}
+{# #}
+{# Renders the post rows used by both the team-channel feed and the project- #}
+{# page Channel tab. Keeping a single partial means both surfaces stay in #}
+{# sync if the row layout changes. #}
+{# #}
+{# Required context: #}
+{#   posts                  list of UpdatePost #}
+{#   channel                UpdateChannel #}
+{#   has_more               bool #}
+{#   next_offset            int — used by the Load more link when has_more #}
+{#   is_organization_channel  bool #}
+{#   load_more_url          str — full URL for the Load more link #}
+{#   start_thread_url       str — full URL for the empty-state CTA #}
+{# Optional context: #}
+{#   project                Project — when set, thread rows link to the #}
+{#                          project-scoped thread view so users stay in #}
+{#                          project chrome. #}
+
+{% if posts %}
+<div>
+    {% for post in posts %}
+    {% set _row_content = (post.payload or {}).get('content', '') %}
+    {% set _row_webhook = post.webhook_id is not none %}
+    {% set _row_github = _row_webhook and _row_content.startswith('GITHUB_HTML::') %}
+    {% if project|default(None) %}
+    {% set _thread_url = url_for('projects_bp.channel_thread', project_id=project.id, post_id=post.id) %}
+    {% elif is_organization_channel %}
+    {% set _thread_url = url_for('updates_bp.organization_channel_thread', slug=channel.name, post_id=post.id) %}
+    {% else %}
+    {% set _thread_url = url_for('updates_bp.channel_thread', slug=channel.name, post_id=post.id) %}
+    {% endif %}
+    <a href="{{ _thread_url }}"
+       class="d-block text-decoration-none channel-thread-row"
+       style="border-bottom:1px solid var(--color-gray-100);padding:0.75rem 0;">
+        <div class="d-flex align-items-start gap-3">
+            {# Avatar #}
+            <div class="flex-shrink-0">
+                {% if _row_github %}
+                <span class="avatar-circle avatar-webhook d-flex align-items-center" style="width:40px; height:40px; background:var(--color-gray-900); justify-content:center">
+                    <img src="{{ url_for('sync_bp.static', filename='img/github-mark.svg') }}" alt="GitHub" style="width:22px;height:22px;filter:invert(1);">
+                </span>
+                {% elif _row_webhook %}
+                <span class="avatar-circle avatar-webhook" style="width:40px;height:40px;background:var(--color-gray-700);">
+                    <i class="fas fa-plug" style="font-size:0.9rem;color:white;"></i>
+                </span>
+                {% elif not post.is_anonymous and post.member and post.member.user %}
+                <span class="avatar-circle text-base" style="width:40px;height:40px;background:{{ post.member.user.avatar_color|default('#6b7280') }}">
+                    {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                </span>
+                {% else %}
+                <span class="avatar-circle text-base" style="width:40px; height:40px; background:var(--color-gray-500)">
+                    <i class="fas fa-user text-xs"></i>
+                </span>
+                {% endif %}
+            </div>
+
+            {# Thread info #}
+            <div class="flex-grow-1 min-width-0">
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fw-semibold text-truncate" style="font-size:0.9375rem;color:var(--color-gray-800);">
+                        {% if post.subject %}{{ post.subject|render_mentions }}
+                        {% elif _row_github %}{{ _("GitHub activity") }}
+                        {% elif _row_webhook %}{{ post.webhook_username or _("Webhook") }}
+                        {% else %}{{ _("(no subject)") }}{% endif %}
+                    </span>
+                    {% if _row_github %}
+                    <span class="badge fw-medium text-3xs sync-chip">
+                        <i class="fab fa-github me-1"></i>GitHub
+                    </span>
+                    {% elif _row_webhook %}
+                    <span class="badge fw-medium text-3xs sync-chip">
+                        <i class="fas fa-plug me-1 text-icon"></i>{{ _("Webhook") }}
+                    </span>
+                    {% endif %}
+                    {% if post.is_win %}
+                    <span class="text-2xs" style="color:var(--color-warning)"><i class="fas fa-trophy"></i></span>
+                    {% endif %}
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-1 text-sm" style="color:var(--color-gray-500)">
+                    {% if _row_webhook %}
+                    <span>{{ post.webhook_username or ('GitHub' if _row_github else _('Webhook')) }}</span>
+                    <span>&middot;</span>
+                    {% elif not post.is_anonymous and post.member and post.member.user %}
+                    <span>{{ post.member.user.full_name }}</span>
+                    <span>&middot;</span>
+                    {% endif %}
+                    <span>{{ post.created_at|format_datetime('%b %d, %I:%M %p') }}</span>
+                    {% if post.last_reply_at %}
+                    <span>&middot;</span>
+                    <span title="{{ post.last_reply_at|format_datetime('%b %d, %I:%M %p') }}">
+                        <i class="fas fa-clock text-3xs"></i>
+                        {{ post.last_activity_at|format_datetime('%b %d, %I:%M %p') }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Reply count badge #}
+            <div class="flex-shrink-0 text-end" style="min-width:60px;">
+                {% set rcount = post.reply_count %}
+                {% if rcount > 0 %}
+                <span class="badge rounded-pill text-xs" style="background:var(--color-gray-100); color:var(--color-gray-600)">
+                    <i class="fas fa-comment me-1 text-3xs"></i>{{ rcount }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+{# Pagination #}
+{% if has_more %}
+<div class="text-center mt-3">
+    <a href="{{ load_more_url }}" class="btn btn-sm btn-outline-secondary">
+        {{ _("Load more") }}
+    </a>
+</div>
+{% endif %}
+
+{% else %}
+{# Empty state #}
+<div class="text-center py-5">
+    <i class="fas fa-hashtag" style="font-size:2rem;color:var(--color-gray-300);"></i>
+    <p class="text-muted mt-2">{{ _("No posts in this log yet.") }}</p>
+    {% if start_thread_url %}
+    <a href="{{ start_thread_url }}" class="btn btn-sm btn-primary mt-1">
+        <i class="fas fa-plus me-1 text-3xs"></i>{{ _("Start a discussion") }}
+    </a>
+    {% endif %}
+</div>
+{% endif %}

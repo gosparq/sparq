@@ -1,0 +1,147 @@
+{% extends "tasks/desktop/layout.html" %}
+
+{% block title %}{{ _("Tasks") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" x-data="{ showClosed: false }">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Inbox") }}</h2>
+            <span class="text-muted text-base">{{ _("What needs your attention") }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm"
+                hx-get="{{ url_for('tasks_bp.create_modal') }}"
+                hx-target="#modals"
+                hx-swap="innerHTML">
+            <i class="fas fa-plus me-1"></i>{{ _("New") }}
+        </button>
+    </div>
+
+    {# ── Back to Overview ── #}
+    <div class="mb-4 pb-3" style="border-bottom:1px solid var(--color-gray-200);">
+        <a href="{{ url_for('tasks_bp.board') }}"
+           class="text-decoration-none small text-muted">
+            <i class="fas fa-arrow-left me-1 text-3xs"></i>{{ _("Back to Overview") }}
+        </a>
+    </div>
+
+    {# ── Tier Groups ── #}
+    {% set has_items = tier_groups[1] or tier_groups[2] or tier_groups[3] %}
+
+    {% if has_items %}
+        {% for tier_num in [1, 2, 3] %}
+        {% set items = tier_groups[tier_num] %}
+        {% if items %}
+        <div class="mb-4">
+            <div class="task-tier-label mb-2">
+                <span class="task-tier-dot" style="background:{{ tier_defaults[tier_num].color }};"></span>
+                {{ tier_defaults[tier_num].label }} <span class="text-muted">({{ items|length }})</span>
+            </div>
+
+            {% for item in items %}
+            <div class="task-card task-card--tier{{ tier_num }} d-flex align-items-start gap-3 mb-2">
+                <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}"
+                   class="stretched-link"
+                   aria-label="{{ item.title }}"></a>
+                <div class="flex-grow-1 min-w-0">
+                    <div class="task-card-title text-truncate">
+                        {% if item.is_blocker %}<i class="fas fa-hand text-danger me-1" title="{{ _('Blocker') }}"></i>{% endif %}{% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}
+                    </div>
+                    <div class="task-card-meta">
+                        {% if item.is_system_raised %}
+                            <span>{{ _("System") }}</span>
+                        {% elif item.raised_by_first_name %}
+                            <span>{{ item.raised_by_first_name }} {{ item.raised_by_last_name }}</span>
+                        {% endif %}
+                        <span>&middot;</span>
+                        <span>{{ item.time_ago() }}</span>
+                        {% if item.due_date %}
+                        <span>&middot;</span>
+                        <span {% if item.due_date < today %}class="text-danger"{% endif %}><i class="fas fa-calendar-day me-1 text-3xs"></i>{{ item.due_date.strftime('%b %d') }}</span>
+                        {% endif %}
+                        {% if item.project_id and item.project_name %}
+                        <a href="{{ url_for('projects_bp.detail', project_id=item.project_id) }}" class="project-badge-pill" onclick="event.stopPropagation();">{{ item.project_name[:20] }}</a>
+                        {% endif %}
+                        {% if item.context_note %}
+                        <span>&middot;</span>
+                        <span class="text-truncate" style="max-width:200px;">{{ item.context_note[:80] }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex-shrink-0 d-flex gap-1">
+                    {% if item.raised_by_id %}
+                    <form method="POST" action="{{ url_for('tasks_bp.resolve', item_id=item.id) }}" class="task-card-action-form" onclick="event.stopPropagation();">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="next" value="{{ url_for('tasks_bp.index') }}">
+                        <button type="submit" class="btn btn-outline-success btn-sm" title="{{ _('Resolve') }}">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if not item.raised_by_id %}
+                    <form method="POST" action="{{ url_for('tasks_bp.dismiss', item_id=item.id) }}" class="task-card-action-form" onclick="event.stopPropagation();">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="next" value="{{ url_for('tasks_bp.index') }}">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm" title="{{ _('Dismiss') }}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    {% else %}
+        {# ── Empty state ── #}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-check-circle fa-2x mb-3 d-block opacity-50"></i>
+            <p class="mb-1 fw-medium text-base">{{ _("You're all clear") }}</p>
+            <p class="mb-0 text-base">{{ _("No open action items assigned to you") }}</p>
+        </div>
+    {% endif %}
+
+    {# ── Resolved / Dismissed ── #}
+    {% if closed_items %}
+    <div class="mt-4">
+        <button class="btn btn-link btn-sm text-muted p-0 mb-2 text-decoration-none" @click="showClosed = !showClosed">
+            <i class="fas text-3xs" :class="showClosed ? 'fa-chevron-down' : 'fa-chevron-right'" style="width:12px"></i>
+            {{ _("Resolved / Dismissed") }} <span class="badge bg-secondary ms-1 text-2xs">{{ closed_items|length }}</span>
+        </button>
+        <div x-show="showClosed" x-cloak>
+            {% for item in closed_items %}
+            <div class="task-card task-card--closed mb-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="flex-shrink-0">
+                        {% if item.status == 'resolved' %}
+                        <i class="fas fa-check-circle text-success text-sm"></i>
+                        {% elif item.status == 'dismissed' %}
+                        <i class="fas fa-minus-circle text-muted text-sm"></i>
+                        {% else %}
+                        <i class="fas fa-ban text-muted text-sm"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <a href="{{ url_for('tasks_bp.detail', item_id=item.id) }}" class="text-truncate d-block text-decoration-none text-base text-secondary">
+                            {% if github_connected %}{{ item.title | resolve_gh_chips('task', item.id) | safe }}{% else %}{{ item.title }}{% endif %}
+                        </a>
+                    </div>
+                    <div class="flex-shrink-0 text-muted text-sm">
+                        {% if item.is_system_raised %}
+                            <span>{{ _("System") }}</span>
+                        {% elif item.raised_by_first_name %}
+                            <span>{{ item.raised_by_first_name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="modals"></div>
+{% endblock %}

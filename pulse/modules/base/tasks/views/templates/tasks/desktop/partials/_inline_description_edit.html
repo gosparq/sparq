@@ -1,0 +1,25 @@
+<div id="task-description-section">
+    <div class="task-detail-card">
+        <div class="task-detail-card-header">
+            <span class="task-detail-card-title">{{ _("Description") }}</span>
+        </div>
+        <div class="task-detail-card-body">
+            <form hx-post="{{ url_for('tasks_bp.inline_save_description', item_id=item.id) }}"
+                  hx-target="#task-description-section"
+                  hx-swap="outerHTML"
+                  hx-disabled-elt="button[type=submit]">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% with field_name="context_note", field_id="inline_context_note", placeholder=_('Add a description...'), rows=6, initial_value=item.context_note %}
+                    {% include "tasks/desktop/_md_editor.html" %}
+                {% endwith %}
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save") }}</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            hx-get="{{ url_for('tasks_bp.inline_display_description', item_id=item.id) }}"
+                            hx-target="#task-description-section"
+                            hx-swap="outerHTML">{{ _("Cancel") }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

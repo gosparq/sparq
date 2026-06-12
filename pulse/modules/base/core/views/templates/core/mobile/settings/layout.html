@@ -1,0 +1,16 @@
+{% extends "core/mobile/base.html" %}
+
+{% block app_class %}settings-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/settings-mobile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="settings-mobile-wrapper">
+    {% block module_content %}{% endblock %}
+</div>
+
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock mobile_bottom_nav %}

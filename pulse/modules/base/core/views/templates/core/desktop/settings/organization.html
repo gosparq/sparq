@@ -1,0 +1,381 @@
+{% extends "core/desktop/settings/_org_base.html" %}
+
+{% block page_title %}{{ _("Organization Settings") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-building"></i>{% endblock %}
+{% block page_title_display %}{{ _("Organization Settings") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Manage organization details, workspaces, members, and the audit log.") }}</p>{% endblock %}
+
+{% block settings_content %}
+{# ── General ── #}
+{% if active_tab == "general" %}
+<form method="POST" action="{{ url_for('core_bp.save_organization_info') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="settings-section">
+        <div class="d-flex justify-content-between align-items-center settings-section-title">
+            {{ _("Organization Info") }}
+            <button type="submit" class="btn btn-sm btn-primary text-xs">{{ _("Save") }}</button>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="name" class="form-label">{{ _("Organization Name") }} <span class="text-danger">*</span></label>
+                <input type="text" class="form-control form-control-sm" id="name" name="name"
+                       value="{{ organization.name or '' }}" required>
+            </div>
+            <div class="col-md-4">
+                <label for="phone" class="form-label">{{ _("Phone") }}</label>
+                <input type="tel" class="form-control form-control-sm" id="phone" name="phone"
+                       value="{{ organization.phone or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="tax_id" class="form-label">{{ _("Tax ID (EIN/TIN)") }}</label>
+                <input type="text" class="form-control form-control-sm" id="tax_id" name="tax_id"
+                       value="{{ organization.tax_id or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="email" class="form-label">{{ _("Email") }}</label>
+                <input type="email" class="form-control form-control-sm" id="email" name="email"
+                       value="{{ organization.email or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="website" class="form-label">{{ _("Website") }}</label>
+                <input type="url" class="form-control form-control-sm" id="website" name="website"
+                       value="{{ organization.website or '' }}" placeholder="https://">
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section" style="margin-top: 1.25rem;">
+        <div class="settings-section-title">{{ _("Address") }}</div>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="address" class="form-label">{{ _("Street Address") }}</label>
+                <input type="text" class="form-control form-control-sm" id="address" name="address"
+                       value="{{ organization.address or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="address_2" class="form-label">{{ _("Suite / Unit") }}</label>
+                <input type="text" class="form-control form-control-sm" id="address_2" name="address_2"
+                       value="{{ organization.address_2 or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="city" class="form-label">{{ _("City") }}</label>
+                <input type="text" class="form-control form-control-sm" id="city" name="city"
+                       value="{{ organization.city or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="state" class="form-label">{{ _("State / Province") }}</label>
+                <input type="text" class="form-control form-control-sm" id="state" name="state"
+                       value="{{ organization.state or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="zip_code" class="form-label">{{ _("ZIP / Postal Code") }}</label>
+                <input type="text" class="form-control form-control-sm" id="zip_code" name="zip_code"
+                       value="{{ organization.zip_code or '' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="country" class="form-label">{{ _("Country") }}</label>
+                <input type="text" class="form-control form-control-sm" id="country" name="country"
+                       value="{{ organization.country or '' }}">
+            </div>
+        </div>
+    </div>
+</form>
+
+{% if can_delete_org %}
+<div class="settings-section mt-4" style="border: 1px solid var(--error); border-radius: var(--radius-md); padding: 1rem;">
+    <div class="settings-section-title" style="color: var(--error);">{{ _("Danger Zone") }}</div>
+    <p class="text-muted small mb-3">{{ _("Permanently delete this organization. All workspaces and data will become inaccessible. This action cannot be undone by you.") }}</p>
+    <form method="POST" action="{{ url_for('core_bp.delete_organization') }}"
+          onsubmit="return confirm('{{ _("Are you sure you want to delete this organization? This cannot be undone.") }}');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-sm btn-danger">{{ _("Delete Organization") }}</button>
+    </form>
+</div>
+{% endif %}
+
+{# ── Workspaces ── #}
+{% elif active_tab == "workspaces" %}
+<div class="settings-section">
+    <div class="d-flex justify-content-between align-items-center settings-section-title">
+        {{ _("Workspaces") }}
+        <button type="button" class="btn btn-sm btn-primary"
+                data-bs-toggle="modal" data-bs-target="#createWorkspaceModal">
+            <i class="fas fa-plus me-1"></i>{{ _("New workspace") }}
+        </button>
+    </div>
+
+    {% if workspaces_active %}
+    <table class="table table-sm">
+        <thead>
+            <tr><th>{{ _("Name") }}</th><th>{{ _("Slug") }}</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for ts in workspaces_active %}
+            <tr>
+                <td>{{ ts.name }}</td>
+                <td><code>{{ ts.slug }}</code></td>
+                <td class="text-end">
+                    {% if workspaces_active|length > 1 %}
+                    <form method="POST"
+                          action="{{ url_for('core_bp.archive_workspace', workspace_id=ts.id) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('{{ _('Archive workspace \"') }}{{ ts.name }}{{ _('\"? You can restore it later.') }}');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-archive"></i> {{ _("Archive") }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="badge bg-secondary"
+                          title="{{ _('Cannot archive — create a second workspace first.') }}">
+                        {{ _("Default") }}
+                    </span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small">{{ _("No active workspaces in this organization.") }}</p>
+    {% endif %}
+
+    {% if workspaces_archived %}
+    <div class="mt-4">
+        <div class="settings-section-title">{{ _("Archived") }}</div>
+        <table class="table table-sm">
+            <thead>
+                <tr><th>{{ _("Name") }}</th><th>{{ _("Archived") }}</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for ts in workspaces_archived %}
+                <tr>
+                    <td>{{ ts.name }}</td>
+                    <td>{{ ts.deleted_at.strftime("%Y-%m-%d") if ts.deleted_at else "—" }}</td>
+                    <td class="text-end">
+                        <form method="POST"
+                              action="{{ url_for('core_bp.restore_workspace', workspace_id=ts.id) }}"
+                              style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-trash-restore"></i> {{ _("Restore") }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+{# ── Members ── #}
+{% elif active_tab == "members" %}
+<div class="settings-section">
+    <div class="settings-section-title">{{ _("Organization Members") }}</div>
+    {% if org_members %}
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>{{ _("Name") }}</th>
+                <th>{{ _("Email") }}</th>
+                <th>{{ _("Role") }}</th>
+                <th>{{ _("Workspaces") }}</th>
+                <th>{{ _("Actions") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in org_members %}
+            <tr>
+                <td>{{ row.user.full_name }}</td>
+                <td>{{ row.user.email }}</td>
+                <td>
+                    {% if row.organization_user.role == "admin" %}
+                    <span class="badge bg-danger">{{ _("Org Admin") }}</span>
+                    {% elif row.organization_user.role == "external" %}
+                    <span class="badge bg-info">{{ _("External") }}</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ _("Member") }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.workspace_names %}
+                    {{ row.workspace_names|join(", ") }}
+                    {% else %}
+                    <em class="text-muted">{{ _("Organization only") }}</em>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.organization_user.role == "admin" %}
+                        {% if org_admin_count <= 1 %}
+                        <button class="btn btn-sm btn-outline-secondary" disabled
+                                title="{{ _('Cannot remove the only organization administrator') }}">
+                            <i class="fas fa-shield-alt me-1"></i>{{ _("Sole Admin") }}
+                        </button>
+                        {% else %}
+                        <form method="POST"
+                              action="{{ url_for('core_bp.update_org_member_role', org_user_id=row.organization_user.id) }}"
+                              hx-post="{{ url_for('core_bp.update_org_member_role', org_user_id=row.organization_user.id) }}"
+                              hx-confirm="{{ _('Remove org admin role from this user?') }}"
+                              style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="role" value="member">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-user-minus me-1"></i>{{ _("Remove Admin") }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% else %}
+                        <form method="POST"
+                              action="{{ url_for('core_bp.update_org_member_role', org_user_id=row.organization_user.id) }}"
+                              hx-post="{{ url_for('core_bp.update_org_member_role', org_user_id=row.organization_user.id) }}"
+                              hx-confirm="{{ _('Grant org admin role to this user?') }}"
+                              style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="role" value="admin">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-user-shield me-1"></i>{{ _("Make Admin") }}
+                            </button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small">{{ _("No members found.") }}</p>
+    {% endif %}
+</div>
+
+{# ── Channels ── #}
+{% elif active_tab == "channels" %}
+<div class="settings-section">
+    <div class="d-flex justify-content-between align-items-center settings-section-title">
+        {{ _("Organization Channels") }}
+        <button type="button" class="btn btn-sm btn-primary"
+                data-bs-toggle="modal" data-bs-target="#createChannelModal">
+            <i class="fas fa-plus me-1"></i>{{ _("New channel") }}
+        </button>
+    </div>
+
+    {% if channels %}
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>{{ _("Name") }}</th>
+                <th>{{ _("Description") }}</th>
+                <th>{{ _("Default") }}</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ch in channels %}
+            <tr>
+                <td><code>#{{ ch.name }}</code></td>
+                <td class="text-muted small">{{ ch.description or "—" }}</td>
+                <td>
+                    {% if ch.is_default %}<i class="fas fa-check" style="color:var(--color-primary);"></i>{% endif %}
+                </td>
+                <td class="text-end">
+                    <form method="POST"
+                          action="{{ url_for('core_bp.delete_organization_channel', channel_id=ch.id) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('{{ _('Delete this channel? All posts will be lost.') }}');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small">{{ _("No organization channels yet. Create one to get started.") }}</p>
+    {% endif %}
+
+    {# Simple create-channel modal #}
+    <div class="modal fade" id="createChannelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('core_bp.create_organization_channel') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ _("New organization channel") }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">{{ _("Name") }}</label>
+                            <input type="text" class="form-control" name="name" required maxlength="50"
+                                   placeholder="all-hands">
+                            <small class="form-text text-muted">{{ _("Lowercase letters, numbers, hyphens.") }}</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">{{ _("Description") }} <small class="text-muted">({{ _("optional") }})</small></label>
+                            <input type="text" class="form-control" name="description" maxlength="200">
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_default" id="is-default-channel">
+                            <label class="form-check-label" for="is-default-channel">
+                                {{ _("Default — new organization members auto-subscribe") }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                            {{ _("Cancel") }}
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            {{ _("Create channel") }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Audit log ── #}
+{% elif active_tab == "audit-log" %}
+<div class="settings-section">
+    <div class="settings-section-title">{{ _("Audit Log") }}</div>
+    {% if audit_entries %}
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>{{ _("When") }}</th>
+                <th>{{ _("Actor") }}</th>
+                <th>{{ _("Action") }}</th>
+                <th>{{ _("Target") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in audit_entries %}
+            <tr>
+                <td class="small text-muted">{{ entry.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                <td>
+                    {% if entry.actor %}
+                    {{ entry.actor.full_name }}
+                    {% else %}
+                    <em>{{ _("System") }}</em>
+                    {% endif %}
+                </td>
+                <td><code>{{ entry.action }}</code></td>
+                <td class="small">
+                    {{ entry.target_type }}
+                    {% if entry.target_id %}<span class="text-muted">· {{ entry.target_id }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small">{{ _("No audit entries yet.") }}</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

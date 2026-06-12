@@ -1,0 +1,221 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}
+{% if job %}{{ _("Edit Job") }}{% else %}{{ _("New Job") }}{% endif %}
+{% endblock %}
+
+{% block module_content %}
+<div class="card">
+    <div class="card-header py-2">
+        <h6 class="mb-0">
+            <i class="fas fa-briefcase me-2"></i>
+            {% if job %}{{ _("Edit Job") }}{% else %}{{ _("New Job") }}{% endif %}
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="job-form"
+              action="{% if job %}{{ url_for('people_bp.hiring_job_edit', job_id=job.id) }}{% else %}{{ url_for('people_bp.hiring_job_new') }}{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="row g-3">
+                <!-- Left Column - Fields -->
+                <div class="col-md-5">
+                    <div class="row g-3">
+                        <!-- Job Title -->
+                        <div class="col-12">
+                            <label for="title" class="form-label small mb-1">
+                                {{ _("Job Title") }} <span class="text-danger">*</span>
+                            </label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="title"
+                                   name="title"
+                                   value="{{ job.title if job else '' }}"
+                                   placeholder="{{ _('e.g., Software Developer') }}"
+                                   required>
+                        </div>
+
+                        <!-- Employment Type -->
+                        <div class="col-12">
+                            <label for="job_type" class="form-label small mb-1">{{ _("Employment Type") }}</label>
+                            <select class="form-select form-select-sm" id="job_type" name="job_type">
+                                {% for jtype in JobType %}
+                                <option value="{{ jtype.name }}"
+                                        {{ 'selected' if job and job.job_type == jtype }}>
+                                    {{ jtype.value }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="col-12">
+                            <label for="department" class="form-label small mb-1">{{ _("Department") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="department"
+                                   name="department"
+                                   value="{{ job.department if job else '' }}"
+                                   placeholder="{{ _('e.g., Engineering') }}">
+                        </div>
+
+                        <!-- Location -->
+                        <div class="col-12">
+                            <label for="location" class="form-label small mb-1">{{ _("Location") }}</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   id="location"
+                                   name="location"
+                                   value="{{ job.location if job else '' }}"
+                                   placeholder="{{ _('e.g., Remote, NYC') }}">
+                        </div>
+
+                        <!-- Salary Range -->
+                        <div class="col-12">
+                            <label class="form-label small mb-1">{{ _("Salary Range") }}</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">$</span>
+                                <input type="number"
+                                       class="form-control"
+                                       id="salary_min"
+                                       name="salary_min"
+                                       step="1000"
+                                       min="0"
+                                       value="{{ job.salary_min|int if job and job.salary_min else '' }}"
+                                       placeholder="{{ _('Min') }}">
+                                <span class="input-group-text">-</span>
+                                <input type="number"
+                                       class="form-control"
+                                       id="salary_max"
+                                       name="salary_max"
+                                       step="1000"
+                                       min="0"
+                                       value="{{ job.salary_max|int if job and job.salary_max else '' }}"
+                                       placeholder="{{ _('Max') }}">
+                            </div>
+                        </div>
+
+                        <!-- Hiring Manager -->
+                        <div class="col-12">
+                            <label for="hiring_manager_id" class="form-label small mb-1">{{ _("Hiring Manager") }}</label>
+                            <select class="form-select form-select-sm" id="hiring_manager_id" name="hiring_manager_id">
+                                <option value="">{{ _("Select...") }}</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}"
+                                        {{ 'selected' if job and job.hiring_manager_id == emp.id }}>
+                                    {{ emp.user.first_name }} {{ emp.user.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Description & Requirements -->
+                <div class="col-md-7 d-flex flex-column gap-3">
+                    <!-- Description -->
+                    <div class="flex-grow-1 d-flex flex-column">
+                        <label for="description" class="form-label small mb-1">{{ _("Job Description") }}</label>
+                        <div class="md-toolbar btn-group btn-group-sm mb-1" data-target="description">
+                            <button type="button" class="btn btn-outline-secondary" data-md="bold" title="{{ _('Bold') }}"><i class="fas fa-bold"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="italic" title="{{ _('Italic') }}"><i class="fas fa-italic"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="h2" title="{{ _('Heading') }}"><i class="fas fa-heading"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="ul" title="{{ _('Bullet List') }}"><i class="fas fa-list-ul"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="ol" title="{{ _('Numbered List') }}"><i class="fas fa-list-ol"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="hr" title="{{ _('Divider') }}"><i class="fas fa-minus"></i></button>
+                        </div>
+                        <textarea class="form-control form-control-sm flex-grow-1 font-monospace text-sm"
+                                  id="description"
+                                  name="description"
+                                  rows="10"
+                                  placeholder="{{ _('Supports markdown: **bold**, *italic*, ## headings, - lists') }}">{{ job.description if job else '' }}</textarea>
+                    </div>
+
+                    <!-- Requirements -->
+                    <div>
+                        <label for="requirements" class="form-label small mb-1">{{ _("Requirements") }}</label>
+                        <div class="md-toolbar btn-group btn-group-sm mb-1" data-target="requirements">
+                            <button type="button" class="btn btn-outline-secondary" data-md="bold" title="{{ _('Bold') }}"><i class="fas fa-bold"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="italic" title="{{ _('Italic') }}"><i class="fas fa-italic"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="ul" title="{{ _('Bullet List') }}"><i class="fas fa-list-ul"></i></button>
+                            <button type="button" class="btn btn-outline-secondary" data-md="ol" title="{{ _('Numbered List') }}"><i class="fas fa-list-ol"></i></button>
+                        </div>
+                        <textarea class="form-control form-control-sm font-monospace text-sm"
+                                  id="requirements"
+                                  name="requirements"
+                                  rows="5"
+                                  placeholder="{{ _('- Requirement one\n- Requirement two') }}">{{ job.requirements if job else '' }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top">
+                    <a href="{{ url_for('people_bp.hiring_jobs') }}" class="btn btn-outline-secondary btn-sm">
+                        {{ _("Cancel") }}
+                    </a>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% if job %}{{ _("Update Job") }}{% else %}{{ _("Create Job") }}{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock module_content %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.md-toolbar').forEach(function(toolbar) {
+        var textarea = document.getElementById(toolbar.dataset.target);
+        toolbar.querySelectorAll('[data-md]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var start = textarea.selectionStart;
+                var end = textarea.selectionEnd;
+                var text = textarea.value;
+                var selected = text.substring(start, end);
+                var before = text.substring(0, start);
+                var after = text.substring(end);
+                var insert = '';
+
+                switch(this.dataset.md) {
+                    case 'bold':
+                        insert = '**' + (selected || 'text') + '**';
+                        break;
+                    case 'italic':
+                        insert = '*' + (selected || 'text') + '*';
+                        break;
+                    case 'h2':
+                        var lineStart = before.lastIndexOf('\n') + 1;
+                        textarea.value = text.substring(0, lineStart) + '## ' + text.substring(lineStart);
+                        textarea.focus();
+                        textarea.selectionStart = textarea.selectionEnd = lineStart + 3 + (end - lineStart);
+                        return;
+                    case 'ul':
+                        if (selected) {
+                            insert = selected.split('\n').map(function(l) { return l.trim() ? '- ' + l : l; }).join('\n');
+                        } else { insert = '- '; }
+                        break;
+                    case 'ol':
+                        if (selected) {
+                            var n = 1;
+                            insert = selected.split('\n').map(function(l) { return l.trim() ? (n++) + '. ' + l : l; }).join('\n');
+                        } else { insert = '1. '; }
+                        break;
+                    case 'hr':
+                        insert = '\n---\n';
+                        break;
+                }
+
+                textarea.value = before + insert + after;
+                textarea.focus();
+                textarea.selectionStart = start;
+                textarea.selectionEnd = start + insert.length;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

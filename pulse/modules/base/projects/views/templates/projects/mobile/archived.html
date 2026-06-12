@@ -1,0 +1,38 @@
+{% extends "projects/mobile/layout.html" %}
+
+{% block title %}{{ _("Archived Projects") }}{% endblock %}
+
+{% block module_content %}
+<div style="margin-bottom:0.75rem;">
+    <a href="{{ url_for('projects_bp.index') }}"
+       style="font-size:0.8125rem;color:var(--color-gray-500);text-decoration:none;">
+        <i class="fas fa-arrow-left" style="margin-right:0.25rem;"></i>
+        {{ _("Back to Projects") }}
+    </a>
+</div>
+
+<h2 style="font-size:1.25rem;font-weight:600;margin-bottom:1rem;">{{ _("Archived Projects") }}</h2>
+
+{% if projects %}
+    {% for project in projects %}
+    <div style="background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;padding:0.875rem;margin-bottom:0.5rem;">
+        <div style="font-size:0.9375rem;font-weight:500;color:var(--color-gray-500);margin-bottom:0.25rem;">
+            {% if project.emoji %}{{ project.emoji }} {% endif %}{{ project.name }}
+        </div>
+        <div style="font-size:0.75rem;color:var(--color-gray-400);margin-bottom:0.5rem;">
+            {{ _("Archived") }} {{ project.archived_at|format_datetime('%b %d, %Y') }}
+        </div>
+        <form method="POST" action="{{ url_for('projects_bp.unarchive', project_id=project.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm" style="font-size:0.8125rem;">
+                <i class="fas fa-box-open" style="margin-right:0.25rem;"></i>{{ _("Unarchive") }}
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+{% else %}
+    <div style="text-align:center;padding:3rem 1rem;color:var(--color-gray-400);">
+        <p class="text-base" style="margin:0">{{ _("No archived projects.") }}</p>
+    </div>
+{% endif %}
+{% endblock %}

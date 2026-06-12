@@ -1,0 +1,89 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Organization Directory") }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="content-heading">{{ _("Organization Directory") }}</h2>
+            <form method="GET" class="d-flex gap-2" style="max-width:320px;width:100%;">
+                <input type="text" class="form-control form-control-sm" name="search"
+                       value="{{ search|default('') }}"
+                       placeholder="{{ _('Search people...') }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
+
+        {% if directory %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th>{{ _("Name") }}</th>
+                        <th>{{ _("Role") }}</th>
+                        <th>{{ _("Workspaces") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in directory %}
+                    {% set u = entry.user %}
+                    <tr>
+                        <td>
+                            <span class="avatar-circle"
+                                  style="width:32px;height:32px;font-size:0.72rem;
+                                         background:{{ u.avatar_color or '#7C3AED' }};">
+                                {{ (u.first_name[0] if u.first_name else '?')|upper }}{{ (u.last_name[0] if u.last_name else '')|upper }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ u.full_name }}</div>
+                            <div class="text-muted small">{{ u.email }}</div>
+                        </td>
+                        <td>
+                            {% if entry.role == "admin" %}
+                            <span class="badge bg-primary">{{ _("Organization admin") }}</span>
+                            {% elif entry.role == "external" %}
+                            <span class="badge bg-info">{{ _("External") }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ _("Member") }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.workspaces %}
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for ts in entry.workspaces %}
+                                <span class="project-badge-pill{% if ts.archived %} opacity-50{% endif %}">
+                                    <i class="fas fa-users me-1 text-icon"></i>{{ ts.name }}
+                                    {% if ts.archived %}
+                                    <span class="badge bg-secondary ms-1 text-icon">{{ _("Archived") }}</span>
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted small fst-italic">{{ _("Organization only") }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            {{ _("No people found in this organization.") }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

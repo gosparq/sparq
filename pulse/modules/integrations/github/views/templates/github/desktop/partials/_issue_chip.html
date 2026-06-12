@@ -1,0 +1,72 @@
+{# Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+
+Issue chip macro — renders a single IntegrationRef as a chip with hover popover.
+
+Import in templates:
+    {% from "github/desktop/partials/_issue_chip.html" import issue_chip %}
+    {{ issue_chip(ref) }}
+
+Render from Python:
+    render_template("github/desktop/partials/_issue_chip.html", ref=ref)
+#}
+{% macro issue_chip(ref) %}
+{% set state_data = ref.cached_state %}
+{% if state_data is none or ref.external_id is none %}
+  {% set chip_state = "broken" %}
+{% elif ref.linked_task_id and state_data.get("state") == "open" %}
+  {% set chip_state = "linked" %}
+{% elif state_data.get("state") == "open" %}
+  {% set chip_state = "open" %}
+{% else %}
+  {% set chip_state = "closed" %}
+{% endif %}
+{% set raw_title = state_data.get("title", "") if state_data else "" %}
+{% set display_title = (raw_title[:40] ~ "…") if raw_title|length > 40 else raw_title %}
+<span class="gh-chip gh-chip--{{ chip_state }}">
+  <span class="gh-chip__dot"></span>
+  <span class="gh-chip__title">#{{ ref.external_id }}{% if display_title %} {{ display_title }}{% endif %}</span>
+  {% if chip_state == "linked" and ref.linked_task %}
+    {% set ai = ref.linked_task %}
+    {% set tier_colors = {1: "var(--color-danger)", 2: "#d97706", 3: "#16a34a"} %}
+    {% set tier_labels = {1: "NOW", 2: "LATER", 3: "WHENEVER"} %}
+    {% set tc = tier_colors.get(ai.urgency_tier, "#6b7280") %}
+    {% set tl = tier_labels.get(ai.urgency_tier, "") %}
+    <span class="gh-chip__badge" style="background:{{ tc }}22;color:{{ tc }};">{{ tl }}</span>
+  {% endif %}
+  <span class="gh-popover">
+    {% if chip_state == "broken" %}
+      <span class="gh-popover__title" style="color:#999;font-style:italic;font-weight:400;">
+        #{{ ref.external_id }} — {{ _("Issue could not be found") }}
+      </span>
+    {% else %}
+      {% set issue_state = state_data.get("state", "open") %}
+      <span class="gh-popover__repo">{{ ref.external_repo }}</span>
+      <span class="gh-popover__status gh-popover__status--{{ issue_state }}">
+        <span class="gh-popover__status-dot"></span>
+        <span>{% if issue_state == "open" %}{{ _("Open") }}{% else %}{{ _("Closed") }}{% endif %}</span>
+      </span>
+      <span class="gh-popover__title">
+        <span class="gh-popover__title-num">#{{ ref.external_id }}</span>{{ state_data.get("title", "") }}
+      </span>
+      <span class="gh-popover__meta">
+        {% if state_data.get("opened_by") %}{{ _("Opened by") }} <strong>{{ state_data.get("opened_by") }}</strong>{% endif %}
+        {% if state_data.get("opened_at") %} · {{ state_data.get("opened_at") | timeago }}{% endif %}
+        {% for lbl in state_data.get("labels", []) %}
+        <span class="gh-popover__label">{{ lbl }}</span>
+        {% endfor %}
+      </span>
+      <span class="gh-popover__actions">
+        {% if state_data.get("html_url") %}
+
+        <a href="{{ state_data.get('html_url') }}" target="_blank" rel="noopener" class="gh-popover__btn gh-popover__btn--github">{{ _("Open in GitHub") }}</a>
+        {% endif %}
+        {% if ref.linked_task_id %}
+        <a href="{{ url_for('tasks_bp.detail', item_id=ref.linked_task_id) }}" class="gh-popover__btn">{{ _("View task") }}</a>
+        {% endif %}
+      </span>
+    {% endif %}
+  </span>
+</span>
+{% endmacro %}
+{%- if ref is defined and ref is not none -%}{{ issue_chip(ref) }}{%- endif -%}
+the 

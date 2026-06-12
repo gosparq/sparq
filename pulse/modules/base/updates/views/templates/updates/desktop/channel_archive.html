@@ -1,0 +1,73 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ channel.name }} — {{ _("Archive") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">
+                <i class="fas fa-clock-rotate-left text-sm sync-text-subtle"></i>
+                {{ channel.name }} — {{ _("Archive") }}
+            </h2>
+            <span class="text-muted text-sm">{{ _("Read-only historical messages") }}</span>
+        </div>
+        <a href="{{ url_for('updates_bp.channel_feed', slug=channel.name) }}"
+           class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back to channel") }}
+        </a>
+    </div>
+
+    {# ── Messages ── #}
+    {% if messages %}
+    <div class="channel-archive-messages">
+        {% for msg in messages %}
+        <div class="d-flex align-items-start gap-3 py-2 {% if not loop.last %}border-bottom{% endif %}" style="border-color:var(--color-gray-100);">
+            {# Avatar #}
+            <div class="flex-shrink-0">
+                {% if msg.member and msg.member.user %}
+                <span class="avatar-circle" style="width:32px;height:32px;font-size:0.75rem;background:{{ msg.member.user.avatar_color|default('#6b7280') }};">
+                    {{ msg.member.user.first_name[0]|upper }}{{ msg.member.user.last_name[0]|upper }}
+                </span>
+                {% else %}
+                <span class="avatar-circle text-xs" style="width:32px; height:32px; background:var(--color-gray-500)">
+                    <i class="fas fa-user text-3xs"></i>
+                </span>
+                {% endif %}
+            </div>
+
+            {# Message content #}
+            <div class="flex-grow-1 min-width-0">
+                <div class="d-flex align-items-baseline gap-2 mb-0">
+                    {% if msg.member and msg.member.user %}
+                    <span class="fw-semibold text-sm">{{ msg.member.user.full_name }}</span>
+                    {% else %}
+                    <span class="fw-semibold text-muted text-sm">{{ _("System") }}</span>
+                    {% endif %}
+                    <span class="text-muted text-xs">{{ msg.created_at|format_datetime('%b %d, %Y %I:%M %p') }}</span>
+                </div>
+                <p class="mb-0 text-sm sync-pre-wrap" style="color:var(--color-gray-700)">{{ msg.preview_text() }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if has_more %}
+    <div class="text-center mt-3">
+        <a href="{{ url_for('updates_bp.channel_archive', slug=channel.name, offset=next_offset) }}"
+           class="btn btn-sm btn-outline-secondary">
+            {{ _("Load older messages") }}
+        </a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-clock-rotate-left" style="font-size:2rem;color:var(--color-gray-300);"></i>
+        <p class="text-muted mt-2">{{ _("No archived messages in this channel.") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

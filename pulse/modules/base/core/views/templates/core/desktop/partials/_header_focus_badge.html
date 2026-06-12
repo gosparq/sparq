@@ -1,0 +1,20 @@
+{# Focus/Available segmented control for top bar — HTMX-swappable #}
+<form method="POST" action="{{ url_for('presence_flow_bp.flow_toggle') }}"
+      hx-post="{{ url_for('presence_flow_bp.flow_toggle') }}"
+      hx-target="#header-focus-badge"
+      hx-swap="innerHTML"
+      style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="header-status-seg">
+        <button type="submit"
+                class="{% if header_focus_status != 'focus' %}header-status-seg--active{% endif %}"
+                title="{{ _('Available — click to focus') }}">
+            <span class="status-dot"></span>{{ _("Available") }}
+        </button>
+        <button type="submit"
+                class="header-status-seg--focus {% if header_focus_status == 'focus' %}header-status-seg--active{% endif %}"
+                title="{{ _('Focusing — click to switch') }}">
+            <span class="status-dot"></span>{{ _("Focusing") }}
+        </button>
+    </div>
+</form>

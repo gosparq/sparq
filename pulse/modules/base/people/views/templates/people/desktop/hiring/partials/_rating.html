@@ -1,0 +1,17 @@
+{# Rating partial - returned by HTMX on rating change #}
+<div id="rating-buttons">
+    <label class="form-label small mb-1">{{ _("Rating") }}</label>
+    <div class="d-flex gap-1">
+        {% for i in range(1, 6) %}
+        <button type="button"
+                hx-post="{{ url_for('people_bp.hiring_application_rate', application_id=application.id) }}"
+                hx-vals='{"rating": "{{ i }}"}'
+                hx-target="#rating-buttons"
+                hx-swap="outerHTML"
+                class="btn btn-sm {{ 'btn-warning' if application.rating and i <= application.rating else 'btn-outline-secondary' }}"
+                style="padding: 0.1rem 0.4rem;">
+            <i class="fas fa-star"></i>
+        </button>
+        {% endfor %}
+    </div>
+</div>

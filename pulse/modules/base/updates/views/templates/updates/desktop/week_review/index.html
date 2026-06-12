@@ -1,0 +1,104 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Week in Review") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">{{ _("Week in Review") }}</h2>
+            <span class="text-muted text-sm">{{ _("AI-generated weekly summaries for your team") }}</span>
+        </div>
+        {% if current_user.is_admin %}
+        <form method="POST" action="{{ url_for('sync_bp.week_review_generate') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-wand-magic-sparkles me-1"></i>{{ _("Generate This Week") }}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {# ── Current Week Draft (admin only) ── #}
+    {% if current_user.is_admin and current_draft %}
+    <div class="card mb-4" style="border:2px solid var(--bs-primary);border-radius:0.625rem;">
+        <div class="card-body py-3 px-4">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="badge bg-warning text-dark me-2">{{ _("Draft") }}</span>
+                    <strong style="font-size:0.9375rem;">
+                        {{ current_draft.week_start.strftime('%b %d') }} &ndash; {{ current_draft.week_end.strftime('%b %d, %Y') }}
+                    </strong>
+                    <span class="text-muted ms-2 text-sm">{{ _("Current week") }}</span>
+                </div>
+                <a href="{{ url_for('sync_bp.week_review_detail', review_id=current_draft.id) }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-pen me-1"></i>{{ _("Edit & Send") }}
+                </a>
+            </div>
+            {% if current_draft.content %}
+            <div class="text-muted mt-2 text-sm sync-pre-wrap" style="max-height:100px; overflow:hidden">{{ current_draft.content[:200] }}{% if current_draft.content|length > 200 %}...{% endif %}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Reviews List ── #}
+    {% set display_reviews = reviews|rejectattr('id', 'equalto', current_draft.id if current_draft else -1)|list %}
+    {% if display_reviews %}
+    {% if current_user.is_admin %}
+    <h6 class="text-muted mb-2 text-uppercase text-sm" style="letter-spacing:0.05em">{{ _("Past Reviews") }}</h6>
+    {% endif %}
+    {% for review in display_reviews %}
+    <div class="card mb-2 sync-card">
+        <div class="card-body py-3 px-4">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    {% if current_user.is_admin %}
+                    {% if review.status == 'sent' %}
+                    <span class="badge bg-success me-2">{{ _("Sent") }}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark me-2">{{ _("Draft") }}</span>
+                    {% endif %}
+                    {% endif %}
+                    <strong style="font-size:0.9375rem;">
+                        {{ review.week_start.strftime('%b %d') }} &ndash; {{ review.week_end.strftime('%b %d, %Y') }}
+                    </strong>
+                    {% if review.sent_at %}
+                    <span class="text-muted ms-2 text-sm">
+                        {{ review.sent_at | format_datetime('%b %d at %I:%M %p') }}
+                        {% if review.sent_by and review.sent_by.user %}
+                        {{ _("by") }} {{ review.sent_by.user.first_name }}
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('sync_bp.week_review_detail', review_id=review.id) }}" class="btn btn-outline-secondary btn-sm">
+                    {% if current_user.is_admin and review.status == 'draft' %}
+                    <i class="fas fa-pen me-1"></i>{{ _("Edit") }}
+                    {% else %}
+                    <i class="fas fa-eye me-1"></i>{{ _("View") }}
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% elif not current_draft %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-newspaper fa-2x mb-3 d-block opacity-50"></i>
+        {% if current_user.is_admin %}
+        <p class="mb-3">{{ _("No reviews yet. Generate your first Week in Review!") }}</p>
+        <form method="POST" action="{{ url_for('sync_bp.week_review_generate') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-wand-magic-sparkles me-1"></i>{{ _("Generate This Week") }}
+            </button>
+        </form>
+        {% else %}
+        <p class="mb-0">{{ _("No weekly reviews have been published yet.") }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

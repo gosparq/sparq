@@ -1,0 +1,155 @@
+/* ============================================
+   People — Mobile styles
+   Loaded by: people/mobile/layout.html
+   ============================================ */
+
+/* Mobile content area */
+.team-mobile-wrapper {
+    padding: 1rem;
+    padding-left: calc(1rem + var(--safe-area-left));
+    padding-right: calc(1rem + var(--safe-area-right));
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex; align-items: center;
+    padding: 0.25rem 0.5rem; border-radius: 9999px;
+    font-size: 0.75rem; font-weight: 500;
+}
+.status-badge.active { background: var(--color-success-light); color: var(--color-success-dark); }
+.status-badge.on-leave { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.status-badge.terminated { background: var(--color-danger-light); color: var(--color-danger-dark); }
+.status-badge.contractor { background: var(--color-info-light); color: var(--color-info-dark); }
+
+/* Mobile cards */
+.mobile-card {
+    display: block; background: var(--color-white);
+    border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 0.75rem; overflow: hidden;
+    text-decoration: none; color: inherit;
+}
+.mobile-card:active { background: var(--color-gray-50); }
+.mobile-card-header { padding: 1rem; border-bottom: 1px solid var(--color-gray-200); font-weight: 600; }
+.mobile-card-body { padding: 1rem; }
+
+/* Touch-friendly buttons */
+.btn-touch { min-height: 48px; min-width: 48px; padding: 0.75rem; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 0.5rem; }
+.btn-touch-lg { min-height: 56px; padding: 1rem 2rem; font-size: 1.125rem; width: 100%; }
+
+/* Person avatar */
+.person-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--color-primary); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 1rem; flex-shrink: 0;
+}
+.person-avatar.large { width: 80px; height: 80px; font-size: 1.5rem; }
+
+/* Search bar */
+.mobile-search {
+    position: sticky; top: 0; background: var(--color-gray-100);
+    padding: 0.75rem 1rem;
+    padding-left: calc(1rem + var(--safe-area-left));
+    padding-right: calc(1rem + var(--safe-area-right));
+    margin: -1rem -1rem 1rem -1rem;
+    margin-left: calc(-1rem - var(--safe-area-left));
+    margin-right: calc(-1rem - var(--safe-area-right));
+    z-index: 10;
+}
+.mobile-search-input {
+    width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border: none; border-radius: 0.75rem;
+    background: var(--color-white); font-size: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.mobile-search-input:focus { outline: none; box-shadow: 0 0 0 2px var(--color-primary); }
+.mobile-search-icon {
+    position: absolute;
+    left: calc(1rem + var(--safe-area-left) + 0.75rem);
+    top: 50%; transform: translateY(-50%);
+    color: var(--color-gray-400); pointer-events: none;
+}
+
+/* Alpha headers */
+.alpha-header {
+    padding: 0.5rem 0; font-size: 0.75rem; font-weight: 600;
+    color: var(--color-primary); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-top: 1rem; margin-bottom: 0.5rem;
+}
+.alpha-header:first-of-type { margin-top: 0; }
+
+/* Person list item */
+.person-list-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem; background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.75rem; margin-bottom: 0.5rem;
+    text-decoration: none; color: inherit;
+}
+.person-list-item:active { background: var(--color-gray-50); }
+.person-list-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--color-primary); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 0.875rem; flex-shrink: 0;
+}
+.person-list-info { flex: 1; min-width: 0; }
+.person-list-name { font-weight: 600; font-size: 0.9375rem; color: var(--color-gray-900); display: flex; align-items: center; gap: 0.5rem; }
+.person-list-role { font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-list-dept { font-size: 0.75rem; color: var(--color-gray-400); margin-top: 0.125rem; }
+.person-list-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.person-list-actions .action-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--color-gray-100); color: var(--color-gray-500);
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none; border: none; cursor: pointer; padding: 0;
+}
+.person-list-actions .action-btn:active { background: var(--color-primary); color: white; }
+.person-list-actions .action-btn i { font-size: 0.875rem; }
+.person-list-chevron { color: var(--color-gray-300); font-size: 0.75rem; flex-shrink: 0; }
+
+/* Status dot */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.status-dot.on-leave { background: var(--color-warning); }
+.status-dot.terminated { background: var(--color-danger); }
+.status-dot.contractor { background: var(--color-info); }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--color-gray-500); }
+.empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+.empty-state h5 { color: var(--color-gray-700); margin-bottom: 0.5rem; }
+
+/* Detail page header */
+.detail-header {
+    text-align: center; padding: 1.5rem 1rem;
+    background: var(--color-primary); color: white;
+    margin: -1rem -1rem 1rem -1rem;
+    margin-left: calc(-1rem - var(--safe-area-left));
+    margin-right: calc(-1rem - var(--safe-area-right));
+    padding-left: calc(1rem + var(--safe-area-left));
+    padding-right: calc(1rem + var(--safe-area-right));
+}
+.detail-header .person-avatar { background: rgba(255,255,255,0.2); margin: 0 auto 1rem; }
+.detail-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; color: inherit; }
+.detail-header .subtitle { font-size: 1rem; opacity: 0.9; }
+
+/* Info sections */
+.info-section { margin-bottom: 1.5rem; }
+.info-section-title { font-size: 0.75rem; font-weight: 600; color: var(--color-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-gray-200); }
+.info-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.5rem 0; }
+.info-label { color: var(--color-gray-500); font-size: 0.875rem; }
+.info-value { font-weight: 500; text-align: right; max-width: 60%; }
+
+/* Quick action buttons */
+.quick-actions { display: flex; gap: 0.75rem; justify-content: center; margin-bottom: 1.5rem; }
+.quick-action-btn {
+    flex: 1; max-width: 120px; display: flex; flex-direction: column;
+    align-items: center; gap: 0.5rem; padding: 1rem;
+    background: var(--color-white); border: none; border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: var(--color-gray-700);
+    text-decoration: none; font-size: 0.875rem;
+}
+.quick-action-btn:active { background: var(--color-gray-50); }
+.quick-action-btn i { font-size: 1.25rem; color: var(--color-primary); }
+
+/* Filter pills — global styles live in core/views/assets/css/mobile.css */

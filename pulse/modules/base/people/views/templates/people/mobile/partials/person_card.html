@@ -1,0 +1,49 @@
+{# Person Card for Mobile Directory #}
+{# Expected context: user (DirectoryMemberRow dataclass) #}
+
+<div class="person-list-item">
+    <!-- Clickable area: avatar + info -->
+    <a href="{{ url_for('people_bp.person_detail', employee_id=user.member_id) }}" style="display:flex;align-items:center;gap:0.75rem;flex:1;min-width:0;text-decoration:none;color:inherit;">
+        <!-- Avatar -->
+        <div class="person-list-avatar">
+            {{ user.first_name[0]|upper if user.first_name else '?' }}{{ user.last_name[0]|upper if user.last_name else '' }}
+        </div>
+
+        <!-- Info -->
+        <div class="person-list-info">
+            <div class="person-list-name">
+                {{ user.first_name }} {{ user.last_name }}
+                {% if user.status.value != 'Active' %}
+                <span class="status-dot {% if user.status.value == 'On Leave' %}on-leave{% elif user.status.value == 'Terminated' %}terminated{% elif user.status.value == 'Contractor' %}contractor{% endif %}"></span>
+                {% endif %}
+                {# Flow status "Focusing" badge — matches desktop people index #}
+                {% if user.flow_status in ('flow', 'focus') %}
+                <span class="badge" style="background:#f3e8ff;color:var(--color-focus);font-size:0.6rem;padding:0.125rem 0.375rem;margin-left:0.25rem;">
+                    <i class="fas fa-circle" style="font-size:0.4rem;margin-right:0.125rem;"></i>{{ _("Focusing") }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="person-list-role">{{ user.position or _('Team Member') }}</div>
+            {% if user.department %}
+            <div class="person-list-dept">{{ user.department }}</div>
+            {% endif %}
+        </div>
+    </a>
+
+    <!-- Quick Actions (inside card, right side) -->
+    <div class="person-list-actions">
+        {% if user.phone %}
+        <a href="tel:{{ user.phone }}" class="action-btn">
+            <i class="fas fa-phone"></i>
+        </a>
+        {% endif %}
+        <a href="mailto:{{ user.email }}" class="action-btn">
+            <i class="fas fa-envelope"></i>
+        </a>
+    </div>
+
+    <!-- Chevron -->
+    <a href="{{ url_for('people_bp.person_detail', employee_id=user.member_id) }}" style="text-decoration:none;">
+        <i class="fas fa-chevron-right person-list-chevron"></i>
+    </a>
+</div>

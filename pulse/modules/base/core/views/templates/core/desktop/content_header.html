@@ -1,0 +1,143 @@
+{# Content Header Bar — search left, actions right #}
+
+<header class="content-header">
+
+    {# Left: Global search bar #}
+    {% if current_user.is_authenticated %}
+    <div class="content-header-left"
+         x-data="{ open: false, query: '' }"
+         @keydown.window.meta.k.prevent="$refs.searchInput.focus()"
+         @keydown.window.slash="if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'SELECT') { $event.preventDefault(); $refs.searchInput.focus(); }">
+        <div class="global-search" :class="{ 'is-active': open }">
+            <i class="fas fa-search global-search-icon"></i>
+            <input type="text"
+                   x-ref="searchInput"
+                   x-model="query"
+                   class="global-search-input"
+                   placeholder="{{ _('Search...') }}"
+                   autocomplete="off"
+                   hx-get="{{ url_for('dashboard_bp.search') }}"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#global-search-results"
+                   name="q"
+                   @focus="open = true"
+                   @keydown.escape="open = false; query = ''; $refs.searchInput.blur()"
+                   @click.outside="open = false">
+            <kbd class="global-search-shortcut" x-show="!open">&#8984;K</kbd>
+            <div id="global-search-results"
+                 class="global-search-dropdown"
+                 x-show="open && query.length >= 2"
+                 x-cloak></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Right: + New menu, Presence cluster, Notifications, Avatar #}
+    <div class="content-header-right">
+        {# + New universal composer menu #}
+        {% if current_user.is_authenticated %}
+        {% include 'core/desktop/partials/_new_menu.html' %}
+        {% endif %}
+
+        {# Presence cluster: Focus + Clock badges grouped together #}
+        {% if current_user.is_authenticated %}
+        <div class="presence-cluster">
+            {# Focus/Available pill #}
+            {% if header_focus_status is defined %}
+            <div id="header-focus-badge">
+                {% include 'core/desktop/partials/_header_focus_badge.html' %}
+            </div>
+            {% endif %}
+
+            {# Clock status badge #}
+            {% if header_time_clock_enabled is defined %}
+            <div id="header-clock-badge">
+                {% include 'core/desktop/partials/_header_clock_badge.html' %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# User avatar dropdown — minimal top-right per spec §9.5:                #}
+        {#   user info + switch organization (2+ orgs) + organization settings   #}
+        {#   (org admins only) + account & preferences + log out.                #}
+        {% if current_user.is_authenticated %}
+        <div x-data="{ avatarOpen: false, darkMode: document.body.classList.contains('dark') }" style="position:relative">
+            <button class="content-header-avatar-btn" @click="avatarOpen = !avatarOpen" @click.outside="avatarOpen = false" title="{{ current_user.full_name }}">
+                <span class="avatar-circle text-3xs" style="width:28px; height:28px">{{ current_user.first_name[0] }}{{ current_user.last_name[0] }}</span>
+            </button>
+            <div class="content-header-avatar-dropdown" x-show="avatarOpen" x-cloak x-transition.opacity.duration.150ms>
+                <div class="avatar-dropdown-header">
+                    <span class="avatar-circle avatar-circle-lg">{{ current_user.first_name[0] }}{{ current_user.last_name[0] }}</span>
+                    <div>
+                        <div class="avatar-dropdown-name">{{ current_user.full_name }}</div>
+                        <div class="avatar-dropdown-email">{{ current_user.email }}</div>
+                    </div>
+                </div>
+
+                {# Switch organization + create new org #}
+                {% if user_organizations|default([])|length >= 2 %}
+                <div class="avatar-dropdown-section">
+                    <div class="avatar-dropdown-label">{{ _("Switch organization") }}</div>
+                    {% for org in user_organizations %}
+                    <form method="POST" action="{{ url_for('core_bp.switch_organization', organization_id=org.id) }}" style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="avatar-dropdown-item cursor-pointer" style="border:none; background:none; width:100%; text-align:left" @click="avatarOpen = false">
+                            <i class="fas fa-building"></i> {{ org.name }}
+                            {% if org.is_current %}
+                            <i class="fas fa-check text-3xs" style="color:var(--color-primary); margin-left:auto"></i>
+                            {% endif %}
+                        </button>
+                    </form>
+                    {% endfor %}
+                    <div style="height:1px;background:var(--color-gray-200);margin:4px 0;"></div>
+                    <a href="{{ url_for('core_bp.create_organization') }}" class="avatar-dropdown-item" @click="avatarOpen = false">
+                        <i class="fas fa-plus"></i> {{ _("New Organization") }}
+                    </a>
+                </div>
+                {% else %}
+                <div class="avatar-dropdown-section">
+                    <a href="{{ url_for('core_bp.create_organization') }}" class="avatar-dropdown-item" @click="avatarOpen = false">
+                        <i class="fas fa-plus"></i> {{ _("New Organization") }}
+                    </a>
+                </div>
+                {% endif %}
+
+                {# Organization Settings — org admins only. #}
+                {% if is_organization_admin %}
+                <div class="avatar-dropdown-section">
+                    <a href="{{ url_for('core_bp.settings_organization') }}" class="avatar-dropdown-item" @click="avatarOpen = false">
+                        <i class="fas fa-cog"></i> {{ _("Organization Settings") }}
+                    </a>
+                </div>
+                {% endif %}
+
+                {# Account & Preferences (everyone) #}
+                <div class="avatar-dropdown-section">
+                    <a href="{{ url_for('core_bp.settings_preferences') }}" class="avatar-dropdown-item" @click="avatarOpen = false">
+                        <i class="fas fa-sliders-h"></i> {{ _("Account & Preferences") }}
+                    </a>
+                </div>
+
+                <div class="avatar-dropdown-divider"></div>
+
+                {# Dark-mode toggle — reactive label + icon via Alpine `darkMode` state.
+                   `darkMode` is seeded on x-data init from document.body.classList,
+                   then toggled on click so the dropdown label flips immediately. #}
+                <button class="avatar-dropdown-item cursor-pointer" style="border:none; background:none; width:100%"
+                        @click="darkMode = !darkMode;
+                                document.body.classList.toggle('dark', darkMode);
+                                localStorage.setItem('sparq-dark-mode', darkMode);">
+                    <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
+                    <span x-text="darkMode ? '{{ _('Light Mode') }}' : '{{ _('Dark Mode') }}'"></span>
+                </button>
+
+                <div class="avatar-dropdown-divider"></div>
+                <a href="{{ url_for('core_bp.logout') }}" class="avatar-dropdown-item avatar-dropdown-danger">
+                    <i class="fas fa-sign-out-alt"></i> {{ _("Log out") }}
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</header>

@@ -1,0 +1,510 @@
+{% extends "updates/mobile/layout.html" %}
+
+{% block title %}{{ template.name }} - {{ _("Sync") }}{% endblock %}
+
+{% block module_content %}
+<div style="padding:1rem;">
+    <div style="margin-bottom:1rem;">
+        <a class="text-base" href="{{ url_for('updates_bp.updates_index') if template.post_type in ('update', 'win') else url_for('sync_bp.board_index') if template.post_type == 'board' else url_for('sync_bp.index') }}" style="color:var(--color-gray-500);text-decoration:none">
+            <i class="fas fa-arrow-left me-1"></i>{{ _("Back") }}
+        </a>
+    </div>
+
+    <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:0.25rem;">{{ template.name }}</h3>
+    {% if template.description %}
+    <p style="font-size:0.8125rem;color:var(--color-gray-500);margin-bottom:1rem;">{{ template.description }}</p>
+    {% else %}
+    <div style="margin-bottom:1rem;"></div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('sync_bp.post_create') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="template_id" value="{{ template.id }}">
+
+        {% for field in template.fields %}
+        <div style="margin-bottom:1.25rem;">
+            <label class="text-base" style="display:block;font-weight:600;margin-bottom:0.5rem">
+                {{ field.label }}
+                {% if field.get('required') %}<span style="color:var(--color-danger);margin-left:0.25rem;">*</span>{% endif %}
+            </label>
+
+            {% if field.type == 'text' %}
+            <textarea name="field_{{ field.key }}" rows="4"
+                style="width:100%;padding:0.75rem;border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-family:inherit;resize:vertical;min-height:100px;"
+                placeholder="{{ field.get('placeholder', '') }}"
+                {% if field.get('required') %}required{% endif %}></textarea>
+
+            {% elif field.type == 'title' %}
+            <input type="text" name="field_{{ field.key }}"
+                style="width:100%;padding:0.75rem;border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-family:inherit;min-height:44px;"
+                placeholder="{{ field.get('placeholder', '') }}"
+                {% if field.get('required') %}required{% endif %}>
+
+            {% elif field.type == 'bullets' %}
+            <div x-data="{ items: [''], add() { this.items.push('') }, remove(idx) { if (this.items.length > 1) this.items.splice(idx, 1) } }">
+                <template x-for="(item, idx) in items" :key="idx">
+                    <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;">
+                        <span style="color:var(--color-gray-400);font-size:0.375rem;"><i class="fas fa-circle"></i></span>
+                        <input type="text" :name="'field_{{ field.key }}[]'" x-model="items[idx]"
+                            style="flex:1;padding:0.5rem 0.75rem;border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-family:inherit;min-height:44px;"
+                            placeholder="{{ field.get('placeholder', _('Add item...')) }}">
+                        <button type="button" @click="remove(idx)" x-show="items.length > 1"
+                            style="width:36px;height:36px;border-radius:50%;border:none;background:var(--color-gray-100);color:var(--color-danger);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                            <i class="fas fa-times" style="font-size:0.75rem;"></i>
+                        </button>
+                    </div>
+                </template>
+                <button type="button" @click="add()"
+                    style="padding:0.5rem 1rem;border:1px solid var(--color-gray-300);border-radius:8px;background:var(--color-white);font-family:inherit;cursor:pointer;color:var(--color-gray-600)">
+                    <i class="fas fa-plus me-1"></i>{{ _("Add item") }}
+                </button>
+            </div>
+
+            {% elif field.type == 'structured_list' %}
+            {# Structured list — Linear / Apple Reminders-style clean list.
+               Text is the hero. Project + assignee + remove are subtle inline chips
+               that fade in when the row has content. #}
+            {% set field_key = field.key %}
+            {% set is_blocker_field = field.get('blocker', false) %}
+            <div x-data="mobileStructuredList_{{ field.key }}()" x-init="init()" class="sl-list">
+                {% if template.post_type == 'update' and not field.get('blocker', false) %}
+                <div x-show="suggestions.length > 0" class="sl-chips" style="margin-bottom:0.5rem;padding-left:0;" x-cloak>
+                    <template x-for="sug in suggestions" :key="sug.id">
+                        <button type="button" class="sl-chip" @click="selectPill(sug)">
+                            <span class="sl-tier-dot" :style="'background:' + sug.tier_color"></span>
+                            <span x-text="sug.title"></span>
+                        </button>
+                    </template>
+                </div>
+                {% endif %}
+                <template x-for="(row, idx) in items" :key="idx">
+                    <div class="sl-row">
+                        {# Main row: bullet + text input #}
+                        <div class="sl-main">
+                            <span class="sl-bullet"></span>
+                            <input type="text"
+                                   :name="'field_{{ field_key }}_text[]'"
+                                   x-model="row.text"
+                                   @input.debounce.300ms="fetchSuggestions(idx)"
+                                   @focus="row._showSuggestions = true"
+                                   @blur="setTimeout(() => row._showSuggestions = false, 200)"
+                                   autocomplete="off"
+                                   class="sl-text"
+                                   placeholder="{{ field.get('placeholder', _('Add an item...')) }}">
+                            {# Action-item autocomplete popover #}
+                            <div x-show="row._showSuggestions && row._suggestions && row._suggestions.length > 0" x-cloak class="sl-popover">
+                                <template x-for="sug in row._suggestions" :key="sug.id">
+                                    <button type="button" @mousedown.prevent="selectSuggestion(idx, sug)" class="sl-popover-item">
+                                        <span class="sl-tier-dot" :style="'background:' + sug.tier_color"></span>
+                                        <span x-text="sug.title" class="sl-popover-title"></span>
+                                        <template x-if="sug.project_name">
+                                            <span class="sl-popover-project" x-text="sug.project_name"></span>
+                                        </template>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        {# Inline chips — project / assignee / linked / remove. Always visible so you can set project first. #}
+                        <div class="sl-chips">
+                            {# Project chip (click-through to the hidden select) #}
+                            <label class="sl-chip sl-chip--project">
+                                <i class="fas fa-folder-open"></i>
+                                <span x-text="row.project_id ? (projects.find(p => String(p.id) === String(row.project_id)) || {}).name || '{{ _('No project') }}' : '{{ _('No project') }}'"></span>
+                                <select :name="'field_{{ field_key }}_project[]'"
+                                        x-model="row.project_id"
+                                        @change="row.action_item_id = null; row._suggestions = []"
+                                        class="sl-chip-select">
+                                    <option value="">{{ _("No project") }}</option>
+                                    <template x-for="p in projects" :key="p.id">
+                                        <option :value="p.id" x-text="p.name" :selected="row.project_id == p.id"></option>
+                                    </template>
+                                </select>
+                            </label>
+
+                            {% if is_blocker_field %}
+                            <label class="sl-chip sl-chip--assignee">
+                                <i class="fas fa-user"></i>
+                                <span x-text="row.assignee_id ? '{{ _('Assigned') }}' : '{{ _('Assignee') }}'"></span>
+                                <select :name="'field_{{ field_key }}_assignee[]'" x-model="row.assignee_id" class="sl-chip-select">
+                                    <option value="">{{ _("Assignee") }}</option>
+                                    {% for m in active_members|default([]) %}
+                                    <option value="{{ m.id }}">{{ m.user.first_name }} {{ m.user.last_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            {% endif %}
+
+                            <input type="hidden" :name="'field_{{ field_key }}_action_item[]'" :value="row.action_item_id || ''">
+
+                            <template x-if="row.action_item_id">
+                                <span class="sl-chip sl-chip--linked">
+                                    <i class="fas fa-link"></i>
+                                    <span>{{ _("Linked") }}</span>
+                                    <button type="button" @click="row.action_item_id = null" class="sl-chip-clear" aria-label="{{ _('Unlink') }}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </span>
+                            </template>
+
+                            <button type="button" @click="removeRow(idx)" x-show="items.length > 1" class="sl-remove" aria-label="{{ _('Remove') }}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+                <button type="button" @click="addRow()" class="sl-add">
+                    <i class="fas fa-plus"></i> <span>{{ _("Add item") }}</span>
+                </button>
+            </div>
+
+            <style>
+                .sl-list { display: flex; flex-direction: column; gap: 0.5rem; }
+                .sl-row {
+                    background: var(--color-white);
+                    border: 1px solid var(--color-gray-200);
+                    border-radius: 10px;
+                    padding: 0.625rem 0.75rem;
+                }
+                .sl-row:focus-within {
+                    border-color: var(--color-primary);
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+                }
+                .sl-main { display: flex; align-items: center; gap: 0.625rem; position: relative; }
+                .sl-bullet {
+                    width: 6px; height: 6px; border-radius: 50%;
+                    background: var(--color-gray-400);
+                    flex-shrink: 0;
+                }
+                .sl-text {
+                    flex: 1; min-width: 0;
+                    background: var(--color-white);
+                    border: 1px solid var(--color-gray-200);
+                    border-radius: 6px;
+                    padding: 0.375rem 0.625rem;
+                    font-size: 1rem; font-family: inherit;
+                    min-height: 36px;
+                    color: var(--color-gray-900);
+                }
+                .sl-text:focus {
+                    outline: none;
+                    border-color: var(--color-gray-300);
+                }
+                .sl-text::placeholder { color: var(--color-gray-400); }
+                .sl-popover {
+                    position: absolute; top: 100%; left: 1rem; right: 0;
+                    margin-top: 0.25rem;
+                    background: var(--color-white);
+                    border: 1px solid var(--color-gray-200);
+                    border-radius: 8px;
+                    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+                    z-index: 10;
+                    max-height: 220px; overflow-y: auto;
+                }
+                .sl-popover-item {
+                    display: flex; align-items: center; gap: 0.5rem;
+                    width: 100%; padding: 0.625rem 0.75rem;
+                    border: none; background: none; text-align: left;
+                    border-bottom: 1px solid var(--color-gray-100);
+                    font-size: var(--font-size-base); cursor: pointer;
+                }
+                .sl-popover-item:last-child { border-bottom: none; }
+                .sl-popover-item:active { background: var(--color-gray-50); }
+                .sl-tier-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+                .sl-popover-title { flex: 1; color: var(--color-gray-800); }
+                .sl-popover-project {
+                    font-size: 0.7rem; color: var(--color-gray-500);
+                    padding: 0.125rem 0.45rem;
+                    background: var(--color-gray-100); border-radius: 999px;
+                }
+
+                .sl-chips {
+                    display: flex; align-items: center; gap: 0.4rem;
+                    flex-wrap: wrap;
+                    margin-top: 0.5rem;
+                    padding-left: 1rem;
+                }
+                .sl-chip {
+                    display: inline-flex; align-items: center; gap: 0.4rem;
+                    padding: 0.35rem 0.7rem;
+                    background: var(--color-gray-50);
+                    border: 1px solid var(--color-gray-200);
+                    border-radius: 999px;
+                    font-size: 0.8125rem;
+                    font-weight: 500;
+                    color: var(--color-gray-700);
+                    position: relative;
+                    cursor: pointer;
+                    -webkit-tap-highlight-color: transparent;
+                    min-height: 30px;
+                }
+                .sl-chip i { font-size: 0.75rem; color: var(--color-gray-500); }
+                .sl-chip:has(select:focus) {
+                    border-color: var(--color-primary);
+                    color: var(--color-primary);
+                    background: var(--color-primary-lightest, rgba(99,102,241,0.08));
+                }
+                .sl-chip:has(select:focus) i { color: var(--color-primary); }
+                .sl-chip--linked {
+                    background: var(--color-primary-lightest, rgba(99,102,241,0.1));
+                    border-color: transparent;
+                    color: var(--color-primary);
+                }
+                .sl-chip--linked i { color: var(--color-primary); }
+                .sl-chip-select {
+                    position: absolute; inset: 0;
+                    opacity: 0; cursor: pointer;
+                    font-size: 16px; /* prevents iOS zoom on focus */
+                }
+                .sl-chip-clear {
+                    border: none; background: none; padding: 0 0 0 0.125rem;
+                    color: inherit; font-size: 0.7rem; line-height: 1; cursor: pointer;
+                }
+                .sl-remove {
+                    margin-left: auto;
+                    width: 30px; height: 30px; border-radius: 50%;
+                    border: none; background: var(--color-gray-100);
+                    color: var(--color-gray-500);
+                    display: inline-flex; align-items: center; justify-content: center;
+                    cursor: pointer;
+                    font-size: 0.75rem;
+                }
+                .sl-remove:active { background: var(--color-gray-200); color: var(--color-danger); }
+                .sl-add {
+                    display: inline-flex; align-items: center; gap: 0.4rem;
+                    margin-top: 0.5rem; padding: 0.5rem 0.25rem;
+                    border: none; background: none;
+                    font-size: 0.9375rem;
+                    font-weight: 500;
+                    color: var(--color-primary);
+                    cursor: pointer; font-family: inherit;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .sl-add i { font-size: 0.8125rem; }
+            </style>
+
+            <script nonce="{{ csp_nonce }}">
+            function mobileStructuredList_{{ field.key }}() {
+                return {
+                    items: [],
+                    projects: [],
+                    suggestions: [],
+                    init() {
+                        fetch('/projects/api/list')
+                            .then(function (r) { return r.ok ? r.json() : []; })
+                            .then(function (data) { this.projects = Array.isArray(data) ? data : []; }.bind(this))
+                            .catch(function () {});
+                        this.items = [{
+                            text: '',
+                            project_id: {% if template.post_type == 'update' %}null{% elif preselected_project_id is defined and preselected_project_id %}{{ preselected_project_id }}{% else %}null{% endif %},
+                            action_item_id: null,
+                            assignee_id: null,
+                            _suggestions: [],
+                            _showSuggestions: false
+                        }];
+                        {% if template.post_type == 'update' and not field.get('blocker', false) %}
+                        {% if field.key == 'shipped' %}
+                        fetch('/tasks/api/mine')
+                            .then(function(r) { return r.json(); })
+                            .then(function(data) { this.suggestions = data.resolved_today || []; }.bind(this))
+                            .catch(function() {});
+                        {% else %}
+                        fetch('/tasks/api/suggestions')
+                            .then(function(r) { return r.json(); })
+                            .then(function(data) { this.suggestions = data.suggestions || []; }.bind(this))
+                            .catch(function() {});
+                        {% endif %}
+                        {% endif %}
+                    },
+                    addRow() {
+                        this.items.push({ text: '', project_id: null, action_item_id: null, assignee_id: null, _suggestions: [], _showSuggestions: false });
+                    },
+                    removeRow(idx) {
+                        if (this.items.length > 1) this.items.splice(idx, 1);
+                    },
+                    fetchSuggestions(idx) {
+                        var row = this.items[idx];
+                        var q = (row.text || '').trim();
+                        if (q.length < 2) { row._suggestions = []; return; }
+                        var url = '/tasks/api/search?q=' + encodeURIComponent(q);
+                        if (row.project_id) url += '&project_id=' + row.project_id;
+                        fetch(url)
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) { row._suggestions = data.results || []; })
+                            .catch(function () { row._suggestions = []; });
+                    },
+                    selectSuggestion(idx, sug) {
+                        var row = this.items[idx];
+                        row.text = sug.title;
+                        row.action_item_id = sug.id;
+                        if (sug.project_id) row.project_id = sug.project_id;
+                        row._suggestions = [];
+                        row._showSuggestions = false;
+                    },
+                    selectPill(sug) {
+                        var idx = this.items.findIndex(function(r) { return !r.text && !r.action_item_id; });
+                        if (idx === -1) { this.addRow(); idx = this.items.length - 1; }
+                        var row = this.items[idx];
+                        row.text = sug.title;
+                        row.action_item_id = sug.id;
+                        if (sug.project_id) row.project_id = sug.project_id;
+                        var selId = sug.id;
+                        this.suggestions = this.suggestions.filter(function(s) { return s.id !== selId; });
+                    }
+                };
+            }
+            </script>
+
+            {% elif field.type == 'text_audio' %}
+            <div x-data="audioRecorder('field_{{ field.key }}', '{{ csrf_token }}', {confirmReplace: '{{ _("Recording will replace your text. Continue?") }}', micDenied: '{{ _("Microphone access denied.") }}', micDeniedHint: '{{ _("Allow microphone access in your browser settings, then try again.") }}', micNotFound: '{{ _("No microphone found.") }}'}, '{{ url_for("sync_bp.audio_transcribe") }}', {{ 'true' if ai_available else 'false' }})" x-init="init()">
+                <textarea name="field_{{ field.key }}" id="field_{{ field.key }}" rows="6"
+                    style="width:100%;padding:0.75rem;border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-family:inherit;resize:vertical;min-height:8rem;"
+                    :readonly="textLocked"
+                    :class="{ 'textarea-locked': textLocked }"
+                    {% if not field.get('placeholders') %}
+                    placeholder="{{ field.get('placeholder', '') }}"
+                    {% endif %}
+                    {% if field.get('required') %}required{% endif %}></textarea>
+                {% if field.get('placeholders') %}
+                <script nonce="{{ csp_nonce }}">
+                (function() {
+                    var placeholders = {{ field.get('placeholders') | tojson }};
+                    var storageKey = 'standup_ph_last';
+                    var lastIdx = parseInt(sessionStorage.getItem(storageKey), 10);
+                    var available = [];
+                    for (var i = 0; i < placeholders.length; i++) {
+                        if (i !== lastIdx) available.push(i);
+                    }
+                    var chosen = available[Math.floor(Math.random() * available.length)];
+                    sessionStorage.setItem(storageKey, chosen);
+                    var el = document.getElementById('field_{{ field.key }}');
+                    if (el && !el.value.trim()) {
+                        el.placeholder = placeholders[chosen];
+                    }
+                })();
+                </script>
+                {% endif %}
+
+                <input type="file" name="field_{{ field.key }}_audio" id="field_{{ field.key }}_audio" accept="audio/*" style="display:none;">
+                <input type="hidden" name="field_{{ field.key }}_audio_duration" id="field_{{ field.key }}_audio_duration" :value="duration">
+                {% if post is defined and post and post.payload.get(field.key ~ '_audio_uuid') %}
+                <input type="hidden" name="field_{{ field.key }}_existing_audio" value="{{ post.payload.get(field.key ~ '_audio_uuid') }}">
+                {% endif %}
+
+                <div class="audio-recorder">
+                    {# Idle state: record button + error hint below on mobile (not enough horizontal space) #}
+                    <template x-if="state === 'idle'">
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" @click="startRecording()" class="btn audio-record-btn" style="flex:1;min-height:44px;">
+                                    <i class="fas fa-microphone me-1"></i>{{ _("Record audio clip") }}
+                                </button>
+                                <span class="audio-record-hint" x-data="{ open: false }" style="position:relative;">
+                                    <button type="button" class="btn btn-sm btn-link text-muted p-0" @click="open = !open" style="font-size:1rem;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;">
+                                        <i class="fas fa-question-circle"></i>
+                                    </button>
+                                    <div x-show="open" @click.outside="open = false" x-cloak class="audio-hint-popover" style="right:0;left:auto;">
+                                        <p class="fw-semibold mb-1">{{ _("Tip: jot down a quick list before recording") }}</p>
+                                        <p class="mb-1">{{ _("You have 30-60 seconds. Sketch 5-6 bullet points in the text area first so you have a mental map:") }}</p>
+                                        <ul class="mb-1 ps-3" style="font-size:0.8125rem;">
+                                            <li>{{ _("Key tasks or priorities for today") }}</li>
+                                            <li>{{ _("Progress on ongoing work") }}</li>
+                                            <li>{{ _("Anything else on your mind for the day") }}</li>
+                                        </ul>
+                                        <p class="mb-0 text-muted" style="font-size:0.75rem;">{{ _("Optionally mention if you're feeling on/off track, and whether you'll be mostly available or heads-down focused today.") }}</p>
+                                    </div>
+                                </span>
+                            </div>
+                            <div x-show="errorMsg" x-cloak class="audio-mic-denied mt-1">
+                                <i class="fas fa-microphone-slash me-1"></i><span x-text="errorHint || errorMsg"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    {# Recording state #}
+                    <template x-if="state === 'recording'">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="audio-recording-dot"></span>
+                            <span class="audio-recording-label">{{ _("Recording...") }}</span>
+                            <span class="audio-duration" x-text="durationDisplay"></span>
+                            <span class="text-muted" style="font-size:0.75rem;" x-show="!canStop">{{ _("Min 30s") }}</span>
+                            <button type="button" @click="stopRecording()" :disabled="!canStop" class="btn btn-outline-danger ms-auto" style="min-height:44px;">
+                                <i class="fas fa-stop me-1"></i>{{ _("Stop") }}
+                            </button>
+                        </div>
+                    </template>
+
+                    {# Transcribing state #}
+                    <template x-if="state === 'transcribing'">
+                        <div class="d-flex align-items-center gap-2" style="min-height:44px;">
+                            <span class="spinner-border spinner-border-sm text-muted"></span>
+                            <span class="text-muted" style="font-size:0.8125rem;">{{ _("Transcribing...") }}</span>
+                        </div>
+                    </template>
+
+                    {# Recorded / Playing state #}
+                    <template x-if="state === 'recorded' || state === 'playing'">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="audio-playback-pill d-inline-flex align-items-center flex-grow-1" :data-duration="duration">
+                                <button type="button" class="btn btn-sm audio-play-btn" @click="togglePlayback()">
+                                    <i class="fas" :class="state === 'playing' ? 'fa-pause' : 'fa-play'" style="font-size:0.7rem;"></i>
+                                </button>
+                                <div class="audio-progress-wrap" @click="seekPlayback($event)">
+                                    <div class="audio-progress-bar" :style="'width:' + playbackPct + '%'"></div>
+                                </div>
+                                <span class="audio-time" x-text="playbackTime"></span>
+                            </div>
+                            <button type="button" @click="rerecord()" class="btn btn-sm" style="border:1px solid var(--color-gray-300);min-height:36px;">
+                                <i class="fas fa-redo me-1"></i>{{ _("Re-record") }}
+                            </button>
+                        </div>
+                    </template>
+
+                </div>
+            </div>
+
+            {% elif field.type == 'scale' %}
+            {% set min_val = field.get('min', 1) %}
+            {% set max_val = field.get('max', 5) %}
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                {% for i in range(min_val, max_val + 1) %}
+                <label style="display:flex;align-items:center;gap:0.375rem;font-size:1rem;cursor:pointer;min-height:44px;">
+                    <input type="radio" name="field_{{ field.key }}" value="{{ i }}" {% if field.get('required') and loop.first %}required{% endif %}>
+                    {{ i }}
+                </label>
+                {% endfor %}
+            </div>
+            {% if min_val and max_val %}
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--color-gray-500);margin-top:0.25rem;">
+                <span>{{ min_val }}</span>
+                <span>{{ max_val }}</span>
+            </div>
+            {% endif %}
+
+            {% elif field.type == 'choice' %}
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                {% for option in field.get('options', []) %}
+                <label class="text-base" style="display:flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;border:1px solid var(--color-gray-300);border-radius:999px;cursor:pointer;min-height:40px">
+                    <input type="radio" name="field_{{ field.key }}" value="{{ option }}" {% if field.get('required') %}required{% endif %}>
+                    {{ option | replace('_', ' ') | title }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+
+        <div style="display:flex;gap:0.75rem;margin-top:1.5rem;">
+            <button type="submit" style="flex:1;min-height:48px;background:var(--color-primary);color:white;border:none;border-radius:8px;font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                <i class="far fa-paper-plane"></i> {{ _("Post") }}
+            </button>
+            <a href="{{ url_for('updates_bp.updates_index') if template.post_type in ('update', 'win') else url_for('sync_bp.board_index') if template.post_type == 'board' else url_for('sync_bp.index') }}"
+                style="min-height:48px;padding:0 1.5rem;background:var(--color-white);color:var(--color-gray-700);border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-weight:500;text-decoration:none;display:flex;align-items:center;justify-content:center;">
+                {{ _("Cancel") }}
+            </a>
+        </div>
+    </form>
+</div>
+<script src="{{ url_for('sync_bp.static', filename='js/audio-recorder.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}

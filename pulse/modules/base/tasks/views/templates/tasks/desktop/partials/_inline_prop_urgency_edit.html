@@ -1,0 +1,27 @@
+<div id="prop-urgency" class="py-2 border-bottom" x-data="{ tier: {{ item.urgency_tier }} }">
+    <form hx-post="{{ url_for('tasks_bp.inline_save_prop', item_id=item.id, prop='urgency') }}"
+          hx-target="#prop-urgency"
+          hx-swap="outerHTML"
+          hx-disabled-elt="button[type=submit]"
+          class="d-flex flex-column gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="text-muted text-sm">{{ _("Urgency") }}</label>
+        <div class="d-flex gap-2">
+            {% for t in [1, 2, 3] %}
+            <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': tier === {{ t }} }">
+                <input type="radio" name="urgency_tier" value="{{ t }}" class="d-none"
+                       x-model.number="tier" {% if t == item.urgency_tier %}checked{% endif %}>
+                <span class="task-tier-dot" style="background:{{ tier_defaults[t].color }};"></span>
+                {{ tier_defaults[t].label }}
+            </label>
+            {% endfor %}
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-outline-primary">{{ _("Save") }}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for('tasks_bp.inline_display_prop', item_id=item.id, prop='urgency') }}"
+                    hx-target="#prop-urgency"
+                    hx-swap="outerHTML">{{ _("Cancel") }}</button>
+        </div>
+    </form>
+</div>

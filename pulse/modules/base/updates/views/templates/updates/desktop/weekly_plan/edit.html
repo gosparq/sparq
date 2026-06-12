@@ -1,0 +1,55 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Edit") }} {{ plan.display_name }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card" style="max-width:640px;">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <a href="{{ url_for('tasks_bp.plan_detail', year=plan.year, week=plan.week_number) }}" class="text-muted text-decoration-none text-xs">
+            <i class="fas fa-arrow-left"></i> {{ _("Back") }}
+        </a>
+    </div>
+
+    <h2 class="content-heading mb-1">{{ _("Edit") }} Week {{ plan.week_number }}</h2>
+    <span class="text-muted text-sm">{{ plan.date_range_display }}, {{ plan.year }}</span>
+
+    {# ── Title ── #}
+    <div class="mt-4 mb-4">
+        <label class="form-label fw-semibold text-sm">{{ _("Title") }} <span class="text-muted fw-normal">({{ _("optional") }})</span></label>
+        <form method="POST" action="{{ url_for('tasks_bp.plan_update', plan_id=plan.id) }}" id="plan-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="text" name="title" class="form-control" maxlength="200"
+                   value="{{ plan.title or '' }}" placeholder="{{ _('e.g. Launch Prep') }}">
+        </form>
+    </div>
+
+    {# ── Goals ── #}
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label fw-semibold mb-0 text-sm">{{ _("Goals") }}</label>
+            <span class="text-muted text-2xs">{{ goals|length }}/6</span>
+        </div>
+
+        {% include "updates/desktop/weekly_plan/_goals.html" %}
+    </div>
+
+    {# ── Save ── #}
+    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+        <a href="{{ url_for('tasks_bp.plan_detail', year=plan.year, week=plan.week_number) }}" class="btn btn-sm btn-outline-secondary">{{ _("Cancel") }}</a>
+        <button type="submit" form="plan-form" class="btn btn-sm btn-primary">{{ _("Save") }}</button>
+    </div>
+</div>
+
+<style>
+.plan-goal-edit-item {
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--color-gray-200, #e5e7eb);
+    border-radius: 0.5rem;
+    margin-bottom: 0.375rem;
+    background: var(--color-gray-50, #f9fafb);
+}
+.plan-goal-edit-item:hover {
+    border-color: var(--color-gray-300, #d1d5db);
+}
+</style>
+{% endblock %}

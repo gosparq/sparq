@@ -1,0 +1,32 @@
+{# Folder picker for selecting which folders to share #}
+<form method="POST" action="{{ url_for('drive_blueprint.save_folders') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="folder-list" style="max-height: 300px; overflow-y: auto;">
+        {% if folders %}
+        {% for folder in folders %}
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox"
+                   name="folders" value="{{ folder.id }}" id="folder_{{ folder.id }}"
+                   {% if folder.id in selected_ids %}checked{% endif %}>
+            <label class="form-check-label" for="folder_{{ folder.id }}">
+                <i class="fas fa-folder text-warning me-1"></i>
+                {{ folder.name }}
+            </label>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted mb-0">{{ _("No folders found in your Google Drive.") }}</p>
+        {% endif %}
+    </div>
+
+    {% if folders %}
+    <div class="mt-3">
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="fas fa-save me-1"></i>{{ _("Save Selection") }}
+        </button>
+        <span class="text-muted small ms-2">
+            {{ _("Selected folders will appear in the Documents module for all users.") }}
+        </span>
+    </div>
+    {% endif %}
+</form>

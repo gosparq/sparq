@@ -1,0 +1,239 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Set Up sparQ") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container auth-container--wide" x-data="setupWizard()">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Set Up sparQ") }}</h2>
+        <p class="text-muted small mb-3 text-center">{{ _("Create your account and configure your instance") }}</p>
+
+        <!-- Progress Dots -->
+        <div class="wizard-steps">
+            <div class="wizard-dot" :class="{ 'active': step === 1, 'completed': step > 1 }"></div>
+            <div class="wizard-dot" :class="{ 'active': step === 2, 'completed': step > 2 }"></div>
+            <div class="wizard-dot" :class="{ 'active': step === 3 }"></div>
+        </div>
+
+        <form method="POST" action="{{ url_for('core_bp.instance_setup_submit') }}" @submit="validateForm($event)">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="_form_ts" value="{{ form_ts }}">
+
+            <!-- Step 1: Your Account -->
+            <div class="wizard-panel" :class="{ 'active': step === 1 }">
+                <div class="step-title">
+                    <i class="fas fa-user"></i> {{ _("Your Account") }}
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label for="first_name" class="form-label">{{ _("First Name") }}</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name"
+                               x-model="data.first_name" required autofocus>
+                    </div>
+                    <div class="col-6">
+                        <label for="last_name" class="form-label">{{ _("Last Name") }}</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name"
+                               x-model="data.last_name" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">{{ _("Email") }}</label>
+                    <input type="email" class="form-control" id="email" name="email"
+                           x-model="data.email" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">{{ _("Password") }}</label>
+                    <input type="password" class="form-control" id="password" name="password"
+                           x-model="pw" minlength="8" required>
+                    {% include "core/desktop/auth/_password_checklist.html" %}
+                </div>
+
+                <p class="step-error" x-show="errors.step1" x-text="errors.step1" x-cloak></p>
+            </div>
+
+            <!-- Step 2: Your Organization -->
+            <div class="wizard-panel" :class="{ 'active': step === 2 }">
+                <div class="step-title">
+                    <i class="fas fa-building"></i> {{ _("Your Organization") }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Organization Name") }}</label>
+                    <input type="text" name="company_name" class="form-control"
+                           x-model="data.company_name" required
+                           placeholder="{{ _('Your company or team name') }}">
+                    <small class="text-muted">{{ _("You can always change this later in settings") }}</small>
+                </div>
+
+                <input type="hidden" name="color" :value="data.color">
+                <label class="form-label">{{ _("Workspace Color") }}</label>
+                <div class="color-swatches">
+                    {% for name, hex in workspace_colors.items() %}
+                    <button type="button"
+                            class="color-swatch"
+                            :class="{ 'active': data.color === '{{ name }}' }"
+                            style="background: {{ hex }}"
+                            @click="data.color = '{{ name }}'"
+                            title="{{ name|capitalize }}"></button>
+                    {% endfor %}
+                </div>
+
+                <p class="step-error" x-show="errors.step2" x-text="errors.step2" x-cloak></p>
+            </div>
+
+            <!-- Step 3: Preferences -->
+            <div class="wizard-panel" :class="{ 'active': step === 3 }">
+                <div class="step-title">
+                    <i class="fas fa-cog"></i> {{ _("Preferences") }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Timezone") }}</label>
+                    <select name="timezone" class="form-control" x-model="data.timezone">
+                        <optgroup label="{{ _('Americas') }}">
+                            <option value="America/New_York">{{ _("Eastern Time (ET)") }}</option>
+                            <option value="America/Chicago">{{ _("Central Time (CT)") }}</option>
+                            <option value="America/Denver">{{ _("Mountain Time (MT)") }}</option>
+                            <option value="America/Los_Angeles">{{ _("Pacific Time (PT)") }}</option>
+                            <option value="America/Phoenix">{{ _("Arizona (no DST)") }}</option>
+                            <option value="America/Anchorage">{{ _("Alaska") }}</option>
+                            <option value="Pacific/Honolulu">{{ _("Hawaii") }}</option>
+                            <option value="America/Toronto">{{ _("Toronto") }}</option>
+                            <option value="America/Mexico_City">{{ _("Mexico City") }}</option>
+                            <option value="America/Sao_Paulo">{{ _("Sao Paulo") }}</option>
+                            <option value="America/Argentina/Buenos_Aires">{{ _("Buenos Aires") }}</option>
+                        </optgroup>
+                        <optgroup label="{{ _('Europe') }}">
+                            <option value="Europe/London">{{ _("London (GMT)") }}</option>
+                            <option value="Europe/Paris">{{ _("Paris (CET)") }}</option>
+                            <option value="Europe/Berlin">{{ _("Berlin (CET)") }}</option>
+                            <option value="Europe/Amsterdam">{{ _("Amsterdam (CET)") }}</option>
+                            <option value="Europe/Madrid">{{ _("Madrid (CET)") }}</option>
+                            <option value="Europe/Rome">{{ _("Rome (CET)") }}</option>
+                            <option value="Europe/Stockholm">{{ _("Stockholm (CET)") }}</option>
+                            <option value="Europe/Helsinki">{{ _("Helsinki (EET)") }}</option>
+                            <option value="Europe/Moscow">{{ _("Moscow (MSK)") }}</option>
+                        </optgroup>
+                        <optgroup label="{{ _('Asia & Pacific') }}">
+                            <option value="Asia/Dubai">{{ _("Dubai (GST)") }}</option>
+                            <option value="Asia/Kolkata">{{ _("India (IST)") }}</option>
+                            <option value="Asia/Bangkok">{{ _("Bangkok (ICT)") }}</option>
+                            <option value="Asia/Singapore">{{ _("Singapore (SGT)") }}</option>
+                            <option value="Asia/Shanghai">{{ _("Shanghai (CST)") }}</option>
+                            <option value="Asia/Tokyo">{{ _("Tokyo (JST)") }}</option>
+                            <option value="Asia/Seoul">{{ _("Seoul (KST)") }}</option>
+                            <option value="Australia/Sydney">{{ _("Sydney (AEST)") }}</option>
+                            <option value="Pacific/Auckland">{{ _("Auckland (NZST)") }}</option>
+                        </optgroup>
+                        <optgroup label="{{ _('Other') }}">
+                            <option value="UTC">UTC</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ _("Language") }}</label>
+                    <select name="default_language" class="form-control" x-model="data.default_language">
+                        {% for lang in available_languages %}
+                        <option value="{{ lang.code }}">{{ lang.name }}{% if lang.is_builtin %} ({{ _("Built-in") }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="alert alert-success mt-3 text-sm">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {{ _("You're all set! Click \"Complete Setup\" to get started.") }}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="wizard-actions">
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="prevStep()" x-show="step > 1">
+                        <i class="fas fa-arrow-left me-1"></i> {{ _("Back") }}
+                    </button>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <button type="button" class="btn btn-primary" @click="nextStep()" x-show="step < 3">
+                        {{ _("Continue") }} <i class="fas fa-arrow-right ms-1"></i>
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" x-show="step === 3">
+                        <i class="fas fa-check me-1"></i> {{ _("Complete Setup") }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+function setupWizard() {
+    var detectedTz = 'America/Chicago';
+    try {
+        detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago';
+    } catch (e) {}
+
+    return {
+        step: 1,
+        pw: '',
+        data: {
+            first_name: '',
+            last_name: '',
+            email: '',
+            company_name: '',
+            color: 'violet',
+            timezone: detectedTz,
+            default_language: 'en'
+        },
+        errors: { step1: '', step2: '' },
+        nextStep() {
+            if (this.step === 1) {
+                if (!this.data.first_name.trim() || !this.data.last_name.trim()) {
+                    this.errors.step1 = '{{ _("First and last name are required.") }}';
+                    return;
+                }
+                if (!this.data.email.trim() || !this.data.email.includes('@')) {
+                    this.errors.step1 = '{{ _("A valid email address is required.") }}';
+                    return;
+                }
+                if (this.pw.length < 8) {
+                    this.errors.step1 = '{{ _("Password must be at least 8 characters.") }}';
+                    return;
+                }
+                this.errors.step1 = '';
+            }
+            if (this.step === 2) {
+                if (!this.data.company_name.trim()) {
+                    this.errors.step2 = '{{ _("Organization name is required.") }}';
+                    return;
+                }
+                this.errors.step2 = '';
+            }
+            if (this.step < 3) this.step++;
+        },
+        prevStep() {
+            if (this.step > 1) this.step--;
+        },
+        validateForm(event) {
+            if (!this.data.first_name.trim() || !this.data.last_name.trim() ||
+                !this.data.email.trim() || !this.pw ||
+                !this.data.company_name.trim()) {
+                event.preventDefault();
+                this.step = 1;
+                return false;
+            }
+            return true;
+        }
+    }
+}
+</script>
+{% endblock auth_content %}

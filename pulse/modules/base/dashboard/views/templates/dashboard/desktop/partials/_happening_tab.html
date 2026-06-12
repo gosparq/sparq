@@ -1,0 +1,163 @@
+{# Activities Tab — paginated activity feed (10/page) with inline day dates #}
+
+{# Build item metadata for Alpine pagination + day grouping #}
+{% set ns = namespace(current_day='') %}
+{% set items_meta = [] %}
+{% for entry in whats_happening_items %}
+{% set day = entry.created_at | format_datetime('%m/%d') if entry.created_at else '' %}
+{% set mid = entry.item.member_id or 0 %}
+{% if items_meta.append({'day': day, 'mid': mid}) %}{% endif %}
+{% endfor %}
+
+<div class="dash-card happening-tab-card" x-data="{
+    filterMember: 0,
+    currentPage: 0,
+    pageSize: 7,
+    items: [{% for m in items_meta %}{day:'{{ m.day }}',mid:{{ m.mid }}}{% if not loop.last %},{% endif %}{% endfor %}],
+    _fi(idx, fm) {
+        if (fm !== 0 && this.items[idx].mid !== fm) return -1;
+        var c = 0;
+        for (var i = 0; i < idx; i++) { if (fm === 0 || this.items[i].mid === fm) c++; }
+        return c;
+    },
+    showItem(idx, fm) {
+        var fi = this._fi(idx, fm);
+        return fi >= 0 && fi >= this.currentPage * this.pageSize && fi < (this.currentPage + 1) * this.pageSize;
+    },
+    isFirstOfDayOnPage(idx, day, fm) {
+        var ps = this.currentPage * this.pageSize;
+        var c = 0;
+        for (var i = 0; i < idx; i++) {
+            if (fm === 0 || this.items[i].mid === fm) {
+                if (c >= ps && this.items[i].day === day) return false;
+                c++;
+            }
+        }
+        return true;
+    },
+    totalFiltered(fm) {
+        return this.items.filter(function(i){ return fm === 0 || i.mid === fm; }).length;
+    },
+    totalPages(fm) {
+        return Math.max(1, Math.ceil(this.totalFiltered(fm) / this.pageSize));
+    },
+    init() { this.$watch('filterMember', () => { this.currentPage = 0; }); }
+}">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="dash-card-title">{{ _("ACTIVITIES") }}</span>
+    </div>
+    <div class="dash-pill-filter">
+        <button class="dash-pill" :class="{ active: filterMember === 0 }" @click="filterMember = 0">{{ _("All") }}</button>
+        {% for ts in team_status %}
+        <button class="dash-pill" :class="{ active: filterMember === {{ ts.member_id }} }" @click="filterMember = {{ ts.member_id }}">
+            {{ ts.first_name }}
+        </button>
+        {% endfor %}
+    </div>
+    <div class="dash-happening-feed happening-tab-feed">
+        {% for entry in whats_happening_items %}
+        {% set day = entry.created_at | format_datetime('%m/%d') if entry.created_at else '' %}
+        {% set is_new_day = day and day != ns.current_day %}
+        {% if is_new_day %}{% set ns.current_day = day %}{% endif %}
+
+        {% if entry.type == 'post' %}
+        {% set post = entry.item %}
+        {% set mid = post.member_id or 0 %}
+        {% set _blocker = (post.template_name == "I'm blocked") %}
+        <div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}"
+             x-show="showItem({{ loop.index0 }}, filterMember)"
+             :class="{ 'happening-row-day-start': isFirstOfDayOnPage({{ loop.index0 }}, '{{ day }}', filterMember) }">
+            <span class="happening-date-col"
+                  x-text="isFirstOfDayOnPage({{ loop.index0 }}, '{{ day }}', filterMember) ? '{{ day }}' : ''">{% if is_new_day %}{{ day }}{% endif %}</span>
+            <a href="{{ url_for('sync_bp.post_permalink', post_id=post.id) }}" class="activity-item activity-item-link happening-item">
+                {% if post.post_type == 'win' %}
+                <div class="activity-icon activity-icon-win"><i class="fas fa-trophy"></i></div>
+                {% elif _blocker %}
+                <div class="activity-icon activity-icon-blocked"><i class="fas fa-hand"></i></div>
+                {% elif post.template_name == 'Heads up' %}
+                <div class="activity-icon activity-icon-headsup"><i class="fas fa-bullhorn"></i></div>
+                {% elif post.post_type == 'board' %}
+                <div class="activity-icon activity-icon-board"><i class="fas fa-clipboard-list"></i></div>
+                {% else %}
+                <div class="activity-icon activity-icon-update"><i class="fas fa-bullhorn"></i></div>
+                {% endif %}
+                <div class="activity-body">
+                    <div class="activity-meta">
+                        {% if post.post_type == 'win' %}
+                        <span class="badge activity-badge activity-badge-win">{{ _("Win") }}</span>
+                        {% elif _blocker %}
+                        <span class="badge activity-badge activity-badge-blocked">{{ post.template_name }}</span>
+                        {% elif post.template_name == 'Heads up' %}
+                        <span class="badge activity-badge activity-badge-headsup">{{ post.template_name }}</span>
+                        {% elif post.post_type == 'board' %}
+                        <span class="badge activity-badge activity-badge-board">{{ post.template_name or _("Board") }}</span>
+                        {% elif post.template_name %}
+                        <span class="badge activity-badge activity-badge-update">{{ post.template_name }}</span>
+                        {% endif %}
+                        <span class="text-muted activity-meta-text">
+                            {{ post.member_first_name or _('Team') }}
+                            · {{ post.created_at|format_datetime('%-I:%M%p')|lower if post.created_at else '' }}
+                        </span>
+                    </div>
+                    <div class="activity-text">{{ post.preview_text() | strip_gh_tokens | truncate(100) }}</div>
+                </div>
+            </a>
+        </div>
+
+        {% elif entry.type == 'activity' %}
+        {% set activity = entry.item %}
+        {% set mid = activity.member_id or 0 %}
+        <div class="happening-row{% if is_new_day %} happening-row-day-start{% endif %}"
+             x-show="showItem({{ loop.index0 }}, filterMember)"
+             :class="{ 'happening-row-day-start': isFirstOfDayOnPage({{ loop.index0 }}, '{{ day }}', filterMember) }">
+            <span class="happening-date-col"
+                  x-text="isFirstOfDayOnPage({{ loop.index0 }}, '{{ day }}', filterMember) ? '{{ day }}' : ''">{% if is_new_day %}{{ day }}{% endif %}</span>
+            <{% if activity.url %}a href="{{ activity.url }}" class="activity-item activity-item-link happening-item"{% else %}div class="activity-item happening-item"{% endif %}>
+                {% if activity.color == 'danger' %}
+                <div class="activity-icon activity-icon-blocked">
+                {% elif activity.color == 'success' %}
+                <div class="activity-icon activity-icon-success">
+                {% elif activity.color == 'warning' %}
+                <div class="activity-icon activity-icon-win">
+                {% elif activity.color == 'primary' or activity.color == 'info' %}
+                <div class="activity-icon activity-icon-update">
+                {% else %}
+                <div class="activity-icon activity-icon-default">
+                {% endif %}
+                    <i class="fas {{ activity.icon|default('fa-circle') }}"></i>
+                </div>
+                <div class="activity-body">
+                    <div class="activity-meta">
+                        <span class="activity-text">{{ activity.title | strip_gh_tokens }}</span>
+                        <span class="text-muted activity-meta-text">
+                            {% if activity.member_first_name %}{{ activity.member_first_name }}{% endif %}
+                            · {{ activity.created_at|format_datetime('%-I:%M%p')|lower if activity.created_at else '' }}
+                        </span>
+                    </div>
+                    {% if activity.description %}
+                    {% set clean_desc = activity.description | strip_gh_tokens %}
+                    {% if clean_desc %}
+                    <div class="activity-text">{{ clean_desc | truncate(100) }}</div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </{% if activity.url %}a{% else %}div{% endif %}>
+        </div>
+
+        {% endif %}
+        {% endfor %}
+
+        {% if not whats_happening_items %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-stream fa-lg mb-2 opacity-50"></i>
+            <p class="mb-0 small">{{ _("No activity yet") }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="dash-pagination" x-show="totalPages(filterMember) > 1" x-cloak>
+        <button class="dash-pagination-btn" @click="currentPage = Math.max(0, currentPage - 1)" :disabled="currentPage === 0">{{ _("‹ Prev") }}</button>
+        <span class="dash-pagination-info" x-text="(currentPage + 1) + ' / ' + totalPages(filterMember)"></span>
+        <button class="dash-pagination-btn" @click="currentPage = Math.min(totalPages(filterMember) - 1, currentPage + 1)" :disabled="currentPage >= totalPages(filterMember) - 1">{{ _("Next ›") }}</button>
+    </div>
+</div>

@@ -1,0 +1,201 @@
+{# Copyright (c) 2025-2026 sparQ Software LLC. Licensed under AGPL-3.0.
+
+UC-6/UC-7 Create GitHub Issue modal (or pair-existing mode for Claim flow).
+
+Returned by GET /integrations/github/issues/new-modal as an HTMX swap target.
+
+Context:
+    connection         — active IntegrationConnection
+    prefill_title      — pre-fill title textarea (from ?context= param)
+    object_type        — originating sparQ entity type ("task", "post", "blocker", "orphan")
+    object_id          — originating entity PK (0 if unknown)
+    external_id        — if set, pair-existing mode: no new issue is created
+    pair_mode          — bool; True when external_id is set
+#}
+<div class="modal fade" id="ghCreateIssueModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content"
+             x-data="{
+                 title: '',
+                 body: '',
+                 assigneeLogin: '',
+                 urgency: 2,
+                 pairMode: false,
+                 objectType: '',
+                 objectId: 0,
+                 externalId: '',
+                 loading: false,
+                 error: '',
+                 collaborators: [],
+                 collaboratorsLoaded: false,
+                 loadCollaborators() {
+                     if (this.collaboratorsLoaded) return;
+                     fetch('/integrations/github/collaborators')
+                         .then(r => r.ok ? r.json() : [])
+                         .then(data => {
+                             if (Array.isArray(data)) this.collaborators = data;
+                             this.collaboratorsLoaded = true;
+                         })
+                         .catch(() => { this.collaboratorsLoaded = true; });
+                 },
+                 submit() {
+                     if (!this.title.trim() && !this.pairMode) {
+                         this.error = 'Title is required';
+                         return;
+                     }
+                     this.loading = true;
+                     this.error = '';
+                     fetch('/integrations/github/issues', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             title: this.title.trim(),
+                             body: this.body.trim(),
+                             assignee_login: this.assigneeLogin || null,
+                             urgency: this.urgency,
+                             object_type: this.objectType,
+                             object_id: this.objectId,
+                             external_id: this.externalId,
+                         })
+                     })
+                     .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+                     .then(({ ok, data }) => {
+                         this.loading = false;
+                         if (!ok) {
+                             this.error = data.error || 'GitHub error';
+                             return;
+                         }
+                         bootstrap.Modal.getInstance(document.getElementById('ghCreateIssueModal')).hide();
+                         if (data.action_item_url) {
+                             window.location.href = data.action_item_url;
+                         } else {
+                             window.location.reload();
+                         }
+                     })
+                     .catch(() => {
+                         this.loading = false;
+                         this.error = 'Request failed. Try again.';
+                     });
+                 }
+             }"
+             x-init="
+                 title = $el.dataset.prefillTitle || '';
+                 pairMode = $el.dataset.pairMode === 'true';
+                 objectType = $el.dataset.objectType || '';
+                 objectId = parseInt($el.dataset.objectId) || 0;
+                 externalId = $el.dataset.externalId || '';
+                 loadCollaborators();
+                 $nextTick(() => bootstrap.Modal.getOrCreateInstance($el.closest('.modal')).show());
+             "
+             data-prefill-title="{{ prefill_title | e }}"
+             data-object-type="{{ object_type | e }}"
+             data-object-id="{{ object_id | int }}"
+             data-external-id="{{ external_id | e }}"
+             data-pair-mode="{{ 'true' if pair_mode else 'false' }}">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-semibold" style="font-size:1rem">
+                    <i class="fa-brands fa-github me-2"></i>
+                    {% if pair_mode %}{{ _("Pair with GitHub Issue") }}{% else %}{{ _("Create GitHub Issue") }}{% endif %}
+                </h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                {# Error banner #}
+                <div x-show="error" class="alert alert-danger py-2 mb-3 text-base" x-text="error"></div>
+
+                {# Repo (read-only) #}
+                <div class="mb-3">
+                    <label class="form-label text-base">{{ _("Repository") }}</label>
+                    <div class="form-control form-control-sm bg-body-secondary text-muted" style="cursor:default;">
+                        <i class="fa-brands fa-github me-1"></i>{{ connection.external_repo }}
+                    </div>
+                </div>
+
+                {% if pair_mode %}
+                {# Pair mode: show existing issue number, no title edit needed #}
+                <div class="mb-3">
+                    <label class="form-label text-base">{{ _("Pairing with issue") }}</label>
+                    <div class="form-control form-control-sm bg-body-secondary text-muted" style="cursor:default;">
+                        #{{ external_id }}{% if prefill_title %} — {{ prefill_title }}{% endif %}
+                    </div>
+                </div>
+                {% else %}
+                {# Title #}
+                <div class="mb-3">
+                    <label class="form-label text-base">{{ _("Title") }}</label>
+                    <textarea name="title" class="form-control form-control-sm" rows="2" maxlength="200"
+                              x-model="title"
+                              placeholder="{{ _('Brief description') }}"></textarea>
+                </div>
+
+                {# Body #}
+                <div class="mb-3">
+                    <label class="form-label text-base">{{ _("Description") }} <span class="text-muted">({{ _("optional") }})</span></label>
+                    <textarea class="form-control form-control-sm" rows="3"
+                              x-model="body"
+                              placeholder="{{ _('Additional context (Markdown supported)') }}"></textarea>
+                </div>
+                {% endif %}
+
+                {# Assignee picker #}
+                <div class="mb-3">
+                    <label class="form-label text-base">{{ _("Assign to") }}</label>
+                    <template x-if="!collaboratorsLoaded">
+                        <div class="text-muted small"><i class="fas fa-spinner fa-spin me-1"></i>{{ _("Loading collaborators…") }}</div>
+                    </template>
+                    <template x-if="collaboratorsLoaded">
+                        <select class="form-select form-select-sm" x-model="assigneeLogin">
+                            <option value="">{{ _("Unassigned") }}</option>
+                            <template x-for="c in collaborators" :key="c.login">
+                                <option :value="c.login" x-text="
+                                    (c.sparq_display_name || c.login)
+                                    + (c.contributions ? ' · ' + c.contributions + ' commits' : '')
+                                    + (c.now_count ? ' · ' + c.now_count + ' NOW' : '')
+                                    + (c.blocker_count ? ' · ' + c.blocker_count + ' blocked' : '')
+                                "></option>
+                            </template>
+                        </select>
+                    </template>
+                </div>
+
+                {% if not pair_mode %}
+                {# Urgency #}
+                <div class="mb-3">
+                    <label class="form-label text-base">{{ _("Urgency") }}</label>
+                    <div class="d-flex gap-2">
+                        <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': urgency === 1 }">
+                            <input type="radio" class="d-none" value="1" x-model.number="urgency">
+                            <span class="task-tier-dot" style="background:var(--color-danger);"></span>
+                            {{ _("NOW") }}
+                        </label>
+                        <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': urgency === 2 }">
+                            <input type="radio" class="d-none" value="2" x-model.number="urgency">
+                            <span class="task-tier-dot" style="background:#d97706;"></span>
+                            {{ _("LATER") }}
+                        </label>
+                        <label class="task-tier-radio flex-fill" :class="{ 'task-tier-radio--active': urgency === 3 }">
+                            <input type="radio" class="d-none" value="3" x-model.number="urgency">
+                            <span class="task-tier-dot" style="background:#16a34a;"></span>
+                            {{ _("WHENEVER") }}
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                <button type="button" class="btn btn-sm btn-dark" :disabled="loading" @click="submit()">
+                    <template x-if="loading"><i class="fas fa-spinner fa-spin me-1"></i></template>
+                    <i class="fa-brands fa-github me-1" x-show="!loading"></i>
+                    {% if pair_mode %}{{ _("Pair Issue") }}{% else %}{{ _("Create Issue") }}{% endif %}
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+

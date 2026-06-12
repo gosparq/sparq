@@ -1,0 +1,227 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block title %}{{ _("Regional Settings") }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .settings-page-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .settings-back-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .settings-back-link:active {
+        background: var(--color-gray-200);
+    }
+
+    .settings-page-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-900);
+        margin: 0;
+    }
+
+    .settings-form-section {
+        background: var(--color-white);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .settings-form-section-title {
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        color: var(--color-gray-700);
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-label {
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .mobile-form-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 0.5rem;
+        background: var(--color-white);
+        color: var(--color-gray-900);
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+    }
+
+    .mobile-form-select:focus {
+        outline: none;
+        border-color: var(--workspace-color);
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .mobile-form-group {
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .mobile-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .mobile-btn {
+        display: block;
+        width: 100%;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .mobile-btn-primary {
+        background: var(--workspace-color);
+        color: white;
+    }
+
+    .mobile-btn-primary:active {
+        background: color-mix(in srgb, var(--workspace-color) 80%, black);
+    }
+
+    .coming-soon-box {
+        background: var(--color-gray-50);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        text-align: center;
+        color: var(--color-gray-500);
+    }
+
+    .coming-soon-box i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .coming-soon-box p {
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .coming-soon-box small {
+        font-size: 0.8125rem;
+    }
+
+    .section-save-row {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-gray-100);
+    }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="settings-page-header">
+    <a href="{{ url_for('core_bp.settings') }}" class="settings-back-link">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="settings-page-title">{{ _("Regional Settings") }}</h1>
+</div>
+
+<form method="POST" action="{{ url_for('core_bp.settings_company') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_section" value="regional">
+    <div class="settings-form-section">
+        <div class="mobile-form-group">
+            <label for="timezone" class="mobile-form-label">{{ _("Timezone") }}</label>
+            <select class="mobile-form-select" id="timezone" name="timezone">
+                {% for tz in timezones %}
+                <option value="{{ tz }}" {% if settings.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mobile-form-group">
+            <label for="date_format" class="mobile-form-label">{{ _("Date Format") }}</label>
+            <select class="mobile-form-select" id="date_format" name="date_format">
+                <option value="MM/DD/YYYY" {% if settings.date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY</option>
+                <option value="DD/MM/YYYY" {% if settings.date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY</option>
+                <option value="YYYY-MM-DD" {% if settings.date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD</option>
+            </select>
+        </div>
+
+        <div class="mobile-form-group">
+            <label for="time_format" class="mobile-form-label">{{ _("Time Format") }}</label>
+            <select class="mobile-form-select" id="time_format" name="time_format">
+                <option value="12-hour" {% if settings.time_format == '12-hour' %}selected{% endif %}>{{ _("12-hour") }}</option>
+                <option value="24-hour" {% if settings.time_format == '24-hour' %}selected{% endif %}>{{ _("24-hour") }}</option>
+            </select>
+        </div>
+
+        <div class="mobile-form-group">
+            <label for="currency" class="mobile-form-label">{{ _("Currency") }}</label>
+            <select class="mobile-form-select" id="currency" name="currency">
+                <option value="USD" {% if settings.currency == 'USD' %}selected{% endif %}>USD ($)</option>
+                <option value="EUR" {% if settings.currency == 'EUR' %}selected{% endif %}>EUR (&#8364;)</option>
+                <option value="GBP" {% if settings.currency == 'GBP' %}selected{% endif %}>GBP (&#163;)</option>
+                <option value="CAD" {% if settings.currency == 'CAD' %}selected{% endif %}>CAD ($)</option>
+                <option value="AUD" {% if settings.currency == 'AUD' %}selected{% endif %}>AUD ($)</option>
+                <option value="MXN" {% if settings.currency == 'MXN' %}selected{% endif %}>MXN ($)</option>
+            </select>
+        </div>
+
+        <div class="mobile-form-group">
+            <label for="first_day_of_week" class="mobile-form-label">{{ _("Week Starts") }}</label>
+            <select class="mobile-form-select" id="first_day_of_week" name="first_day_of_week">
+                <option value="0" {% if settings.first_day_of_week == 0 %}selected{% endif %}>{{ _("Sunday") }}</option>
+                <option value="1" {% if settings.first_day_of_week == 1 %}selected{% endif %}>{{ _("Monday") }}</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <div class="settings-form-section-title">{{ _("Business Hours") }}</div>
+        <div class="coming-soon-box">
+            <i class="fas fa-clock"></i>
+            <p>{{ _("Coming soon") }}</p>
+            <small>{{ _("Configure your business hours for scheduling") }}</small>
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <div class="section-save-row" style="margin-top:0;padding-top:0;border-top:none;">
+            <button type="submit" class="mobile-btn mobile-btn-primary">
+                <i class="fas fa-save"></i> {{ _("Save Changes") }}
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

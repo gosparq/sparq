@@ -1,0 +1,21 @@
+{
+  "standard_user": {
+    "email": "standard@example.com",
+    "password": "StandardPass123!",
+    "first_name": "Standard",
+    "last_name": "User"
+  },
+  "admin_user": {
+    "email": "admin@example.com",
+    "password": "AdminPass123!",
+    "first_name": "Admin",
+    "last_name": "User"
+  },
+  "inactive_user": {
+    "email": "inactive@example.com",
+    "password": "InactivePass123!",
+    "first_name": "Inactive",
+    "last_name": "User",
+    "is_active": false
+  }
+}

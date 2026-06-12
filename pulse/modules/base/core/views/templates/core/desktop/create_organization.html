@@ -1,0 +1,39 @@
+{% extends "core/desktop/base-auth.html" %}
+
+{% block title %}{{ _("Create Organization") }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-container">
+    <div class="auth-branding">
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="auth-logo">
+    </div>
+
+    <div class="auth-box">
+        <h2>{{ _("Create Organization") }}</h2>
+        <p class="text-muted small mb-3 text-center">
+            {{ _("Set up a new organization and workspace.") }}
+        </p>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="mb-3">
+                <label for="organization_name" class="form-label">{{ _("Organization Name") }}</label>
+                <input type="text" class="form-control" id="organization_name" name="organization_name"
+                       value="{{ organization_name|default('') }}" required autofocus
+                       placeholder="{{ _('e.g. Acme Corp') }}">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">{{ _("Create") }}</button>
+        </form>
+
+        <div class="mt-3 text-center">
+            <small class="text-muted"><a href="javascript:history.back()">{{ _("Back") }}</a></small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block auth_footer %}
+<small class="text-muted">{{ _("Powered by") }} <a class="text-decoration-none" href="https://www.gosparq.com" target="_blank" style="color:inherit">sparQ</a></small>
+{% endblock %}

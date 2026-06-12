@@ -1,0 +1,87 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{% block page_title %}{% endblock %} - {{ _("Settings") }}{% endblock %}
+
+{% block app_class %}settings-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('dashboard_bp.static', filename='css/base.css') }}">
+<link rel="stylesheet" href="{{ url_for('core_bp.static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+    <div class="content-card">
+        <div class="d-flex gap-4 align-items-start">
+
+            {# ── Left: vertical settings nav ── #}
+            <div class="flex-shrink-0" style="min-width:140px; max-width:160px">
+                <div class="d-flex flex-column gap-1">
+                    {% if current_user.is_admin %}
+                    <div class="settings-nav-group-label">{{ _("Workspace") }}</div>
+                    <a href="{{ url_for('core_bp.settings_company') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/company') or request.path == '/settings' or request.path == '/settings/' %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("General") }}
+                    </a>
+                    <a href="{{ url_for('core_bp.manage_permissions') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/permissions') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Permissions") }}
+                    </a>
+                    <a href="{{ url_for('core_bp.settings_templates') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/templates') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Templates") }}
+                    </a>
+                    <a href="{{ url_for('sync_bp.settings') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/sync/settings') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Update") }}
+                    </a>
+                    <a href="{{ url_for('presence_bp.settings') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/presence/timesheets/settings') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Time Settings") }}
+                    </a>
+                    <a href="{{ url_for('tasks_bp.settings') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/tasks/settings') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Tasks") }}
+                    </a>
+                    <a href="{{ url_for('core_bp.settings_projects') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/projects') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Projects") }}
+                    </a>
+                    {% if module_enabled('Integrations') %}
+                    <a href="{{ url_for('integrations_bp.settings_index') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/integrations/') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Integrations") }}
+                    </a>
+                    {% endif %}
+                    <div class="settings-nav-group-label mt-2">{{ _("Account") }}</div>
+                    {% endif %}
+                    <a href="{{ url_for('core_bp.settings_preferences') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/preferences') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Preferences") }}
+                    </a>
+                    <a href="{{ url_for('core_bp.settings_security') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/security') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Security") }}
+                    </a>
+                </div>
+            </div>
+
+            {# ── Right: settings content ── #}
+            <div class="flex-grow-1 min-width-0">
+                {% block settings_back %}{% endblock %}
+                <div class="settings-page-header">
+                    <div>
+                        <h2>{% block page_icon %}<i class="fas fa-cog"></i>{% endblock %} {% block page_title_display %}{% endblock %}</h2>
+                        {% block page_description %}<p class="text-muted"></p>{% endblock %}
+                    </div>
+                    {% block page_actions %}{% endblock %}
+                </div>
+                <div class="settings-form-container">
+                    {% block settings_content %}{% endblock %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

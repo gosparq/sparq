@@ -1,0 +1,222 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Update Settings") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-plug"></i>{% endblock %}
+{% block page_title_display %}{{ _("Update Settings") }}{% endblock %}
+{% block page_description %}<p>{{ _("Webhooks and integration settings for Update") }}</p>{% endblock %}
+
+{% block settings_content %}
+            <!-- Areas Management -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i>{{ _("Areas") }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">{{ _("Areas are permanent domain tags for organizing updates, blockers, and action items. Maximum 10.") }}</p>
+
+                    {% if areas %}
+                    <div class="list-group list-group-flush mb-3">
+                        {% for area in areas %}
+                        <div class="list-group-item d-flex align-items-center gap-2 px-0">
+                            <span style="width:12px;height:12px;border-radius:50%;background:{{ area.color }};flex-shrink:0;"></span>
+                            <span class="text-base">{{ area.name }}</span>
+                            <div class="ms-auto d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-link p-0 text-2xs sync-text-subtle"
+                                        data-bs-toggle="modal" data-bs-target="#editAreaModal{{ area.id }}">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('sync_bp.area_delete', area_id=area.id) }}" style="display:inline;"
+                                      x-data @submit.prevent="if (confirm('{{ _("Remove this area?") }}')) $el.submit()">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-sm btn-link p-0 text-2xs sync-text-subtle">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {# Edit Area Modal #}
+                        <div class="modal fade" id="editAreaModal{{ area.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-sm">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('sync_bp.area_update', area_id=area.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ _("Edit Area") }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ _("Name") }}</label>
+                                                <input type="text" name="name" class="form-control" required value="{{ area.name }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ _("Color") }}</label>
+                                                <input type="color" name="color" class="form-control form-control-color" value="{{ area.color }}">
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                                            <button type="submit" class="btn btn-sm btn-primary">{{ _("Save") }}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {# Add Area Form #}
+                    <form method="POST" action="{{ url_for('sync_bp.area_create') }}" class="d-flex gap-2 align-items-end">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div style="flex:1;">
+                            <input type="text" name="name" class="form-control form-control-sm" placeholder="{{ _('Area name') }}" required maxlength="100">
+                        </div>
+                        <div>
+                            <input type="color" name="color" class="form-control form-control-sm form-control-color" value="#6b7280" style="width:38px;height:31px;">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">{{ _("Add") }}</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Label Configuration -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-font me-2"></i>{{ _("Display Labels") }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">{{ _("Customize what Areas and Weekly Plans are called in your workspace.") }}</p>
+                    <form method="POST" action="{{ url_for('sync_bp.labels_update') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label">{{ _("Area label") }}</label>
+                                <input type="text" name="area_label" class="form-control form-control-sm" value="{{ area_label }}" placeholder="Area">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">{{ _("Weekly Plan label") }}</label>
+                                <input type="text" name="weekly_plan_label" class="form-control form-control-sm" value="{{ weekly_plan_label }}" placeholder="Weekly Plan">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary mt-3">{{ _("Save Labels") }}</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Channel Settings: 10-4 Acknowledgment -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>{{ _("10-4 Acknowledgment") }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">{{ _("When enabled, every message in the channel shows an acknowledgment grid. Members confirm they've read each message with a 10-4 checkmark.") }}</p>
+                    <div class="list-group list-group-flush">
+                        {% for channel in channels %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span><span class="text-muted">#</span> {{ _(channel.name) if channel.name in ('general', 'announcements', 'events') else channel.name }}</span>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       id="ten-four-{{ channel.name }}"
+                                       {% if channel.require_ten_four %}checked{% endif %}
+                                       data-action="toggle-ten-four-setting"
+                                       data-channel="{{ channel.name }}">
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Channel Webhooks -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-plug me-2"></i>{{ _("Channel Webhooks") }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">{{ _("Incoming webhooks allow external services to post messages to channels. Supports GitHub events and generic JSON payloads.") }}</p>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <select id="webhook-channel-select" class="form-select form-select-sm"
+                                    data-action="load-channel-webhooks">
+                                <option value="">{{ _("Select a channel...") }}</option>
+                                {% for channel in channels %}
+                                <option value="{{ channel.name }}">{{ '#' + (_(channel.name) if channel.name in ('general', 'announcements', 'events') else channel.name) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="channel-webhook-list"></div>
+                </div>
+            </div>
+
+            <!-- DM Webhooks -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-plug me-2"></i>{{ _("DM Webhooks") }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">{{ _("Incoming webhooks for direct message threads.") }}</p>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <select id="webhook-dm-select" class="form-select form-select-sm"
+                                    data-action="load-dm-webhooks">
+                                <option value="">{{ _("Select a DM thread...") }}</option>
+                                {% for thread in dm_threads %}
+                                {% set other = thread.get_other_user(current_user.id) %}
+                                <option value="{{ thread.id }}">{{ other.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="dm-webhook-list"></div>
+                </div>
+            </div>
+        </div>
+
+<script nonce="{{ csp_nonce }}">
+function copyWebhookUrl(token) {
+    var url = window.location.origin + '/api/webhooks/' + token;
+    navigator.clipboard.writeText(url).then(function() {
+        var btn = event.target.closest('button');
+        var icon = btn.querySelector('i');
+        icon.className = 'fas fa-check text-success';
+        setTimeout(function() { icon.className = 'fas fa-copy'; }, 1500);
+    });
+}
+
+function maskToken(token) {
+    return '••••••••' + token.slice(-8);
+}
+
+document.addEventListener('change', function(e) {
+    var t = e.target.closest('[data-action="toggle-ten-four-setting"]');
+    if (t) {
+        fetch('/sync/chat/channels/' + t.dataset.channel + '/ten-four', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrf_token=' + encodeURIComponent(document.querySelector('meta[name=csrf-token]').content)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            t.checked = data.require_ten_four;
+        })
+        .catch(function() { t.checked = !t.checked; });
+        return;
+    }
+    t = e.target.closest('[data-action="load-channel-webhooks"]');
+    if (t && t.value) {
+        htmx.ajax('GET', '/sync/chat/channels/' + t.value + '/webhooks', '#channel-webhook-list');
+    }
+    t = e.target.closest('[data-action="load-dm-webhooks"]');
+    if (t && t.value) {
+        htmx.ajax('GET', '/sync/chat/dms/' + t.value + '/webhooks', '#dm-webhook-list');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+<div class="step-header mb-4">
+    <h4><i class="fas fa-tasks me-2"></i>{{ current_task.label }}</h4>
+    {% if current_task.description %}
+    <p class="text-muted">{{ current_task.description }}</p>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <p class="text-muted mb-4">
+            {{ _("Please complete this task according to the instructions above.") }}
+        </p>
+
+        <form data-action="form-submit" data-task-key="{{ current_task.task_key }}">
+            <div class="mb-3">
+                <label class="form-label">{{ _("Notes or Comments (optional)") }}</label>
+                <textarea class="form-control" name="notes" rows="4"
+                          placeholder="{{ _('Add any notes or comments related to this task...') }}"></textarea>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between">
+                {% if not current_task.required %}
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-action="skip-task" data-task-key="{{ current_task.task_key }}">
+                    <i class="fas fa-forward me-2"></i>{{ _("Skip for Now") }}
+                </button>
+                {% else %}
+                <div></div>
+                {% endif %}
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-check me-2"></i>{{ _("Mark Complete") }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+(function() {
+    document.querySelectorAll('form[data-action="form-submit"]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleFormSubmit(this, this.dataset.taskKey);
+        });
+    });
+    document.querySelectorAll('[data-action="skip-task"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            skipTask(this.dataset.taskKey);
+        });
+    });
+})();
+</script>

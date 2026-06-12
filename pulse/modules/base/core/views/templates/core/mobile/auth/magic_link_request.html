@@ -1,0 +1,82 @@
+{% extends "core/mobile/base-auth.html" %}
+
+{% block title %}{{ _("Login") }}{% endblock %}
+
+{% block auth_content %}
+<!-- Header with logo -->
+<div class="mobile-auth-header">
+    {% if company_name %}
+        <p class="mobile-auth-company">{{ company_name }}</p>
+    {% else %}
+        <img src="{{ url_for('core_bp.static', filename='images/sparq-logo.png') }}" alt="sparQ" class="mobile-auth-logo">
+    {% endif %}
+</div>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+<!-- Magic link card -->
+<div class="mobile-auth-content">
+    <div class="mobile-auth-card">
+        <h2>{{ _("Login") }}</h2>
+
+        {% if demo_mode and magic_link_url %}
+        <p class="text-muted mb-3 text-center" style="font-size: 0.8125rem;">{{ _("Logging in as") }} <strong>{{ demo_email }}</strong></p>
+        <div class="mb-3 p-2 bg-light rounded" style="word-break: break-all; font-size: 0.8125rem;">
+            <a href="{{ magic_link_url }}">{{ magic_link_url }}</a>
+        </div>
+        {% else %}
+
+        {% if oauth_providers %}
+        <div class="oauth-buttons">
+            {% for provider in oauth_providers %}
+            <a href="{{ provider.login_url }}" class="btn-oauth btn-oauth-{{ provider.name }}" style="min-height: 48px;">
+                {{ provider.svg_icon|safe }}
+                {{ _("Continue with") }} {{ provider.display_name }}
+            </a>
+            {% endfor %}
+        </div>
+        <div class="auth-divider"><span>{{ _("or") }}</span></div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">{{ _("Email") }}</label>
+                <input type="email"
+                       class="form-control"
+                       id="email"
+                       name="email"
+                       autocomplete="email"
+                       autocapitalize="none"
+                       inputmode="email"
+                       required
+                       autofocus>
+            </div>
+            <button type="submit" class="btn btn-primary w-100" style="min-height: 48px;">
+                <i class="fas fa-paper-plane me-2"></i> {{ _("Send Email Link") }}
+            </button>
+        </form>
+
+        <p class="text-muted mt-3 text-center" style="font-size: 0.8125rem;">
+            {{ _("We'll send you an email link to sign in — no password needed.") }}
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="mobile-auth-footer">
+    <small>{{ _("Powered by") }} <a href="https://www.gosparq.com" target="_blank" style="color:inherit;text-decoration:none;">sparQ</a><br><span style="color: var(--color-gray-300);">{{ sparq_display_version }}</span></small>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "tasks/mobile/layout.html" %}
+
+{% block title %}{{ _("Created by Me") }}{% endblock %}
+
+{% block module_content %}
+<div class="mb-3">
+    <h2 class="mb-0" style="font-size:1.25rem;font-weight:600;">{{ _("Created by Me") }}</h2>
+    <span class="text-muted" style="font-size:0.8125rem;">{{ _("Actions you've assigned to others") }}</span>
+</div>
+
+{% set next_url = url_for('tasks_bp.raised') %}
+{# raised route provides open_by_tier, not tier_groups — alias it for the partial. #}
+{% set tier_groups = open_by_tier %}
+{% include "tasks/mobile/_list.html" %}
+
+<button type="button" class="fab" aria-label="{{ _('Create Task') }}"
+        hx-get="{{ url_for('tasks_bp.create_modal') }}"
+        hx-target="#modals"
+        hx-swap="innerHTML">
+    <i class="fas fa-plus"></i>
+</button>
+{% endblock %}

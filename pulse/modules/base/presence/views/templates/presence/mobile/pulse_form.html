@@ -1,0 +1,84 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ template.name }} - {{ _("Pulse") }}{% endblock %}
+
+{% block module_content %}
+<div style="margin-bottom:1rem;">
+    <a class="text-base" href="{{ url_for('presence_flow_bp.pulse_index') }}" style="color:var(--color-gray-500);text-decoration:none">
+        <i class="fas fa-arrow-left me-1"></i>{{ _("Back to Pulse") }}
+    </a>
+</div>
+
+<h3 style="font-size:1.25rem;font-weight:700;margin-bottom:0.25rem;display:flex;align-items:center;gap:0.5rem;">
+    <i class="fas fa-heartbeat" style="color:var(--color-danger);"></i> {{ template.name }}
+</h3>
+{% if template.description %}
+<p style="font-size:0.8125rem;color:var(--color-gray-500);margin-bottom:1rem;">{{ template.description }}</p>
+{% else %}
+<div style="margin-bottom:1rem;"></div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('sync_bp.post_create') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="template_id" value="{{ template.id }}">
+
+    {% for field in template.fields %}
+    <div style="margin-bottom:1.25rem;">
+        <label class="text-base" style="display:block;font-weight:600;margin-bottom:0.5rem">
+            {{ field.label }}
+            {% if field.get('required') %}<span style="color:var(--color-danger);margin-left:0.25rem;">*</span>{% endif %}
+        </label>
+
+        {% if field.type == 'text' %}
+        <textarea name="field_{{ field.key }}" rows="3"
+            style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-family:inherit;resize:vertical;min-height:80px;"
+            placeholder="{{ field.get('placeholder', '') }}"
+            {% if field.get('required') %}required{% endif %}></textarea>
+
+        {% elif field.type == 'title' %}
+        <input type="text" name="field_{{ field.key }}"
+            style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-family:inherit;min-height:44px;"
+            placeholder="{{ field.get('placeholder', '') }}"
+            {% if field.get('required') %}required{% endif %}>
+
+        {% elif field.type == 'scale' %}
+        {% set min_val = field.get('min', 1) %}
+        {% set max_val = field.get('max', 5) %}
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+            {% for i in range(min_val, max_val + 1) %}
+            <label style="display:flex;align-items:center;gap:0.375rem;font-size:1rem;cursor:pointer;min-height:44px;">
+                <input type="radio" name="field_{{ field.key }}" value="{{ i }}" id="field_{{ field.key }}_{{ i }}" {% if field.get('required') %}required{% endif %}>
+                {{ i }}
+            </label>
+            {% endfor %}
+        </div>
+        {% if field.get('min_label') or field.get('max_label') %}
+        <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--color-gray-500);margin-top:0.25rem;">
+            <span>{{ field.get('min_label', _('Low')) }}</span>
+            <span>{{ field.get('max_label', _('High')) }}</span>
+        </div>
+        {% endif %}
+
+        {% elif field.type == 'choice' %}
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            {% for option in field.get('options', []) %}
+            <label class="text-base" style="display:flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;border:1px solid var(--color-gray-300);border-radius:999px;cursor:pointer;min-height:40px">
+                <input type="radio" name="field_{{ field.key }}" value="{{ option }}" {% if field.get('required') %}required{% endif %}>
+                {{ option }}
+            </label>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <div style="display:flex;gap:0.75rem;margin-top:1.5rem;">
+        <button type="submit" style="flex:1;min-height:48px;background:var(--color-primary);color:white;border:none;border-radius:8px;font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+            <i class="far fa-paper-plane"></i> {{ _("Submit") }}
+        </button>
+        <a href="{{ url_for('presence_flow_bp.pulse_index') }}" style="min-height:48px;padding:0 1.5rem;background:var(--color-white);color:var(--color-gray-700);border:1px solid var(--color-gray-300);border-radius:8px;font-size:1rem;font-weight:500;text-decoration:none;display:flex;align-items:center;justify-content:center;">
+            {{ _("Cancel") }}
+        </a>
+    </div>
+</form>
+{% endblock %}

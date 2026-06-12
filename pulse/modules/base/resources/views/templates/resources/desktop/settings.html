@@ -1,0 +1,184 @@
+{% extends "resources/desktop/layout.html" %}
+
+{% block title %}{{ _("Resources Settings") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>{{ _("Resources Settings") }}</h2>
+    </div>
+
+    <!-- Horizontal Tabs for Features -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if not active_tab or active_tab == 'documents' %}active{% endif %}"
+                    id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-content"
+                    type="button" role="tab">
+                <i class="fas fa-folder me-1"></i>{{ _("Documents") }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'forms' %}active{% endif %}"
+                    id="forms-tab" data-bs-toggle="tab" data-bs-target="#forms-content"
+                    type="button" role="tab">
+                <i class="fas fa-file-alt me-1"></i>{{ _("Forms") }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'knowledge' %}active{% endif %}"
+                    id="knowledge-tab" data-bs-toggle="tab" data-bs-target="#knowledge-content"
+                    type="button" role="tab">
+                <i class="fas fa-book me-1"></i>{{ _("Knowledge Base") }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'esign' %}active{% endif %}"
+                    id="esign-tab" data-bs-toggle="tab" data-bs-target="#esign-content"
+                    type="button" role="tab">
+                <i class="fas fa-signature me-1"></i>{{ _("E-Sign") }}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Documents Tab -->
+        <div class="tab-pane fade {% if not active_tab or active_tab == 'documents' %}show active{% endif %}"
+             id="documents-content" role="tabpanel">
+
+            <!-- Cloud Storage Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cloud text-info me-2"></i>{{ _("Cloud Storage") }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if google_drive_enabled %}
+                    <!-- Google Drive -->
+                    <div class="d-flex align-items-center justify-content-between py-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="fab fa-google-drive fa-2x text-warning"></i>
+                            <div>
+                                <strong>Google Drive</strong>
+                                {% if drive_connection %}
+                                <span class="badge bg-success ms-2">{{ _("Connected") }}</span>
+                                <br><small class="text-muted">{{ drive_connection.connected_email }}</small>
+                                {% else %}
+                                <span class="badge bg-secondary ms-2">{{ _("Not connected") }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if can_manage_drive %}
+                        <div>
+                            {% if drive_connection %}
+                            <form method="POST" action="{{ url_for('drive_blueprint.disconnect_google') }}" class="d-inline"
+                                  data-confirm="{{ _('Disconnect Google Drive?') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-unlink me-1"></i>{{ _("Disconnect") }}
+                                </button>
+                            </form>
+                            {% else %}
+                            <a href="{{ url_for('drive_blueprint.connect_google') }}" class="btn btn-sm btn-primary">
+                                <i class="fab fa-google me-1"></i>{{ _("Connect") }}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if drive_connection and can_manage_drive %}
+                    <!-- Folder Selection -->
+                    <hr>
+                    <div class="mt-3">
+                        <h6><i class="fas fa-folder-open me-2"></i>{{ _("Shared Folders") }}</h6>
+                        <p class="text-muted small">{{ _("Select which Google Drive folders to make available to users.") }}</p>
+
+                        <div id="folder-picker" hx-get="{{ url_for('drive_blueprint.list_folders') }}" hx-trigger="load">
+                            <div class="text-center py-3">
+                                <i class="fas fa-spinner fa-spin"></i> {{ _("Loading folders...") }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fab fa-google-drive fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">
+                            {{ _("Google Drive integration is not enabled.") }}<br>
+                            <small>{{ _("Contact your system administrator to enable it.") }}</small>
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Local Storage Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-folder text-primary me-2"></i>{{ _("Local Storage") }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-check-circle text-success me-1"></i>
+                        {{ _("Local document library is always available. No configuration required.") }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forms Tab -->
+        <div class="tab-pane fade {% if active_tab == 'forms' %}show active{% endif %}"
+             id="forms-content" role="tabpanel">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-0">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Knowledge Base Tab -->
+        <div class="tab-pane fade {% if active_tab == 'knowledge' %}show active{% endif %}"
+             id="knowledge-content" role="tabpanel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>{{ _("Knowledge Base Admin") }}</h5>
+                    <a href="{{ url_for('knowledge_blueprint.index') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-cog me-1"></i>{{ _("Manage Articles") }}
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">
+                        {{ _("Manage knowledge base articles, categories, and publish settings.") }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- E-Sign Tab -->
+        <div class="tab-pane fade {% if active_tab == 'esign' %}show active{% endif %}"
+             id="esign-content" role="tabpanel">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-0">{{ _("No configurable options.") }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) { e.preventDefault(); }
+        });
+    });
+});
+</script>
+{% endblock %}

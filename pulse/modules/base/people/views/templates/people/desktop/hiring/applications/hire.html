@@ -1,0 +1,166 @@
+{% extends "people/desktop/hiring/layout.html" %}
+
+{% block title %}{{ _("Hire Candidate") }}{% endblock %}
+
+{% block module_content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2 bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-user-check me-2"></i>{{ _("Confirm Hire") }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Candidate/Job Info -->
+                <div class="alert alert-success border mb-4">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-1">{{ application.candidate.full_name }}</h5>
+                            <div class="mb-0">
+                                <strong>{{ _("Position") }}:</strong> {{ application.job_posting.title }}
+                                {% if application.job_posting.department %}
+                                <span class="text-muted">· {{ application.job_posting.department }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            {% if application.rating %}
+                            <div class="text-warning">
+                                {% for i in range(application.rating) %}
+                                <i class="fas fa-star"></i>
+                                {% endfor %}
+                                {% for i in range(5 - application.rating) %}
+                                <i class="far fa-star"></i>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-muted">
+                    {{ _("You are about to hire this candidate. This will:") }}
+                </p>
+                <ul class="text-muted small mb-4">
+                    <li>{{ _("Update the application status to 'Hired'") }}</li>
+                    <li>{{ _("Create an onboarding record in Team module") }}</li>
+                    <li>{{ _("Pre-fill onboarding with candidate and job information") }}</li>
+                </ul>
+
+                <form method="post" action="{{ url_for('people_bp.hiring_application_hire', application_id=application.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="row g-3">
+                        <!-- Start Date -->
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label small mb-1">
+                                {{ _("Start Date") }}
+                            </label>
+                            <input type="date"
+                                   class="form-control form-control-sm"
+                                   id="start_date"
+                                   name="start_date">
+                            <div class="form-text small">{{ _("When will the new hire start?") }}</div>
+                        </div>
+
+                        <!-- Salary -->
+                        <div class="col-md-6">
+                            <label for="salary" class="form-label small mb-1">
+                                {{ _("Salary") }}
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">$</span>
+                                <input type="number"
+                                       class="form-control"
+                                       id="salary"
+                                       name="salary"
+                                       step="0.01"
+                                       placeholder="{% if application.job_posting.salary_min and application.job_posting.salary_max %}{{ application.job_posting.salary_min|int }} - {{ application.job_posting.salary_max|int }}{% endif %}">
+                            </div>
+                            {% if application.job_posting.salary_min or application.job_posting.salary_max %}
+                            <div class="form-text small">
+                                {{ _("Job range") }}:
+                                {% if application.job_posting.salary_min %}${{ application.job_posting.salary_min|int }}{% endif %}
+                                {% if application.job_posting.salary_min and application.job_posting.salary_max %} - {% endif %}
+                                {% if application.job_posting.salary_max %}${{ application.job_posting.salary_max|int }}{% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top">
+                            <a href="{{ url_for('people_bp.hiring_application_detail', application_id=application.id) }}" class="btn btn-outline-secondary btn-sm">
+                                {{ _("Cancel") }}
+                            </a>
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-check me-1"></i>{{ _("Confirm Hire & Start Onboarding") }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Candidate Summary -->
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-user me-2"></i>{{ _("Candidate Info") }}
+                </h6>
+            </div>
+            <div class="card-body small">
+                <div class="mb-2">
+                    <i class="fas fa-envelope text-muted me-2"></i>
+                    <a href="mailto:{{ application.candidate.email }}">{{ application.candidate.email }}</a>
+                </div>
+                {% if application.candidate.phone %}
+                <div class="mb-2">
+                    <i class="fas fa-phone text-muted me-2"></i>{{ application.candidate.phone }}
+                </div>
+                {% endif %}
+                {% if application.candidate.current_title %}
+                <div class="mb-2">
+                    <i class="fas fa-briefcase text-muted me-2"></i>
+                    {{ application.candidate.current_title }}
+                    {% if application.candidate.current_company %}@ {{ application.candidate.current_company }}{% endif %}
+                </div>
+                {% endif %}
+                {% if application.candidate.location_display %}
+                <div class="mb-2">
+                    <i class="fas fa-map-marker-alt text-muted me-2"></i>{{ application.candidate.location_display }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Job Info -->
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-briefcase me-2"></i>{{ _("Job Info") }}
+                </h6>
+            </div>
+            <div class="card-body small">
+                <div class="mb-2">
+                    <strong>{{ application.job_posting.title }}</strong>
+                </div>
+                {% if application.job_posting.department %}
+                <div class="mb-2 text-muted">
+                    <i class="fas fa-building me-2"></i>{{ application.job_posting.department }}
+                </div>
+                {% endif %}
+                {% if application.job_posting.location %}
+                <div class="mb-2 text-muted">
+                    <i class="fas fa-map-marker-alt me-2"></i>{{ application.job_posting.location }}
+                </div>
+                {% endif %}
+                <div class="mb-2">
+                    <span class="badge bg-light text-dark">{{ application.job_posting.job_type.value }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock module_content %}

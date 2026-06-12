@@ -1,0 +1,406 @@
+{% extends "core/mobile/settings/layout.html" %}
+
+{% block title %}{{ _("Security") }}{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .settings-page-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .settings-back-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .settings-back-link:active {
+        background: var(--color-gray-200);
+    }
+
+    .settings-page-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-900);
+        margin: 0;
+    }
+
+    .settings-form-section {
+        background: var(--color-white);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .settings-form-section-title {
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        color: var(--color-gray-700);
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-label {
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .mobile-form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 0.5rem;
+        background: var(--color-white);
+        color: var(--color-gray-900);
+    }
+
+    .mobile-form-input:focus {
+        outline: none;
+        border-color: var(--workspace-color);
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .mobile-form-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-500);
+        margin-top: 0.5rem;
+    }
+
+    .mobile-form-group {
+        margin-bottom: 1rem;
+    }
+
+    .mobile-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .mobile-btn {
+        display: block;
+        width: 100%;
+        padding: 0.875rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .mobile-btn-primary {
+        background: var(--workspace-color);
+        color: white;
+    }
+
+    .mobile-btn-primary:active {
+        background: color-mix(in srgb, var(--workspace-color) 80%, black);
+    }
+
+    .mobile-alert {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: var(--font-size-base);
+        margin-bottom: 1rem;
+    }
+
+    .mobile-alert-info {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+    }
+
+    .phone-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: var(--color-gray-50);
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .phone-status-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .phone-number {
+        font-weight: 600;
+        color: var(--color-gray-900);
+    }
+
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+    }
+
+    .status-badge-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .change-btn {
+        font-size: var(--font-size-base);
+        color: var(--workspace-color);
+        background: none;
+        border: none;
+        padding: 0.5rem;
+        cursor: pointer;
+    }
+
+    .login-methods-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .login-method-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-100);
+    }
+
+    .login-method-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .login-method-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .login-method-icon.email { background: #eff6ff; color: #2563eb; }
+    .login-method-icon.magic { background: #ecfdf5; color: #059669; }
+    .login-method-icon.sms { background: #f0f9ff; color: #0891b2; }
+    .login-method-icon.oauth { background: var(--color-gray-100); color: var(--color-gray-700); }
+
+    .oauth-provider-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-100);
+    }
+
+    .oauth-provider-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .oauth-provider-action {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    .oauth-unlink-btn {
+        font-size: var(--font-size-base);
+        color: var(--color-error, var(--color-danger));
+        background: none;
+        border: none;
+        padding: 0.5rem;
+        cursor: pointer;
+    }
+
+    .oauth-connect-link {
+        font-size: var(--font-size-base);
+        color: var(--workspace-color);
+        text-decoration: none;
+        padding: 0.5rem;
+    }
+
+    .login-method-content {
+        flex: 1;
+    }
+
+    .login-method-name {
+        font-weight: 600;
+        color: var(--color-gray-900);
+        font-size: 0.9375rem;
+    }
+
+    .login-method-desc {
+        font-size: 0.8125rem;
+        color: var(--color-gray-500);
+        margin-top: 0.125rem;
+    }
+
+    .status-badge-secondary {
+        background: var(--color-gray-200);
+        color: var(--color-gray-600);
+    }
+</style>
+{% endblock %}
+
+{% block module_content %}
+<div class="settings-page-header">
+    <a href="{{ url_for('core_bp.settings') }}" class="settings-back-link">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+    <h1 class="settings-page-title">{{ _("Security") }}</h1>
+</div>
+
+<!-- Connected Accounts (OAuth) -->
+{% if available_providers %}
+<div class="settings-form-section">
+    <div class="settings-form-section-title">{{ _("Connected Accounts") }}</div>
+    <p class="mobile-form-text" style="margin-bottom:0.75rem;">{{ _("Link accounts for easier sign-in") }}</p>
+
+    {% for provider in available_providers %}
+    {% set other_connections = available_providers|selectattr('connected')|list|length %}
+    <div class="oauth-provider-row">
+        <div class="login-method-icon oauth">
+            <i class="{{ provider.config.icon_class }}"></i>
+        </div>
+        <div class="login-method-content">
+            <div class="login-method-name">{{ provider.config.display_name }}</div>
+            {% if provider.connected %}
+            <span class="status-badge status-badge-success">{{ _("Linked") }}</span>
+            {% endif %}
+        </div>
+        <div class="oauth-provider-action">
+            {% if provider.connected %}
+                {% if other_connections > 1 or has_password %}
+                <form method="POST" action="{{ url_for('oauth_bp.disconnect', provider=provider.name) }}"
+                      onsubmit="return confirm('{{ _('Unlink') }} {{ provider.config.display_name }}? {{ _('You can re-link at any time.') }}')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="oauth-unlink-btn">{{ _("Unlink") }}</button>
+                </form>
+                {% else %}
+                <button class="oauth-unlink-btn" disabled style="opacity:0.4;" title="{{ _('Cannot unlink your only login method') }}">{{ _("Unlink") }}</button>
+                {% endif %}
+            {% else %}
+            <a href="{{ url_for('oauth_bp.login', provider=provider.name) }}" class="oauth-connect-link">
+                <i class="fas fa-link"></i> {{ _("Connect") }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Phone Number Section (for SMS login) -->
+{% if auth_settings.sms_enabled %}
+<div class="settings-form-section">
+    <div class="settings-form-section-title">{{ _("Phone Number") }}</div>
+
+    {% if current_user.phone_number %}
+    <div class="phone-status" x-data="{ showForm: false }">
+        <div class="phone-status-info">
+            <span class="phone-number">{{ current_user.phone_number }}</span>
+            {% if current_user.phone_verified %}
+            <span class="status-badge status-badge-success">
+                <i class="fas fa-check-circle"></i> {{ _("Verified") }}
+            </span>
+            {% else %}
+            <span class="status-badge status-badge-warning">
+                <i class="fas fa-clock"></i> {{ _("Not verified") }}
+            </span>
+            {% endif %}
+        </div>
+        <button class="change-btn" @click="showForm = !showForm">
+            <i class="fas fa-edit"></i> {{ _("Change") }}
+        </button>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('core_bp.settings_security_phone') }}" {% if current_user.phone_number %}x-data="{ showForm: false }" x-show="showForm" x-cloak{% endif %}>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mobile-form-group">
+            <label for="phone" class="mobile-form-label">{{ _("Phone Number") }}</label>
+            <input type="tel" class="mobile-form-input" id="phone" name="phone"
+                   value="{{ current_user.phone_number or '' }}"
+                   placeholder="+1 (555) 123-4567">
+            <div class="mobile-form-text">{{ _("Include country code for best results") }}</div>
+        </div>
+        <button type="submit" class="mobile-btn mobile-btn-primary">
+            <i class="fas fa-save"></i> {{ _("Save Phone Number") }}
+        </button>
+    </form>
+</div>
+{% endif %}
+
+<!-- Login Methods Info -->
+<div class="settings-form-section">
+    <div class="settings-form-section-title">{{ _("Available Login Methods") }}</div>
+
+    <ul class="login-methods-list">
+        {% for provider in available_providers %}
+        {% if provider.connected %}
+        <li class="login-method-item">
+            <div class="login-method-icon oauth">
+                <i class="{{ provider.config.icon_class }}"></i>
+            </div>
+            <div class="login-method-content">
+                <div class="login-method-name">{{ provider.config.display_name }}</div>
+                <span class="status-badge status-badge-success">{{ _("Active") }}</span>
+                <div class="login-method-desc">{{ _("Login via") }} {{ provider.config.display_name }}</div>
+            </div>
+        </li>
+        {% endif %}
+        {% endfor %}
+
+        <li class="login-method-item">
+            <div class="login-method-icon magic">
+                <i class="fas fa-magic"></i>
+            </div>
+            <div class="login-method-content">
+                <div class="login-method-name">{{ _("Magic Link") }}</div>
+                <span class="status-badge status-badge-success">{{ _("Active") }}</span>
+                <div class="login-method-desc">{{ _("Login via email link") }}</div>
+            </div>
+        </li>
+
+        {% if auth_settings.sms_enabled %}
+        <li class="login-method-item">
+            <div class="login-method-icon sms">
+                <i class="fas fa-sms"></i>
+            </div>
+            <div class="login-method-content">
+                <div class="login-method-name">{{ _("SMS Code") }}</div>
+                {% if current_user.phone_number and current_user.phone_verified %}
+                <span class="status-badge status-badge-success">{{ _("Active") }}</span>
+                {% elif current_user.phone_number %}
+                <span class="status-badge status-badge-warning">{{ _("Phone not verified") }}</span>
+                {% else %}
+                <span class="status-badge status-badge-secondary">{{ _("No phone number") }}</span>
+                {% endif %}
+                <div class="login-method-desc">{{ _("Login via phone verification code") }}</div>
+            </div>
+        </li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}

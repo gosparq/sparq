@@ -1,0 +1,142 @@
+{# Activity timeline partial - returned by HTMX when note is added #}
+<div id="activity-section">
+    <!-- Add Note Form -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form hx-post="{{ url_for('people_bp.hiring_application_note', application_id=application.id) }}"
+                  hx-target="#activity-section"
+                  hx-swap="outerHTML"
+                  class="d-flex gap-2">
+                <input type="text" name="note" class="form-control form-control-sm"
+                       placeholder="{{ _('Add a note...') }}" required
+                       autocomplete="off">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Interviews Section -->
+    {% if application.interviews %}
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0">
+                <i class="fas fa-calendar me-2"></i>{{ _("Interviews") }}
+                <span class="badge bg-primary ms-1">{{ application.interviews|length }}</span>
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="list-group list-group-flush">
+                {% for interview in application.interviews %}
+                <div class="list-group-item px-0">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fas {{ interview.type_icon }} text-muted me-2"></i>
+                                <strong>{{ interview.interview_type.value }}</strong>
+                                {% if interview.status.name == 'SCHEDULED' %}
+                                <span class="badge bg-info ms-2">{{ interview.status.value }}</span>
+                                {% elif interview.status.name == 'COMPLETED' %}
+                                <span class="badge bg-success ms-2">{{ interview.status.value }}</span>
+                                {% elif interview.status.name == 'CANCELLED' %}
+                                <span class="badge bg-secondary ms-2">{{ interview.status.value }}</span>
+                                {% elif interview.status.name == 'NO_SHOW' %}
+                                <span class="badge bg-warning text-dark ms-2">{{ interview.status.value }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="small text-muted">
+                                <i class="far fa-clock me-1"></i>{{ interview.scheduled_at|format_datetime('%b %d at %I:%M %p') }}
+                                {% if interview.interviewer %}
+                                <span class="mx-1">·</span>
+                                <i class="far fa-user me-1"></i>{{ interview.interviewer.full_name }}
+                                {% endif %}
+                            </div>
+                            {% if interview.recommendation %}
+                            <div class="small mt-1">
+                                {% if interview.recommendation.name in ['STRONG_HIRE', 'HIRE'] %}
+                                <span class="text-success">
+                                    <i class="fas fa-thumbs-up me-1"></i>{{ interview.recommendation.value }}
+                                </span>
+                                {% elif interview.recommendation.name in ['STRONG_NO_HIRE', 'NO_HIRE'] %}
+                                <span class="text-danger">
+                                    <i class="fas fa-thumbs-down me-1"></i>{{ interview.recommendation.value }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-minus me-1"></i>{{ interview.recommendation.value }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% if interview.feedback %}
+                            <div class="small text-muted mt-1 fst-italic">{{ interview.feedback|truncate(100) }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            {% if interview.status.name == 'SCHEDULED' %}
+                            <a href="{{ url_for('people_bp.hiring_interview_complete', interview_id=interview.id) }}" class="btn btn-sm btn-outline-success mb-1">
+                                <i class="fas fa-check"></i>
+                            </a>
+                            <form action="{{ url_for('people_bp.hiring_interview_cancel', interview_id=interview.id) }}" method="post" class="d-inline"
+                                  data-confirm="{{ _('Cancel this interview?') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Activity Timeline -->
+    <div class="card">
+        <div class="card-header py-2">
+            <h6 class="mb-0">
+                <i class="fas fa-history me-2"></i>{{ _("Activity Timeline") }}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if application.activities %}
+            <div class="timeline">
+                {% for activity in application.activities %}
+                <div class="timeline-item mb-3 pb-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-light text-dark me-2">{{ activity.activity_type.value }}</span>
+                            <span class="small">{{ activity.description }}</span>
+                        </div>
+                        <small class="text-muted text-nowrap">{{ activity.created_at|format_datetime('%b %d, %H:%M') }}</small>
+                    </div>
+                    {% if activity.created_by %}
+                    <small class="text-muted">by {{ activity.created_by.first_name }} {{ activity.created_by.last_name }}</small>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-stream fa-2x text-muted mb-2"></i>
+                <p class="text-muted mb-0">{{ _("No activity yet") }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+(function() {
+    document.querySelectorAll('#activity-section form[data-confirm]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm(this.dataset.confirm)) {
+                e.preventDefault();
+            }
+        });
+    });
+})();
+</script>

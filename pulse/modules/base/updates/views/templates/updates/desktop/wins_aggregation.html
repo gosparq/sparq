@@ -1,0 +1,106 @@
+{% extends "updates/desktop/layout.html" %}
+
+{% block title %}{{ _("Wins") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="content-heading">
+                <i class="fas fa-trophy text-sm" style="color:var(--color-warning)"></i>
+                {{ _("Wins") }}
+            </h2>
+            <span class="text-muted text-sm">{{ _("Celebrating team achievements") }}</span>
+        </div>
+    </div>
+
+    {# ── Wins Feed (read-only) ── #}
+    {% if posts %}
+    <div class="wins-feed">
+        {% for post in posts %}
+        <div class="card mb-2" style="border:1px solid var(--color-gray-200);border-radius:0.625rem;border-left:3px solid var(--color-warning);">
+            <div class="card-body py-3 px-4">
+                <div class="d-flex align-items-start gap-3">
+                    {# Avatar #}
+                    <div class="flex-shrink-0">
+                        {% if not post.is_anonymous and post.member and post.member.user %}
+                        <span class="avatar-circle" style="width:36px;height:36px;font-size:0.8125rem;background:{{ post.member.user.avatar_color|default('#6b7280') }};">
+                            {{ post.member.user.first_name[0]|upper }}{{ post.member.user.last_name[0]|upper }}
+                        </span>
+                        {% else %}
+                        <span class="avatar-circle text-sm" style="width:36px; height:36px; background:var(--color-gray-500)">
+                            <i class="fas fa-user text-2xs"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {# Content #}
+                    <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex align-items-baseline gap-2 flex-wrap mb-1">
+                            {% if not post.is_anonymous and post.member and post.member.user %}
+                            <span class="fw-semibold text-base">{{ post.member.user.full_name }}</span>
+                            {% else %}
+                            <span class="fw-semibold text-muted text-base">{{ _("Anonymous") }}</span>
+                            {% endif %}
+                            <span class="badge sync-badge-win text-3xs">
+                                {{ post.template.name }} <i class="fas fa-trophy ms-1"></i>
+                            </span>
+                            {% if post.channel %}
+                            <a href="{{ url_for('updates_bp.channel_feed', slug=post.channel.name) }}" class="badge text-decoration-none text-3xs sync-chip">
+                                <i class="fas fa-hashtag text-icon"></i> {{ post.channel.name }}
+                            </a>
+                            {% endif %}
+                            <span class="text-muted ms-auto text-sm">{{ post.created_at|format_datetime('%b %d, %Y') }}</span>
+                        </div>
+
+                        {# Render payload fields #}
+                        {% for field in post.template.fields %}
+                            {% set val = post.payload.get(field.key) %}
+                            {% if val %}
+                                {% if field.type == 'structured_list' and val is iterable and val is not string %}
+                                <ul class="mb-1 ps-3 text-base" style="list-style:disc">
+                                    {% for item in val %}
+                                    <li>{% if item is mapping %}{{ item.text|urlize(target="_blank") }}{% else %}{{ item|urlize(target="_blank") }}{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% elif field.type == 'choice' %}
+                                {# Choice fields are meta signals — hidden in feed view #}
+                                {% else %}
+                                <p class="mb-1 text-base" style="color:var(--color-gray-700)">{{ val|urlize(target="_blank") }}</p>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Reactions #}
+                        {% set reaction_count = post.reactions.count() %}
+                        {% if reaction_count > 0 %}
+                        <div class="mt-2 text-xs sync-text-subtle">
+                            <i class="fas fa-heart"></i> {{ reaction_count }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if has_more %}
+    <div class="text-center mt-3">
+        <a href="{{ url_for('updates_bp.wins', offset=next_offset) }}"
+           class="btn btn-sm btn-outline-secondary">
+            {{ _("Load more") }}
+        </a>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-trophy" style="font-size:2rem;color:var(--color-gray-300);"></i>
+        <p class="text-muted mt-2">{{ _("No wins posted yet. Celebrate your team's achievements!") }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

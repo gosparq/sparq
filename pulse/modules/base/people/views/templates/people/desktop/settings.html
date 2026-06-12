@@ -1,0 +1,316 @@
+{% extends "core/desktop/base.html" %}
+
+{% block title %}{{ _("Team Settings") }}{% endblock %}
+
+{% block app_class %}team-app{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('people_bp.static', filename='css/people.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="module-content-wrapper">
+        <div class="content-card">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ _("Team Settings") }}</h2>
+            </div>
+
+            <!-- Horizontal Tabs for Features -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if not active_tab or active_tab == 'onboarding' %}active{% endif %}"
+                            id="onboarding-tab" data-bs-toggle="tab" data-bs-target="#onboarding-content"
+                            type="button" role="tab" aria-controls="onboarding-content" aria-selected="true">
+                        <i class="fas fa-user-plus me-1"></i>{{ _("Onboarding") }}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'offboarding' %}active{% endif %}"
+                            id="offboarding-tab" data-bs-toggle="tab" data-bs-target="#offboarding-content"
+                            type="button" role="tab" aria-controls="offboarding-content" aria-selected="false">
+                        <i class="fas fa-user-slash me-1"></i>{{ _("Offboarding") }}
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Onboarding Tab -->
+                <div class="tab-pane fade {% if not active_tab or active_tab == 'onboarding' %}show active{% endif %}"
+                     id="onboarding-content" role="tabpanel" aria-labelledby="onboarding-tab">
+
+                    <!-- Task Templates Section -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>{{ _("Task Templates") }}</h5>
+                            {% if w2_templates or contractor_templates %}
+                            <a href="{{ url_for('people_bp.onboarding_template_new') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>{{ _("Add Task") }}
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-4">
+                                {{ _("Configure the tasks that new hires must complete during onboarding. Tasks are organized by employment type (W-2 or 1099).") }}
+                            </p>
+
+                            {% if not has_custom_templates %}
+                            <!-- No custom templates - show defaults and initialize option -->
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                {{ _("Using default task templates. Click 'Customize Templates' to modify them.") }}
+                            </div>
+
+                            <form action="{{ url_for('people_bp.onboarding_initialize_templates') }}" method="POST" class="mb-4">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-cog me-1"></i>{{ _("Customize Templates") }}
+                                </button>
+                            </form>
+
+                            <!-- Show Default W2 Tasks -->
+                            <h6 class="mt-4 mb-3">{{ _("W-2 Employee Tasks (Default)") }}</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>{{ _("Order") }}</th>
+                                            <th>{{ _("Task") }}</th>
+                                            <th>{{ _("Assignee") }}</th>
+                                            <th>{{ _("Required") }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for task in W2_DEFAULTS %}
+                                        <tr>
+                                            <td>{{ task.order }}</td>
+                                            <td>
+                                                <strong>{{ task.label }}</strong>
+                                                {% if task.description %}
+                                                <div class="text-muted small">{{ task.description }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="badge {% if task.assignee.value == 'Employee' %}bg-primary{% else %}bg-secondary{% endif %}">{{ task.assignee.value }}</span></td>
+                                            <td>{% if task.required %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Show Default Contractor Tasks -->
+                            <h6 class="mt-4 mb-3">{{ _("1099 Contractor Tasks (Default)") }}</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>{{ _("Order") }}</th>
+                                            <th>{{ _("Task") }}</th>
+                                            <th>{{ _("Assignee") }}</th>
+                                            <th>{{ _("Required") }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for task in CONTRACTOR_DEFAULTS %}
+                                        <tr>
+                                            <td>{{ task.order }}</td>
+                                            <td>
+                                                <strong>{{ task.label }}</strong>
+                                                {% if task.description %}
+                                                <div class="text-muted small">{{ task.description }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="badge {% if task.assignee.value == 'Employee' %}bg-primary{% else %}bg-secondary{% endif %}">{{ task.assignee.value }}</span></td>
+                                            <td>{% if task.required %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {% else %}
+                            <!-- Custom templates exist - show editable list -->
+
+                            <!-- W2 Templates -->
+                            <h6 class="mb-3">{{ _("W-2 Employee Tasks") }}</h6>
+                            {% if w2_templates %}
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 60px;">{{ _("Order") }}</th>
+                                            <th>{{ _("Task") }}</th>
+                                            <th class="person-col-100">{{ _("Assignee") }}</th>
+                                            <th class="person-col-80">{{ _("Required") }}</th>
+                                            <th class="person-col-80">{{ _("Active") }}</th>
+                                            <th class="person-col-100"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for template in w2_templates %}
+                                        <tr class="{% if not template.active %}text-muted{% endif %}">
+                                            <td>{{ template.order }}</td>
+                                            <td>
+                                                <strong>{{ template.label }}</strong>
+                                                <div class="text-muted small">{{ template.task_key }}</div>
+                                            </td>
+                                            <td><span class="badge {% if template.assignee.value == 'Employee' %}bg-primary{% else %}bg-secondary{% endif %}">{{ template.assignee.value }}</span></td>
+                                            <td>{% if template.required %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                                            <td>{% if template.active %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %}</td>
+                                            <td class="text-end">
+                                                <a href="{{ url_for('people_bp.onboarding_template_edit', template_id=template.id) }}"
+                                                   class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-4">{{ _("No W-2 tasks configured.") }}</p>
+                            {% endif %}
+
+                            <!-- Contractor Templates -->
+                            <h6 class="mb-3">{{ _("1099 Contractor Tasks") }}</h6>
+                            {% if contractor_templates %}
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 60px;">{{ _("Order") }}</th>
+                                            <th>{{ _("Task") }}</th>
+                                            <th class="person-col-100">{{ _("Assignee") }}</th>
+                                            <th class="person-col-80">{{ _("Required") }}</th>
+                                            <th class="person-col-80">{{ _("Active") }}</th>
+                                            <th class="person-col-100"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for template in contractor_templates %}
+                                        <tr class="{% if not template.active %}text-muted{% endif %}">
+                                            <td>{{ template.order }}</td>
+                                            <td>
+                                                <strong>{{ template.label }}</strong>
+                                                <div class="text-muted small">{{ template.task_key }}</div>
+                                            </td>
+                                            <td><span class="badge {% if template.assignee.value == 'Employee' %}bg-primary{% else %}bg-secondary{% endif %}">{{ template.assignee.value }}</span></td>
+                                            <td>{% if template.required %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                                            <td>{% if template.active %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %}</td>
+                                            <td class="text-end">
+                                                <a href="{{ url_for('people_bp.onboarding_template_edit', template_id=template.id) }}"
+                                                   class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-4">{{ _("No contractor tasks configured.") }}</p>
+                            {% endif %}
+
+                            <!-- Reset Button -->
+                            <div class="border-top pt-3 mt-3">
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#resetModal">
+                                    <i class="fas fa-undo me-1"></i>{{ _("Reset to Defaults") }}
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Offboarding Tab -->
+                <div class="tab-pane fade {% if active_tab == 'offboarding' %}show active{% endif %}"
+                     id="offboarding-content" role="tabpanel" aria-labelledby="offboarding-tab">
+
+                    <!-- Offboarding Task Templates Section -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>{{ _("Offboarding Task Templates") }}</h5>
+                            <a href="{{ url_for('people_bp.create_offboarding_task') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>{{ _("Add Task") }}
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-4">
+                                {{ _("Configure the checklist tasks that are automatically created when an employee is terminated. These tasks help ensure a consistent offboarding process.") }}
+                            </p>
+
+                            {% if offboarding_tasks %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 60px;">{{ _("Order") }}</th>
+                                            <th>{{ _("Task") }}</th>
+                                            <th class="person-col-80">{{ _("Active") }}</th>
+                                            <th class="person-col-100"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for task in offboarding_tasks %}
+                                        <tr class="{% if not task.is_active %}text-muted{% endif %}">
+                                            <td>{{ task.order }}</td>
+                                            <td>
+                                                <strong>{{ task.name }}</strong>
+                                                {% if task.description %}
+                                                <div class="text-muted small">{{ task.description }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>{% if task.is_active %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %}</td>
+                                            <td class="text-end">
+                                                <a href="{{ url_for('people_bp.update_offboarding_task', task_id=task.id) }}"
+                                                   class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-clipboard-list fa-2x mb-2 opacity-50"></i>
+                                <p class="mb-0">{{ _("No offboarding tasks configured. Add tasks to create a departure checklist.") }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Confirmation Modal -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _("Reset Templates") }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ _("Are you sure you want to reset all task templates to defaults?") }}</p>
+                <p class="text-danger small mb-0">{{ _("This will delete all custom templates and cannot be undone.") }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                <form action="{{ url_for('people_bp.onboarding_reset_templates') }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-danger">{{ _("Reset Templates") }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

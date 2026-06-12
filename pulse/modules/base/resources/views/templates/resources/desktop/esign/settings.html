@@ -1,0 +1,93 @@
+{% extends "resources/desktop/layout.html" %}
+{% block title %}{{ _("E-Sign Settings") }}{% endblock %}
+
+{% block module_content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('resources_esign_bp.index') }}">{{ _("E-Sign") }}</a></li>
+            <li class="breadcrumb-item active">{{ _("Settings") }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ _("E-Sign Settings") }}</h5>
+                </div>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="card-body">
+                        <!-- Enable/Disable -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="esign_enabled" name="esign_enabled"
+                                       {% if settings.esign_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="esign_enabled">
+                                    <strong>{{ _("Enable E-Sign") }}</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">{{ _("Allow documents to be sent for electronic signature.") }}</small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Company Name -->
+                        <div class="mb-3">
+                            <label for="esign_company_name" class="form-label">{{ _("Company Name on Certificates") }}</label>
+                            <input type="text" class="form-control" id="esign_company_name" name="esign_company_name"
+                                   value="{{ settings.esign_company_name or '' }}"
+                                   placeholder="{{ company_name or 'Your Company Name' }}">
+                            <small class="text-muted">{{ _("Leave blank to use company name from settings.") }}</small>
+                        </div>
+
+                        <!-- Default Expiry -->
+                        <div class="mb-3">
+                            <label for="esign_default_expiry_days" class="form-label">{{ _("Default Expiry (days)") }}</label>
+                            <input type="number" class="form-control" id="esign_default_expiry_days" name="esign_default_expiry_days"
+                                   value="{{ settings.esign_default_expiry_days or 30 }}" min="1" max="365" style="max-width: 120px;">
+                            <small class="text-muted">{{ _("How long signature requests remain valid before expiring.") }}</small>
+                        </div>
+
+                        <!-- Reminder Days -->
+                        <div class="mb-3">
+                            <label for="esign_reminder_days" class="form-label">{{ _("Send Reminders After (days)") }}</label>
+                            <input type="number" class="form-control" id="esign_reminder_days" name="esign_reminder_days"
+                                   value="{{ settings.esign_reminder_days or 3 }}" min="1" max="30" style="max-width: 120px;">
+                            <small class="text-muted">{{ _("Days before sending automatic reminder emails (future feature).") }}</small>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-save me-1"></i>{{ _("Save Settings") }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info Sidebar -->
+        <div class="col-lg-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle text-primary me-2"></i>{{ _("About E-Sign") }}</h6>
+                    <p class="small text-muted mb-2">
+                        {{ _("E-Sign allows you to send documents for legally binding electronic signatures.") }}
+                    </p>
+                    <p class="small text-muted mb-2">
+                        {{ _("Signatures are compliant with the ESIGN Act and UETA, capturing:") }}
+                    </p>
+                    <ul class="small text-muted mb-0">
+                        <li>{{ _("Intent to sign (checkbox confirmation)") }}</li>
+                        <li>{{ _("Signer identity (name, email, IP)") }}</li>
+                        <li>{{ _("Document integrity (SHA-256 hash)") }}</li>
+                        <li>{{ _("Complete audit trail") }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

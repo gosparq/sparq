@@ -1,0 +1,86 @@
+/* Settings layout — shared by workspace and organization settings pages */
+
+/* Sidebar nav links — neutral gray, no accent color */
+.settings-app .nav-link.active {
+    background: var(--color-gray-100);
+    color: var(--color-gray-900);
+    font-weight: 500;
+}
+
+.settings-app .nav-link:hover {
+    background: var(--color-gray-100);
+    color: var(--color-gray-900);
+}
+
+.settings-app .nav-link.active i,
+.settings-app .nav-link:hover i {
+    color: var(--color-gray-700);
+}
+
+/* Page header */
+.settings-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.settings-page-header h2 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+.settings-page-header h2 i {
+    color: var(--color-gray-500);
+    margin-right: 0.5rem;
+}
+
+.settings-page-header p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--color-gray-500);
+}
+
+/* Form sections */
+.settings-section {
+    margin-bottom: 2rem;
+}
+
+.settings-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+/* Vertical nav group labels */
+.settings-nav-group-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-400);
+    padding: 4px 2px 2px;
+}
+
+/* Coming soon placeholder */
+.settings-coming-soon {
+    background: var(--color-gray-50, #f8f9fa);
+    border: 1px dashed var(--color-gray-300);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--color-gray-500);
+}
+
+.settings-coming-soon i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}

@@ -1,0 +1,61 @@
+<!-- Settings Sidebar Navigation -->
+<nav class="settings-sidebar">
+    {% if current_user.is_admin %}
+    <div class="settings-nav-section">
+        <h6 class="settings-nav-header">{{ _("Application") }}</h6>
+        <ul class="settings-nav-list">
+            <li>
+                <a href="{{ url_for('core_bp.settings_company') }}"
+                   class="settings-nav-link {% if active_page == 'company' %}active{% endif %}">
+                    <i class="fas fa-cog"></i>
+                    {{ _("General") }}
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('core_bp.manage_permissions') }}"
+                   class="settings-nav-link {% if active_page == 'permissions' %}active{% endif %}">
+                    <i class="fas fa-users-cog"></i>
+                    {{ _("Permissions") }}
+                </a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="settings-nav-section">
+        <h6 class="settings-nav-header">{{ _("Account") }}</h6>
+        <ul class="settings-nav-list">
+            <li>
+                <a href="{{ url_for('core_bp.settings_preferences') }}"
+                   class="settings-nav-link {% if active_page == 'preferences' %}active{% endif %}">
+                    <i class="fas fa-sliders-h"></i>
+                    {{ _("Preferences") }}
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('core_bp.settings_security') }}"
+                   class="settings-nav-link {% if active_page == 'security' %}active{% endif %}">
+                    <i class="fas fa-shield-alt"></i>
+                    {{ _("Security") }}
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="settings-nav-section" style="margin-top: auto; border-top: 1px solid var(--color-gray-200); padding-top: 1rem;">
+        <ul class="settings-nav-list">
+            <li>
+                <a href="{{ url_for('core_bp.about') }}" class="settings-nav-link {% if active_page == 'about' %}active{% endif %}">
+                    <i class="fas fa-info-circle"></i>
+                    {{ _("About") }}
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('core_bp.logout') }}" class="settings-nav-link text-danger">
+                    <i class="fas fa-sign-out-alt"></i>
+                    {{ _("Logout") }}
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>

@@ -1,0 +1,960 @@
+/* =============================================================================
+   MSA — Multi-tenant System Admin
+   Light refined control panel
+   ============================================================================= */
+
+:root {
+    --msa-bg: #f4f4f5;
+    --msa-sidebar: #ffffff;
+    --msa-sidebar-border: #e4e4e7;
+    --msa-surface: #ffffff;
+    --msa-surface-hover: #f9f9fa;
+    --msa-border: #e4e4e7;
+    --msa-border-subtle: #f0f0f2;
+    --msa-text: #18181b;
+    --msa-text-secondary: #6b6b76;
+    --msa-text-dim: #a1a1aa;
+    --msa-accent: #10b981;
+    --msa-accent-dim: rgba(16, 185, 129, 0.08);
+    --msa-accent-text: #059669;
+    --msa-danger: #ef4444;
+    --msa-danger-dim: rgba(239, 68, 68, 0.06);
+    --msa-warning: #d97706;
+    --msa-warning-dim: rgba(245, 158, 11, 0.08);
+    --msa-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Segoe UI Mono', Menlo, monospace;
+    --msa-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --msa-sidebar-w: 232px;
+    --msa-radius: 8px;
+    --msa-radius-sm: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--msa-sans);
+    background: var(--msa-bg);
+    color: var(--msa-text);
+    font-size: 13.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Login ─────────────────────────────────────────────────────────── */
+
+.msa-login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--msa-bg);
+}
+
+.msa-login-card {
+    width: 100%;
+    max-width: 380px;
+    padding: 36px;
+    background: var(--msa-surface);
+    border: 1px solid var(--msa-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.03);
+}
+
+.msa-login-logo {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.msa-login-logo h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--msa-text);
+}
+
+.msa-login-logo h1 span {
+    color: var(--msa-accent-text);
+}
+
+.msa-login-logo p {
+    font-size: 12px;
+    color: var(--msa-text-dim);
+    margin-top: 4px;
+}
+
+.msa-input {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--msa-bg);
+    border: 1px solid var(--msa-border);
+    border-radius: var(--msa-radius-sm);
+    color: var(--msa-text);
+    font-size: 13.5px;
+    font-family: var(--msa-sans);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.msa-input:focus {
+    border-color: var(--msa-accent);
+    box-shadow: 0 0 0 2.5px var(--msa-accent-dim);
+}
+
+.msa-input::placeholder {
+    color: var(--msa-text-dim);
+}
+
+.msa-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--msa-sans);
+    border-radius: var(--msa-radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    line-height: 1.3;
+}
+
+.msa-btn-primary {
+    background: var(--msa-text);
+    color: #fff;
+    border-color: var(--msa-text);
+}
+
+.msa-btn-primary:hover {
+    background: #333;
+    border-color: #333;
+}
+
+.msa-btn-secondary {
+    background: var(--msa-surface);
+    color: var(--msa-text-secondary);
+    border-color: var(--msa-border);
+}
+
+.msa-btn-secondary:hover {
+    color: var(--msa-text);
+    border-color: var(--msa-text-dim);
+    background: var(--msa-surface-hover);
+}
+
+.msa-btn-danger {
+    background: var(--msa-surface);
+    color: var(--msa-danger);
+    border: 1px solid var(--msa-danger);
+}
+
+.msa-btn-danger:hover {
+    background: var(--msa-danger-dim);
+}
+
+.msa-btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.msa-btn-block { width: 100%; }
+
+.msa-form-group {
+    margin-bottom: 16px;
+}
+
+.msa-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--msa-text-secondary);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+}
+
+/* ── Layout Shell ──────────────────────────────────────────────────── */
+
+.msa-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+
+.msa-sidebar {
+    width: var(--msa-sidebar-w);
+    min-width: var(--msa-sidebar-w);
+    background: var(--msa-sidebar);
+    border-right: 1px solid var(--msa-sidebar-border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+}
+
+.msa-sidebar-brand {
+    padding: 20px 18px 16px;
+    border-bottom: 1px solid var(--msa-sidebar-border);
+}
+
+.msa-sidebar-brand h2 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--msa-text);
+    margin: 0;
+}
+
+.msa-sidebar-brand h2 span {
+    color: var(--msa-accent-text);
+}
+
+.msa-sidebar-brand p {
+    font-size: 11px;
+    color: var(--msa-text-dim);
+    margin: 3px 0 0;
+}
+
+.msa-nav {
+    flex: 1;
+    padding: 12px 10px;
+    overflow-y: auto;
+}
+
+.msa-nav-section {
+    margin-bottom: 20px;
+}
+
+.msa-nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--msa-text-dim);
+    padding: 0 8px;
+    margin-bottom: 6px;
+}
+
+.msa-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--msa-radius-sm);
+    color: var(--msa-text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 450;
+    transition: all 0.12s;
+    margin-bottom: 1px;
+}
+
+.msa-nav-item:hover {
+    color: var(--msa-text);
+    background: var(--msa-surface-hover);
+}
+
+.msa-nav-item.active {
+    color: var(--msa-accent-text);
+    background: var(--msa-accent-dim);
+    font-weight: 550;
+}
+
+.msa-nav-item i {
+    width: 18px;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.55;
+}
+
+.msa-nav-item.active i {
+    opacity: 1;
+}
+
+.msa-sidebar-footer {
+    padding: 12px 10px;
+    border-top: 1px solid var(--msa-sidebar-border);
+}
+
+.msa-sidebar-footer .msa-nav-item {
+    color: var(--msa-text-dim);
+}
+
+.msa-sidebar-footer .msa-nav-item:hover {
+    color: var(--msa-danger);
+    background: var(--msa-danger-dim);
+}
+
+/* ── Main Content ──────────────────────────────────────────────────── */
+
+.msa-main {
+    flex: 1;
+    margin-left: var(--msa-sidebar-w);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.msa-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--msa-border-subtle);
+    background: var(--msa-surface);
+    min-height: 52px;
+}
+
+.msa-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.msa-breadcrumb a {
+    color: var(--msa-text-dim);
+    text-decoration: none;
+}
+
+.msa-breadcrumb a:hover {
+    color: var(--msa-text-secondary);
+}
+
+.msa-breadcrumb .sep {
+    color: var(--msa-text-dim);
+    font-size: 10px;
+}
+
+.msa-breadcrumb .current {
+    color: var(--msa-text);
+    font-weight: 500;
+}
+
+.msa-content {
+    flex: 1;
+    padding: 28px 32px;
+}
+
+/* ── Flash Messages ────────────────────────────────────────────────── */
+
+.msa-flash {
+    padding: 10px 14px;
+    border-radius: var(--msa-radius-sm);
+    font-size: 13px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: msa-flash-in 0.25s ease;
+}
+
+@keyframes msa-flash-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.msa-flash-error {
+    background: var(--msa-danger-dim);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: var(--msa-danger);
+}
+
+.msa-flash-success {
+    background: var(--msa-accent-dim);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    color: var(--msa-accent-text);
+}
+
+.msa-flash-info {
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+}
+
+.msa-flash-warning {
+    background: var(--msa-warning-dim);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    color: var(--msa-warning);
+}
+
+.msa-field-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--msa-text-dim);
+}
+
+/* ── Email Config Page ────────────────────────────────────────────── */
+
+.msa-email-status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 18px;
+    background: var(--msa-surface);
+    border: 1px solid var(--msa-border);
+    border-radius: var(--msa-radius);
+    margin-bottom: 20px;
+}
+
+.msa-email-status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.msa-email-status-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--msa-text-dim);
+}
+
+.msa-email-status-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--msa-text);
+}
+
+.msa-email-status-mono {
+    font-family: var(--msa-mono);
+    font-size: 12px;
+}
+
+.msa-email-status-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--msa-border);
+}
+
+.msa-email-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: start;
+}
+
+.msa-email-providers {
+    position: sticky;
+    top: 20px;
+    background: var(--msa-surface);
+    border: 1px solid var(--msa-border);
+    border-radius: var(--msa-radius);
+    padding: 6px;
+}
+
+.msa-email-providers-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--msa-text-dim);
+    padding: 8px 10px 4px;
+}
+
+.msa-email-provider-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: var(--msa-radius-sm);
+    color: var(--msa-text-secondary);
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 450;
+    transition: all 0.12s;
+    margin-bottom: 1px;
+}
+
+.msa-email-provider-item:hover {
+    color: var(--msa-text);
+    background: var(--msa-surface-hover);
+}
+
+.msa-email-provider-item.active {
+    color: var(--msa-accent-text);
+    background: var(--msa-accent-dim);
+    font-weight: 550;
+}
+
+.msa-email-provider-item i {
+    width: 16px;
+    text-align: center;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+.msa-email-provider-item.active i {
+    opacity: 1;
+}
+
+.msa-email-steps {
+    background: rgba(59, 130, 246, 0.04);
+    border: 1px solid rgba(59, 130, 246, 0.1);
+    border-radius: var(--msa-radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 18px;
+}
+
+.msa-email-step {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--msa-text-secondary);
+    line-height: 1.5;
+}
+
+.msa-email-step + .msa-email-step {
+    margin-top: 8px;
+}
+
+.msa-email-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.msa-email-server-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--msa-bg);
+    border-radius: var(--msa-radius-sm);
+    font-family: var(--msa-mono);
+    font-size: 12px;
+    color: var(--msa-text-secondary);
+    margin-top: 4px;
+}
+
+.msa-email-server-info i {
+    opacity: 0.35;
+    font-size: 11px;
+}
+
+.msa-email-divider {
+    height: 1px;
+    background: var(--msa-border-subtle);
+    margin: 4px 0 16px;
+}
+
+.msa-email-test-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.msa-email-test-sep {
+    width: 1px;
+    height: 28px;
+    background: var(--msa-border);
+    margin: 0 4px;
+}
+
+.msa-email-test-input {
+    flex: 1;
+    min-width: 180px;
+    max-width: 260px;
+}
+
+.msa-email-test-result {
+    margin-top: 12px;
+}
+
+.msa-email-active-badge {
+    margin-left: auto;
+    font-size: 10px;
+}
+
+.msa-email-header-icon {
+    opacity: 0.35;
+    margin-right: 4px;
+}
+
+.msa-email-provider-note {
+    margin-bottom: 16px;
+    font-size: 12.5px;
+}
+
+.msa-email-code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.msa-email-password-wrap {
+    position: relative;
+}
+
+.msa-email-password-input {
+    padding-right: 36px;
+}
+
+.msa-email-password-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--msa-text-dim);
+    font-size: 13px;
+}
+
+.msa-email-custom-row {
+    display: flex;
+    gap: 12px;
+}
+
+.msa-email-port-field {
+    flex: 1;
+    max-width: 120px;
+}
+
+.msa-email-tls-field {
+    flex: 1;
+}
+
+.msa-email-tls-toggle {
+    margin-top: 6px;
+}
+
+.msa-email-tls-label {
+    margin-left: 4px;
+    font-size: 12px;
+    color: var(--msa-text-secondary);
+}
+
+.msa-email-tls-badge {
+    font-size: 9px;
+    padding: 1px 6px;
+}
+
+.msa-email-form-actions {
+    margin-top: 20px;
+}
+
+.msa-field-hint-icon {
+    font-size: 9px;
+}
+
+/* ── Stats Cards ───────────────────────────────────────────────────── */
+
+.msa-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.msa-stat-card {
+    background: var(--msa-surface);
+    border: 1px solid var(--msa-border);
+    border-radius: var(--msa-radius);
+    padding: 20px;
+}
+
+.msa-stat-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--msa-text-dim);
+    margin-bottom: 8px;
+}
+
+.msa-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--msa-text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.msa-stat-value.accent { color: var(--msa-accent-text); }
+.msa-stat-value.warning { color: var(--msa-warning); }
+
+/* ── Cards / Panels ────────────────────────────────────────────────── */
+
+.msa-card {
+    background: var(--msa-surface);
+    border: 1px solid var(--msa-border);
+    border-radius: var(--msa-radius);
+    margin-bottom: 20px;
+}
+
+.msa-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--msa-border);
+}
+
+.msa-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--msa-text);
+}
+
+.msa-card-body {
+    padding: 18px;
+}
+
+/* ── Table ─────────────────────────────────────────────────────────── */
+
+.msa-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.msa-table th {
+    text-align: left;
+    padding: 10px 18px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--msa-text-dim);
+    border-bottom: 1px solid var(--msa-border);
+    background: var(--msa-surface-hover);
+}
+
+.msa-table td {
+    padding: 11px 18px;
+    font-size: 13.5px;
+    border-bottom: 1px solid var(--msa-border-subtle);
+    vertical-align: middle;
+}
+
+.msa-table tr:last-child td {
+    border-bottom: none;
+}
+
+.msa-table tr:hover td {
+    background: var(--msa-surface-hover);
+}
+
+.msa-table .mono {
+    font-family: var(--msa-mono);
+    font-size: 12.5px;
+}
+
+.msa-table .dim {
+    color: var(--msa-text-dim);
+    font-size: 12.5px;
+}
+
+.msa-table a {
+    color: var(--msa-text);
+    text-decoration: none;
+}
+
+.msa-table a:hover {
+    color: var(--msa-accent-text);
+}
+
+.msa-table .row-link {
+    cursor: pointer;
+}
+
+/* ── Badges ────────────────────────────────────────────────────────── */
+
+.msa-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 550;
+    letter-spacing: 0.01em;
+}
+
+.msa-badge-active {
+    background: var(--msa-accent-dim);
+    color: var(--msa-accent-text);
+}
+
+.msa-badge-inactive {
+    background: var(--msa-danger-dim);
+    color: var(--msa-danger);
+}
+
+.msa-badge-plan {
+    background: var(--msa-bg);
+    color: var(--msa-text-secondary);
+    border: 1px solid var(--msa-border);
+}
+
+/* ── Detail Page ───────────────────────────────────────────────────── */
+
+.msa-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}
+
+.msa-detail-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--msa-text);
+    margin-bottom: 4px;
+}
+
+.msa-detail-slug {
+    font-family: var(--msa-mono);
+    font-size: 13px;
+    color: var(--msa-text-dim);
+}
+
+.msa-detail-slug a {
+    color: var(--msa-accent-text);
+    text-decoration: none;
+}
+
+.msa-detail-slug a:hover {
+    text-decoration: underline;
+}
+
+.msa-detail-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.msa-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.msa-field {
+    margin-bottom: 14px;
+}
+
+.msa-field-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--msa-text-dim);
+    margin-bottom: 4px;
+}
+
+.msa-field-value {
+    font-size: 14px;
+    color: var(--msa-text);
+}
+
+/* ── Create Form Row ───────────────────────────────────────────────── */
+
+.msa-create-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.msa-create-row .msa-form-group {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+/* ── Toggle ────────────────────────────────────────────────────────── */
+
+.msa-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--msa-text-secondary);
+}
+
+.msa-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.msa-toggle-track {
+    width: 36px;
+    height: 20px;
+    background: var(--msa-border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.msa-toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.msa-toggle input:checked ~ .msa-toggle-track {
+    background: var(--msa-accent);
+}
+
+.msa-toggle input:checked ~ .msa-toggle-track::after {
+    left: 18px;
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
+
+.msa-text-dim { color: var(--msa-text-dim); }
+.msa-text-secondary { color: var(--msa-text-secondary); }
+.msa-text-accent { color: var(--msa-accent-text); }
+.msa-text-danger { color: var(--msa-danger); }
+.msa-mb-20 { margin-bottom: 20px; }
+
+/* ── Empty State ───────────────────────────────────────────────────── */
+
+.msa-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--msa-text-dim);
+}
+
+.msa-empty i {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+    display: block;
+}
+
+/* ── Login flash ───────────────────────────────────────────────────── */
+
+.msa-login-flash {
+    margin-bottom: 16px;
+}

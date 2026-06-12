@@ -1,0 +1,111 @@
+{% extends "presence/mobile/layout.html" %}
+
+{% block title %}{{ _("My Timesheets") }} - {{ _("Week") }}{% endblock %}
+
+{% block module_content %}
+<!-- Week Navigation -->
+<div class="date-nav">
+    {% set prev_week = (week_start - timedelta(days=7)) %}
+    {% set next_week = (week_start + timedelta(days=7)) %}
+
+    <a href="{{ url_for('presence_bp.week_view', date_str=prev_week.isoformat()) }}" class="date-nav-btn">
+        <i class="fas fa-chevron-left"></i>
+    </a>
+
+    <div class="date-nav-center">
+        <div class="date-nav-date">
+            {{ week_start|format_date("compact") }} - {{ week_end|format_date("compact") }}
+        </div>
+        {% if today < week_start or today > week_end %}
+        <a href="{{ url_for('presence_bp.week_view') }}" class="date-nav-label text-primary">{{ _("Go to this week") }}</a>
+        {% endif %}
+    </div>
+
+    <a href="{{ url_for('presence_bp.week_view', date_str=next_week.isoformat()) }}" class="date-nav-btn">
+        <i class="fas fa-chevron-right"></i>
+    </a>
+</div>
+
+<!-- Day/Week Toggle -->
+<div class="date-nav-toggle">
+    <a href="{{ url_for('presence_bp.day_view') }}">{{ _("Day") }}</a>
+    <a href="{{ url_for('presence_bp.week_view', date_str=week_start.isoformat()) }}" class="active">{{ _("Week") }}</a>
+</div>
+
+<!-- Weekly Summary -->
+<div class="summary-card">
+    <span class="summary-card-value">{{ "%.2f"|format(week_total) }}</span>
+    <span class="summary-card-label">{{ _("hours this week") }}</span>
+</div>
+
+<!-- Day Rows -->
+<div class="mobile-card">
+    {% for i in range(7) %}
+        {% set day = week_start + timedelta(days=i) %}
+        {% set date_key = day.isoformat() %}
+        {% set day_hours = daily_totals.get(date_key, 0) %}
+        <a href="{{ url_for('presence_bp.day_view', date_str=day.isoformat()) }}"
+           class="week-day-row{% if day == today %} is-today{% endif %}{% if day_hours == 0 %} zero-hours{% endif %}">
+            <div>
+                <div class="week-day-name">{{ day|format_day_name("full") }}</div>
+                <div class="week-day-date">{{ day|format_date("compact") }}</div>
+            </div>
+            <div class="week-day-hours">{{ "%.2f"|format(day_hours) }}</div>
+        </a>
+    {% endfor %}
+</div>
+
+<style nonce="{{ csp_nonce }}">
+    .week-day-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.15s;
+    }
+
+    .week-day-row:last-child {
+        border-bottom: none;
+    }
+
+    .week-day-row:active {
+        background: var(--color-gray-100);
+    }
+
+    .week-day-row.is-today {
+        background: var(--color-gray-100);
+    }
+
+    .week-day-row.zero-hours {
+        opacity: 0.5;
+    }
+
+    .week-day-row.is-today.zero-hours {
+        opacity: 0.7;
+    }
+
+    .week-day-name {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+    }
+
+    .week-day-date {
+        font-size: 0.75rem;
+        color: var(--color-gray-500);
+    }
+
+    .week-day-hours {
+        font-weight: 700;
+        font-size: 1.125rem;
+        color: var(--color-gray-800);
+    }
+
+    .week-day-row.zero-hours .week-day-hours {
+        font-weight: 400;
+    }
+</style>
+{% endblock %}

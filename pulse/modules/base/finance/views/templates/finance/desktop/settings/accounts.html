@@ -1,0 +1,146 @@
+{% extends "finance/desktop/layout.html" %}
+
+{% block title %}{{ _("Chart of Accounts") }}{% endblock %}
+
+{% block module_content %}
+<div class="content-card">
+    <div class="mb-3">
+        <a href="{{ url_for('finance_bp.settings') }}" class="btn btn-link text-muted ps-0">
+            <i class="fas fa-arrow-left me-1"></i> {{ _("Back to Settings") }}
+        </a>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ _("Chart of Accounts") }}</h2>
+            <p class="text-muted mb-0">{{ _("Manage expense categories and account codes") }}</p>
+        </div>
+        <a href="{{ url_for('finance_bp.account_new') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i> {{ _("Add Account") }}
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 100px;">{{ _("Code") }}</th>
+                    <th>{{ _("Name") }}</th>
+                    <th>{{ _("Type") }}</th>
+                    <th class="text-center">{{ _("Entries") }}</th>
+                    <th class="text-center">{{ _("Status") }}</th>
+                    <th class="text-end">{{ _("Actions") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in accounts %}
+                <tr class="{% if account.parent_id %}ps-4{% endif %}">
+                    <td>
+                        <code class="{% if not account.is_active %}text-muted{% endif %}">
+                            {{ account.code }}
+                        </code>
+                    </td>
+                    <td class="{% if not account.is_active %}text-muted{% endif %}">
+                        {% if account.parent_id %}
+                        <span class="text-muted">└─</span>
+                        {% endif %}
+                        {{ account.name }}
+                        {% if account.description %}
+                        <small class="d-block text-muted">{{ account.description[:50] }}{% if account.description|length > 50 %}...{% endif %}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge
+                            {% if account.account_type.value == 'Asset' %}bg-primary
+                            {% elif account.account_type.value == 'Liability' %}bg-warning text-dark
+                            {% elif account.account_type.value == 'Equity' %}bg-info
+                            {% elif account.account_type.value == 'Revenue' %}bg-success
+                            {% elif account.account_type.value == 'Expense' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ account.account_type.value }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        {% set entry_count = account.ledger_entries|length %}
+                        {% if entry_count > 0 %}
+                        <span class="badge bg-secondary">{{ entry_count }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if account.is_active %}
+                        <span class="badge bg-success">{{ _("Active") }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ _("Inactive") }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{{ url_for('finance_bp.account_edit', account_id=account.id) }}"
+                           class="btn btn-sm btn-primary" title="{{ _('Edit') }}">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal" data-bs-target="#deleteModal{{ account.id }}"
+                                title="{{ _('Delete') }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- Delete Modal for each account -->
+                <div class="modal fade" id="deleteModal{{ account.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form action="{{ url_for('finance_bp.account_delete', account_id=account.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{{ _("Delete Account") }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>{{ _("Are you sure you want to delete") }} <strong>{{ account.code }} - {{ account.name }}</strong>?</p>
+
+                                    {% set entry_count = account.ledger_entries|length %}
+                                    {% if entry_count > 0 %}
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        {{ _("This account has") }} <strong>{{ entry_count }}</strong> {{ _("ledger entries.") }}
+                                        {{ _("Select an account to move them to:") }}
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ _("Move entries to") }} <span class="text-danger">*</span></label>
+                                        <select name="target_account_id" class="form-select" required>
+                                            <option value="">{{ _("Select account...") }}</option>
+                                            {% for other in accounts if other.id != account.id and other.account_type == account.account_type %}
+                                            <option value="{{ other.id }}">{{ other.code }} - {{ other.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">{{ _("Cancel") }}</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash me-1"></i> {{ _("Delete") }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if not accounts %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="fas fa-folder-open fa-2x mb-2 opacity-25"></i>
+                        <p class="mb-0">{{ _("No accounts defined") }}</p>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

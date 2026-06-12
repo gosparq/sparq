@@ -1,0 +1,133 @@
+<div class="step-header mb-4">
+    {% if current_task.task_key == 'offer_letter' %}
+    <h4><i class="fas fa-file-signature me-2"></i>{{ _("Sign Offer Letter") }}</h4>
+    <p class="text-muted">{{ _("Please review and sign your offer letter to proceed.") }}</p>
+    {% else %}
+    <h4><i class="fas fa-file-signature me-2"></i>{{ _("Sign Employment Agreement") }}</h4>
+    <p class="text-muted">{{ _("Please review and sign your employment agreement.") }}</p>
+    {% endif %}
+</div>
+
+{% if current_task.task_key == 'offer_letter' and record.offer_letter_request %}
+    {% set sig_request = record.offer_letter_request %}
+{% elif current_task.task_key == 'contract' and record.contract_request %}
+    {% set sig_request = record.contract_request %}
+{% else %}
+    {% set sig_request = None %}
+{% endif %}
+
+{% if sig_request %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+            <div class="flex-grow-1">
+                <h6 class="mb-1">{{ sig_request.document_name or 'Document' }}</h6>
+                <span class="text-muted small">{{ _("Sent for signature") }}</span>
+            </div>
+            {% if sig_request.status == 'completed' %}
+            <span class="badge bg-success"><i class="fas fa-check me-1"></i>{{ _("Signed") }}</span>
+            {% elif sig_request.status == 'pending' %}
+            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>{{ _("Awaiting Signature") }}</span>
+            {% endif %}
+        </div>
+
+        {% if sig_request.status != 'completed' %}
+        <p class="text-muted small mb-3">
+            {{ _("Click the button below to review and sign the document. You will be redirected to our secure signing page.") }}
+        </p>
+        <a href="{{ url_for('resources_sign_bp.sign_document', token=sig_request.recipients[0].token) }}"
+           class="btn btn-sm btn-primary" target="_blank">
+            <i class="fas fa-signature me-2"></i>{{ _("Review & Sign Document") }}
+            <i class="fas fa-external-link-alt ms-1 small"></i>
+        </a>
+        {% else %}
+        <div class="alert alert-success mb-0">
+            <i class="fas fa-check-circle me-2"></i>
+            {{ _("This document has been signed.") }}
+            {% if sig_request.recipients[0].signed_at %}
+            <span class="ms-2 text-muted small">
+                {{ sig_request.recipients[0].signed_at|format_datetime('%b %d, %Y at %I:%M %p') }}
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if sig_request.status == 'completed' %}
+<div class="d-flex justify-content-end">
+    <button type="button" class="btn btn-sm btn-primary" data-action="mark-document-complete">
+        <i class="fas fa-arrow-right me-2"></i>{{ _("Continue") }}
+    </button>
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    {% if current_task.task_key == 'offer_letter' %}
+    {{ _("No offer letter has been uploaded for signing yet. Please contact your administrator.") }}
+    {% else %}
+    {{ _("No contract has been uploaded for signing yet. Please contact your administrator.") }}
+    {% endif %}
+</div>
+
+{% if not current_task.required %}
+<div class="d-flex justify-content-end">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="skip-task" data-task-key="{{ current_task.task_key }}">
+        <i class="fas fa-forward me-2"></i>{{ _("Skip for Now") }}
+    </button>
+</div>
+{% endif %}
+{% endif %}
+
+<script nonce="{{ csp_nonce }}">
+function markDocumentComplete() {
+    const formData = new FormData();
+    formData.append('task_key', '{{ current_task.task_key }}');
+
+    fetch('{{ url_for("people_bp.onboarding_save_step") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateProgress(data.progress);
+            window.location.reload();
+        } else {
+            alert(data.error || 'Error. Please try again.');
+        }
+    });
+}
+
+// Check if document was just signed (e.g., user returns from signing page)
+{% if sig_request and sig_request.status == 'pending' %}
+function checkSignatureStatus() {
+    fetch('{{ url_for("people_bp.onboarding_check_signature", task_key=current_task.task_key) }}')
+    .then(response => response.json())
+    .then(data => {
+        if (data.complete) {
+            clearInterval(checkInterval);
+            window.location.reload();
+        }
+    });
+}
+
+// Poll every 5 seconds
+let checkInterval = setInterval(checkSignatureStatus, 5000);
+
+// Immediate check when tab regains focus (e.g., signing tab closed)
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) { checkSignatureStatus(); }
+});
+{% endif %}
+
+// Event delegation for document actions
+document.addEventListener('click', function(e) {
+    var el = e.target.closest('[data-action="mark-document-complete"]');
+    if (el) { markDocumentComplete(); }
+    var skip = e.target.closest('[data-action="skip-task"]');
+    if (skip) { skipTask(skip.dataset.taskKey); }
+});
+</script>
