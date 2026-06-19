@@ -35,11 +35,22 @@ blueprint = Blueprint(
     static_folder="../views/assets",
 )
 
-MSA_USER = os.environ.get("MSA_USER")
-MSA_PASS = os.environ.get("MSA_PASS")
-MSA_ENABLED = bool(MSA_USER and MSA_PASS)
-
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9-]{1,49}$")
+
+
+def _msa_credentials() -> tuple[str | None, str | None]:
+    """Return the configured MSA admin credentials from the environment.
+
+    Read at request time (not import time) so the value reflects the current
+    environment, which keeps the routes testable and correct after env changes.
+    """
+    return os.environ.get("MSA_USER"), os.environ.get("MSA_PASS")
+
+
+def _msa_enabled() -> bool:
+    """Whether MSA is enabled (both MSA_USER and MSA_PASS are set)."""
+    user, password = _msa_credentials()
+    return bool(user and password)
 
 
 def msa_required(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -47,7 +58,7 @@ def msa_required(f: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(f)
     def decorated(*args: Any, **kwargs: Any) -> ResponseReturnValue:
-        if not MSA_ENABLED:
+        if not _msa_enabled():
             return _("MSA is disabled. Set MSA_USER and MSA_PASS to enable."), 404
         if not session.get("msa_authenticated"):
             return redirect(url_for("msa_bp.login"))
@@ -62,7 +73,8 @@ def msa_required(f: Callable[..., Any]) -> Callable[..., Any]:
 @blueprint.route("/login", methods=["GET", "POST"])
 @rate_limit(limit=5, window=300)
 def login() -> ResponseReturnValue:
-    if not MSA_ENABLED:
+    msa_user, msa_pass = _msa_credentials()
+    if not (msa_user and msa_pass):
         return _("MSA is disabled. Set MSA_USER and MSA_PASS to enable."), 404
 
     if session.get("msa_authenticated"):
@@ -71,7 +83,7 @@ def login() -> ResponseReturnValue:
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        if secrets.compare_digest(username, MSA_USER) and secrets.compare_digest(password, MSA_PASS):
+        if secrets.compare_digest(username, msa_user) and secrets.compare_digest(password, msa_pass):
             session["msa_authenticated"] = True
             return redirect(url_for("msa_bp.dashboard"))
         flash(_("Invalid credentials."), "error")
