@@ -11,6 +11,7 @@ for both traditional SMTP servers and API-based services like sparQ Mail.
 Classes:
     EmailService: SMTP-based email service.
     SparqMailService: API-based email service for sparQ Mail.
+    GatewayEmailService: Bootstrap transport via the sparQ email gateway.
 
 Functions:
     send_email: Send an email synchronously (blocks until sent).
@@ -46,6 +47,7 @@ import base64
 import logging
 import os
 import smtplib
+from typing import Any
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -87,7 +89,7 @@ class SparqMailService:
         import requests
 
         try:
-            payload = {
+            payload: dict[str, Any] = {
                 "to": to,
                 "subject": subject,
                 "body": html_body,
@@ -215,6 +217,99 @@ class EmailService:
             return False
 
 
+class GatewayEmailService:
+    """Email service using the sparQ email gateway (bypass-token auth).
+
+    The gateway is a bootstrap transport used when no SMTP / sparQ Mail
+    provider is configured yet — for example on fresh installs, signup
+    confirmation, admin/error notices, and passwordless login links. It posts
+    to ``{gateway_url}/send`` and authenticates with the bypass token rather
+    than per-workspace credentials.
+
+    Configure via environment variables:
+        SPARQ_GATEWAY_URL: Base URL of the gateway (e.g. https://mail.example.com).
+        SPARQ_GATEWAY_BYPASS_TOKEN: Bearer token matching the gateway's AUTH_BYPASS.
+        SPARQ_GATEWAY_SITE_ID: Optional site identifier (defaults to "sparq").
+        SPARQ_GATEWAY_FROM_NAME: Optional sender display name (defaults to "sparQ").
+    """
+
+    def __init__(self, gateway_url: str, bypass_token: str) -> None:
+        self.gateway_url = gateway_url.rstrip("/")
+        self.bypass_token = bypass_token
+        self.site_id = os.environ.get("SPARQ_GATEWAY_SITE_ID", "sparq")
+        self.from_name = os.environ.get("SPARQ_GATEWAY_FROM_NAME", "sparQ")
+
+    def send(
+        self,
+        to: str,
+        subject: str,
+        html_body: str,
+        text_body: str | None = None,
+        attachments: list[dict] | None = None,
+    ) -> bool:
+        """Send an email through the gateway.
+
+        Args:
+            to: Recipient email address.
+            subject: Email subject.
+            html_body: HTML content.
+            text_body: Plain text content (optional, sent alongside HTML).
+            attachments: List of attachment dicts with keys filename, content
+                (base64), and content_type.
+
+        Returns:
+            True if the gateway accepted the message, False otherwise.
+        """
+        import requests
+
+        payload: dict[str, Any] = {
+            "to": to,
+            "subject": subject,
+            "body": html_body,
+            "from_name": self.from_name,
+            "site_id": self.site_id,
+        }
+        if text_body:
+            payload["text_body"] = text_body
+        if attachments:
+            payload["attachments"] = attachments
+
+        try:
+            response = requests.post(
+                f"{self.gateway_url}/send",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.bypass_token}",
+                },
+                json=payload,
+                timeout=30,
+            )
+            if response.status_code in (200, 202):
+                logger.info(f"[GATEWAY] Email sent successfully to {to}")
+                return True
+            logger.error(f"[GATEWAY] API returned status {response.status_code}: {response.text[:500]}")
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[GATEWAY] Request failed: {e}")
+            return False
+
+
+def _gateway_config() -> tuple[str, str] | None:
+    """Return ``(gateway_url, bypass_token)`` if the email gateway is configured.
+
+    The gateway acts as a fallback transport when no SMTP / sparQ Mail provider
+    is configured. Both the URL and bypass token must be present.
+
+    Returns:
+        A ``(url, token)`` tuple when configured, otherwise None.
+    """
+    url = os.environ.get("SPARQ_GATEWAY_URL", "").strip()
+    token = os.environ.get("SPARQ_GATEWAY_BYPASS_TOKEN", "").strip()
+    if url and token:
+        return url, token
+    return None
+
+
 def send_email(
     to: str,
     subject: str,
@@ -240,18 +335,24 @@ def send_email(
     """
     logger.info(f"[EMAIL] Preparing to send email to: {to}, subject: {subject[:50]}...")
 
+    service: SparqMailService | EmailService | GatewayEmailService
     config = EmailConfig.from_env_and_settings()
-    if not config:
-        logger.warning("[EMAIL] Email not configured - skipping send")
-        return False
-
-    # Use appropriate service based on provider
-    if config.provider == "sparqmail":
-        logger.info(f"[EMAIL] Using sparQ Mail API, from: {config.from_email}")
-        service: SparqMailService | EmailService = SparqMailService(config)
+    if config:
+        # A real provider is configured — prefer it over the gateway.
+        if config.provider == "sparqmail":
+            logger.info(f"[EMAIL] Using sparQ Mail API, from: {config.from_email}")
+            service = SparqMailService(config)
+        else:
+            logger.info(f"[EMAIL] Config loaded - host: {config.host}, from: {config.from_email}")
+            service = EmailService(config)
     else:
-        logger.info(f"[EMAIL] Config loaded - host: {config.host}, from: {config.from_email}")
-        service = EmailService(config)
+        # No provider configured — fall back to the email gateway if available.
+        gateway = _gateway_config()
+        if not gateway:
+            logger.warning("[EMAIL] Email not configured - skipping send")
+            return False
+        logger.info("[EMAIL] No provider configured - using email gateway")
+        service = GatewayEmailService(*gateway)
 
     result = service.send(to, subject, html_body, text_body, attachments)
 
@@ -264,8 +365,14 @@ def send_email(
 
 
 def is_configured() -> bool:
-    """Check if email is properly configured."""
-    return EmailConfig.from_env_and_settings() is not None
+    """Check if email can be sent.
+
+    True when either a real provider (SMTP / sparQ Mail) is configured or the
+    email gateway is available as a fallback.
+    """
+    if EmailConfig.from_env_and_settings() is not None:
+        return True
+    return _gateway_config() is not None
 
 
 def send_email_async(
@@ -297,12 +404,12 @@ def send_email_async(
 
 
 def send_gateway_email(to: str, subject: str, html_body: str) -> bool:
-    """Send an email via the sparQ email gateway using the bypass token.
+    """Send a bootstrap email (signup confirmation, admin/error notices).
 
-    Used for pre-configuration emails (e.g. signup confirmation) where the
-    instance may not have email settings configured yet.
-
-    Falls back to the standard send_email() if no gateway bypass token is set.
+    Retained for existing call sites. Delegates to send_email(), which prefers
+    a configured provider (SMTP / sparQ Mail) and transparently falls back to
+    the email gateway when none is configured — so these emails still send on a
+    fresh install that only has the gateway available.
 
     Args:
         to: Recipient email address.
@@ -312,48 +419,7 @@ def send_gateway_email(to: str, subject: str, html_body: str) -> bool:
     Returns:
         True if sent successfully, False otherwise.
     """
-    import requests
-
-    gateway_url = os.environ.get("SPARQ_GATEWAY_URL", "")
-    bypass_token = os.environ.get("SPARQ_GATEWAY_BYPASS_TOKEN", "")
-
-    if not bypass_token:
-        # No gateway token — try the configured email provider instead.
-        # is_configured() requires a workspace context which may not exist
-        # during signup, so guard against that.
-        try:
-            if is_configured():
-                return send_email(to, subject, html_body)
-        except RuntimeError:
-            pass  # No workspace context — expected during signup
-        logger.warning("[GATEWAY] No bypass token and email not configured — cannot send")
-        return False
-
-    try:
-        response = requests.post(
-            f"{gateway_url}/send",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {bypass_token}",
-            },
-            json={
-                "to": to,
-                "subject": subject,
-                "body": html_body,
-                "from_name": "sparQ",
-                "site_id": "sparq-signup",
-            },
-            timeout=30,
-        )
-        if response.status_code in (200, 202):
-            logger.info(f"[GATEWAY] Confirmation email sent to {to}")
-            return True
-        else:
-            logger.error(f"[GATEWAY] API returned status {response.status_code}: {response.text}")
-            return False
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[GATEWAY] Request failed: {e}")
-        return False
+    return send_email(to, subject, html_body)
 
 
 def test_connection() -> tuple[bool, str]:
