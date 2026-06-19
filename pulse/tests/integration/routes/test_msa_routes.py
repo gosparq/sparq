@@ -2,6 +2,18 @@
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _enable_msa(monkeypatch):
+    """Enable MSA for every test in this module.
+
+    The routes read MSA_USER / MSA_PASS at request time, so setting them here
+    makes these tests independent of the ambient environment (e.g. a developer's
+    local .env vs. CI, which has neither). monkeypatch restores them afterward.
+    """
+    monkeypatch.setenv("MSA_USER", "msa-admin")
+    monkeypatch.setenv("MSA_PASS", "msa-secret-pass")
+
+
 @pytest.mark.integration
 class TestMsaRoutes:
     """Smoke tests for MSA routes."""
@@ -151,3 +163,23 @@ class TestMsaEmailRoutes:
             resp = client.post("/msa/email/send-test", data={"test_email": "notanemail"})
             assert resp.status_code == 200
             assert b"valid email" in resp.data.lower()
+
+
+@pytest.mark.integration
+class TestMsaDisabled:
+    """MSA routes are disabled (404) when MSA_USER / MSA_PASS are not set."""
+
+    def test_index_returns_404_when_disabled(self, app_with_sample_data, monkeypatch):
+        # Override the module-level enable fixture: simulate CI / no credentials.
+        monkeypatch.delenv("MSA_USER", raising=False)
+        monkeypatch.delenv("MSA_PASS", raising=False)
+        with app_with_sample_data.app_context():
+            resp = app_with_sample_data.test_client().get("/msa/")
+            assert resp.status_code == 404
+
+    def test_login_returns_404_when_disabled(self, app_with_sample_data, monkeypatch):
+        monkeypatch.delenv("MSA_USER", raising=False)
+        monkeypatch.delenv("MSA_PASS", raising=False)
+        with app_with_sample_data.app_context():
+            resp = app_with_sample_data.test_client().get("/msa/login")
+            assert resp.status_code == 404
