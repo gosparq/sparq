@@ -33,6 +33,19 @@ logger = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def _email_configured() -> bool:
+    """Return True when email sending is available.
+
+    When email is configured, invited users don't set a password at accept
+    time — they log in via magic link. Mirrors the signup flow's gating.
+    """
+    try:
+        from system.email.service import is_configured
+        return is_configured()
+    except RuntimeError:
+        return False
+
+
 # -----------------------------------------------------------------------------
 # Admin: Send Invite
 # -----------------------------------------------------------------------------
@@ -272,6 +285,7 @@ def accept_invite(token: str) -> ResponseReturnValue:
             invite=invite,
             new_user=existing_user is None,
             target_workspace_ids=target_workspace_ids,
+            email_configured=_email_configured(),
         )
 
     # POST — process the form
@@ -293,6 +307,8 @@ def _accept_new_user(
     """
     from system.auth.password_policy import validate_password
 
+    email_configured = _email_configured()
+
     first_name = (request.form.get("first_name") or "").strip()
     last_name = (request.form.get("last_name") or "").strip()
     password = request.form.get("password") or ""
@@ -307,29 +323,38 @@ def _accept_new_user(
             invite=invite,
             new_user=True,
             target_workspace_ids=target_workspace_ids,
+            email_configured=email_configured,
         )
 
-    if password != confirm_password:
-        flash(_("Passwords do not match."), "error")
-        return render_device_template(
-            "people/desktop/invite/accept.html",
-            token=invite.token,
-            invite=invite,
-            new_user=True,
-            target_workspace_ids=target_workspace_ids,
-        )
+    # Password is only collected when email isn't configured. With email set up
+    # the invitee logs in via magic link, so skip all password validation.
+    if not email_configured:
+        if password != confirm_password:
+            flash(_("Passwords do not match."), "error")
+            return render_device_template(
+                "people/desktop/invite/accept.html",
+                token=invite.token,
+                invite=invite,
+                new_user=True,
+                target_workspace_ids=target_workspace_ids,
+                email_configured=email_configured,
+            )
 
-    # Validate password strength
-    violations = validate_password(password)
-    if violations:
-        flash(violations[0], "error")
-        return render_device_template(
-            "people/desktop/invite/accept.html",
-            token=invite.token,
-            invite=invite,
-            new_user=True,
-            target_workspace_ids=target_workspace_ids,
-        )
+        # Validate password strength
+        violations = validate_password(password)
+        if violations:
+            flash(violations[0], "error")
+            return render_device_template(
+                "people/desktop/invite/accept.html",
+                token=invite.token,
+                invite=invite,
+                new_user=True,
+                target_workspace_ids=target_workspace_ids,
+                email_configured=email_configured,
+            )
+    else:
+        # Ignore any password posted when email is configured.
+        password = ""
 
     try:
         user = _provision_invitee(
@@ -337,7 +362,7 @@ def _accept_new_user(
             target_workspace_ids,
             first_name=first_name,
             last_name=last_name,
-            password=password,
+            password=password or None,
         )
         invite.mark_accepted()
         login_user(user)
@@ -357,6 +382,7 @@ def _accept_new_user(
             invite=invite,
             new_user=True,
             target_workspace_ids=target_workspace_ids,
+            email_configured=email_configured,
         )
 
 
@@ -418,7 +444,7 @@ def _provision_invitee(
         The User account that now holds the memberships.
 
     Raises:
-        ValueError: If creating a new user without first_name/last_name/password.
+        ValueError: If creating a new user without first_name/last_name.
     """
     from flask import g as flask_g
     from modules.base.core.models.organization_user import OrganizationUser
@@ -440,12 +466,15 @@ def _provision_invitee(
     if existing_user is not None:
         user = existing_user
     else:
-        if not first_name or not last_name or not password:
+        if not first_name or not last_name:
             raise ValueError(
-                "first_name, last_name, and password are required for new users"
+                "first_name and last_name are required for new users"
             )
         user = User(email=invite.email, first_name=first_name, last_name=last_name)
-        user.password = password
+        # Password is optional — when email is configured the invitee logs in
+        # via magic link and no password is set (password_hash stays None).
+        if password:
+            user.password = password
         db.session.add(user)
         db.session.flush()
 
