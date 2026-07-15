@@ -54,6 +54,7 @@
                 </div>
             </div>
 
+            {% if not email_configured %}
             <div class="mb-3">
                 <label for="password" class="form-label">{{ _("Password") }}</label>
                 <input type="password" class="form-control" id="password" name="password"
@@ -65,6 +66,11 @@
                 <input type="password" class="form-control" id="confirm_password" name="confirm_password"
                        required minlength="8">
             </div>
+            {% else %}
+            <p class="text-muted small mb-3 text-center">
+                {{ _("No password needed — you'll sign in with a secure magic link sent to your email.") }}
+            </p>
+            {% endif %}
 
             <button type="submit" class="btn btn-primary w-100">
                 {% if is_org_only %}{{ _("Create Account & Join Organization") }}
