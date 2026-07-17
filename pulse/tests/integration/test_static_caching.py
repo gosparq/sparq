@@ -35,21 +35,33 @@ class TestStaticAssetCaching:
         assert "/assets/vendor/" in body
         assert "?v=" in body
 
-    def test_cache_bust_token_includes_build_hash(self, client, db_session):
-        """The bust token is <version>-<git hash>, not the bare version.
+    def test_cache_bust_token_is_per_file_content_hash(self, app, client, db_session):
+        """The bust token is a per-file hash of the file's contents.
 
-        Regression guard: keying only on get_version() would fail to bust the
-        cache on a production/public-repo build that changes assets without a
-        manual VERSION bump. The git hash changes every build, so it must be
-        part of the token.
+        Regression guard: the token must be derived from each file's bytes, not
+        a single app-wide version/build token. A global token can silently
+        degrade to a constant in a container without git/BUILD, failing to bust
+        on deploy; and it busts every asset at once instead of only changed
+        ones. This verifies (a) the token equals the file's content hash and
+        (b) two different files carry different tokens.
         """
-        from system.version import get_build_info, get_version
+        import hashlib
+        import os
+        import re
 
-        git_hash, _ = get_build_info()
-        expected = f"{get_version()}-{git_hash}"
+        static_dir = app.static_folder
+
+        def content_hash(rel_path: str) -> str:
+            with open(os.path.join(static_dir, rel_path), "rb") as handle:
+                return hashlib.md5(handle.read(), usedforsecurity=False).hexdigest()[:10]
 
         resp = client.get("/login")
         body = resp.get_data(as_text=True)
-        assert f"?v={expected}" in body
-        # The token must carry the build hash, not just the semantic version.
-        assert git_hash in expected
+
+        # (a) the token for a vendored file equals the hash of its bytes
+        expected = content_hash("vendor/css/bootstrap.min.css")
+        assert f"vendor/css/bootstrap.min.css?v={expected}" in body
+
+        # (b) per-file, not global: distinct files carry distinct tokens
+        tokens = set(re.findall(r'/assets/[^"\'?]+\?v=([^"\'&]+)', body))
+        assert len(tokens) >= 2, f"expected per-file hashes, got {tokens}"

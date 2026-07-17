@@ -42,7 +42,7 @@
 These libraries are **vendored** into `modules/base/core/views/assets/vendor/`
 (`css/`, `js/`, `webfonts/`) and served locally from `/assets/vendor/…` — no
 CDN is used. Reference them with `url_for('static', ...)` so they inherit the
-app's long-lived caching and `?v=<version>` cache-busting (see
+app's long-lived caching and per-file content-hash cache-busting (see
 [Deployment](deployment.md#static-asset-caching)).
 
 ### Loading in base.html
