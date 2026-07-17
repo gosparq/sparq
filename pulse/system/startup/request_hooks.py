@@ -641,16 +641,17 @@ def register_request_hooks(app: Flask) -> None:
         # CSP — unsafe-inline required for Alpine.js (unsafe-eval) and inline
         # event handlers (onclick, etc.). Nonce removed because it causes
         # browsers to ignore unsafe-inline for event handlers.
+        # Frontend libraries (Bootstrap, Alpine, HTMX, Font Awesome, etc.) are
+        # self-hosted under /assets/vendor, so no third-party script/style/font
+        # CDNs are whitelisted — everything loads from 'self'.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
-            "https://unpkg.com https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' "
-            "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-            "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.gstatic.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
             "media-src 'self' blob:; "
-            "connect-src 'self' wss: ws: https://cdn.jsdelivr.net; "
+            "connect-src 'self' wss: ws:; "
             "frame-src 'self' https://maps.google.com https://www.google.com; "
             "frame-ancestors 'self';"
         )

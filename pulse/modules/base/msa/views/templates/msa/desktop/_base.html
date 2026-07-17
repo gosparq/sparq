@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}MSA{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" nonce="{{ csp_nonce }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/fontawesome.min.css') }}" nonce="{{ csp_nonce }}">
     <link rel="stylesheet" href="{{ url_for('msa_bp.static', filename='css/msa.css') }}" nonce="{{ csp_nonce }}">
     {% block head %}{% endblock %}
 </head>

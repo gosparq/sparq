@@ -65,6 +65,7 @@ from system.startup import (
     register_context_processors,
     register_error_handlers,
     register_request_hooks,
+    register_static_cache_busting,
     register_template_filters,
 )
 
@@ -146,6 +147,7 @@ def create_app() -> Flask:
     # 4. Register template filters and context processors
     register_template_filters(app)
     register_context_processors(app)
+    register_static_cache_busting(app)
 
     # 5. Register request hooks and error handlers
     register_request_hooks(app)

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ _("Sign Document") }} - {{ request.title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/css/fontawesome.min.css') }}" rel="stylesheet">
     <style>
         body {
             background-color: #f3f4f6;
@@ -239,7 +239,7 @@
         </div>
     </div>
 
-    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/js/alpine.min.js') }}" defer></script>
     <script nonce="{{ csp_nonce }}">
         function updatePreview(value) {
             const preview = document.getElementById('signaturePreview');

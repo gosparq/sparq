@@ -177,6 +177,39 @@ def register_template_filters(app: Flask) -> None:
     app.jinja_env.globals["module_enabled"] = module_enabled
 
 
+def register_static_cache_busting(app: Flask) -> None:
+    """Append ?v=<version> to every static URL for cache busting.
+
+    Pairs with SEND_FILE_MAX_AGE_DEFAULT (see config.py): static assets are
+    cached long-term by the browser, and this token changes whenever the build
+    changes so the URL changes and browsers refetch. Covers the app's `static`
+    endpoint and every blueprint's `<bp>.static` endpoint without touching
+    templates. The token is resolved once at startup since it is fixed per
+    build.
+
+    The token is ``<version>-<git hash>`` (e.g. ``1.0.4-261ab44``). The git
+    hash is included deliberately: ``get_version()`` alone only changes on a
+    manual VERSION bump in production/public-repo builds, so keying on it would
+    fail to bust the cache when assets change without a version bump. The git
+    hash changes on every commit/build. The build timestamp is intentionally
+    NOT used — its ``get_build_info`` fallback is ``datetime.now()``, which
+    would differ per worker/restart and thrash the cache.
+
+    Args:
+        app: Flask application instance.
+    """
+    from system.version import get_build_info, get_version
+
+    git_hash, _ = get_build_info()
+    static_version = f"{get_version()}-{git_hash}"
+
+    @app.url_defaults
+    def add_static_version(endpoint: str, values: dict) -> None:
+        """Inject the version param into static URLs when not already set."""
+        if endpoint == "static" or endpoint.endswith(".static"):
+            values.setdefault("v", static_version)
+
+
 def register_context_processors(app: Flask) -> None:
     """Register Jinja2 context processors for the Flask application."""
 
