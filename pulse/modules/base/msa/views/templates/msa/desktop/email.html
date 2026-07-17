@@ -3,8 +3,8 @@
 {% block title %}{{ _("Email Configuration") }} - MSA{% endblock %}
 
 {% block head %}
-<script nonce="{{ csp_nonce }}" src="https://unpkg.com/htmx.org@1.9.10"></script>
-<script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/js/htmx.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" defer src="{{ url_for('static', filename='vendor/js/alpine.min.js') }}"></script>
 {% endblock %}
 
 {% block breadcrumb %}

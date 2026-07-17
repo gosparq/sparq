@@ -381,10 +381,43 @@ option_settings:
 
 - [ ] Reverse proxy (Caddy/Nginx)
 - [ ] SSL/TLS certificate
-- [ ] CDN for static assets
+- [ ] Static assets self-hosted (vendored under `/assets/vendor`) with long-lived cache + `?v=` busting — see [Static Asset Caching](#static-asset-caching)
 - [ ] Log aggregation
 - [ ] Monitoring and alerting
 - [ ] Auto-scaling (if needed)
+
+---
+
+## Static Asset Caching
+
+All static assets (module CSS/JS/images and the vendored frontend libraries
+under `/assets/vendor`) are served by Flask with a long-lived browser cache in
+production and cache-busted URLs, so repeat navigations serve from disk with no
+network round-trips.
+
+### How it works
+
+- **`SEND_FILE_MAX_AGE_DEFAULT`** (`system/startup/config.py`) is set to
+  `timedelta(days=365)` in production and `timedelta(0)` in debug. This flips
+  the static `Cache-Control` header from `no-cache` (revalidate every request)
+  to `public, max-age=31536000`. In debug it stays uncached so local edits show
+  immediately.
+- **Cache-busting** (`register_static_cache_busting` in
+  `system/startup/templates.py`) registers an `@app.url_defaults` hook that
+  appends `?v=<version>-<git hash>` (e.g. `?v=1.0.4-261ab44`) to every
+  `static` / `<bp>.static` URL. The git hash — not the bare version — is the
+  key: `get_version()` only changes on a manual VERSION bump in
+  production/public-repo builds, so keying on it alone would fail to bust when
+  assets change without a version bump. The git hash changes every
+  commit/build, so any release refetches. (The build timestamp is avoided — its
+  `get_build_info` fallback is `datetime.now()`, which would differ per worker
+  and thrash the cache.)
+
+### Why not just a long cache?
+
+A long `max-age` without cache-busting would leave users on stale CSS/JS for up
+to a year after a deploy. Pairing it with the `?v=` param is what makes the long
+cache safe. Do not raise `max-age` without keeping the version param intact.
 
 ---
 

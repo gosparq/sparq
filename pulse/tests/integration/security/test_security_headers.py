@@ -151,11 +151,13 @@ class TestCSPDirectives:
         csp = self._get_csp(client, prod_app, prod_db)
         assert "default-src 'self'" in csp
 
-    def test_script_src_includes_cdns(self, client, prod_app, prod_db):
+    def test_script_src_self_no_cdns(self, client, prod_app, prod_db):
+        """script-src is 'self' only — frontend libs are self-hosted, no CDNs."""
         csp = self._get_csp(client, prod_app, prod_db)
-        assert "script-src" in csp
-        assert "https://unpkg.com" in csp
-        assert "https://cdn.jsdelivr.net" in csp
+        script_src = csp.split("script-src")[1].split(";")[0]
+        assert "'self'" in script_src
+        assert "https://unpkg.com" not in script_src
+        assert "https://cdn.jsdelivr.net" not in script_src
 
     def test_script_src_has_unsafe_inline(self, client, prod_app, prod_db):
         """script-src should contain unsafe-inline (nonce removed for Alpine.js compatibility)."""
@@ -175,23 +177,30 @@ class TestCSPDirectives:
         script_src = csp.split("script-src")[1].split(";")[0]
         assert "'unsafe-eval'" in script_src
 
-    def test_style_src_includes_cdns(self, client, prod_app, prod_db):
+    def test_style_src_self_no_cdns(self, client, prod_app, prod_db):
+        """style-src is 'self' only — Bootstrap/FontAwesome CSS are self-hosted."""
         csp = self._get_csp(client, prod_app, prod_db)
-        assert "style-src" in csp
-        assert "https://cdn.jsdelivr.net" in csp
-        assert "https://cdnjs.cloudflare.com" in csp
+        style_src = csp.split("style-src")[1].split(";")[0]
+        assert "'self'" in style_src
+        assert "https://cdn.jsdelivr.net" not in style_src
+        assert "https://cdnjs.cloudflare.com" not in style_src
 
     def test_font_src(self, client, prod_app, prod_db):
+        """font-src is 'self' (Font Awesome webfonts self-hosted); gstatic retained."""
         csp = self._get_csp(client, prod_app, prod_db)
-        assert "font-src 'self' https://cdnjs.cloudflare.com" in csp
+        assert "font-src 'self' https://fonts.gstatic.com" in csp
+        assert "https://cdnjs.cloudflare.com" not in csp
+        assert "https://cdn.jsdelivr.net" not in csp
 
     def test_img_src_allows_data_and_https(self, client, prod_app, prod_db):
         csp = self._get_csp(client, prod_app, prod_db)
         assert "img-src 'self' data: https:" in csp
 
     def test_connect_src_allows_websockets(self, client, prod_app, prod_db):
+        """connect-src allows same-origin + websockets, no CDN."""
         csp = self._get_csp(client, prod_app, prod_db)
-        assert "connect-src 'self' wss: ws: https://cdn.jsdelivr.net" in csp
+        assert "connect-src 'self' wss: ws:" in csp
+        assert "https://cdn.jsdelivr.net" not in csp.split("connect-src")[1].split(";")[0]
 
     def test_frame_ancestors_self(self, client, prod_app, prod_db):
         csp = self._get_csp(client, prod_app, prod_db)

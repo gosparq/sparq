@@ -11,6 +11,7 @@
 
 import logging
 import os
+from datetime import timedelta
 from flask import Flask
 
 
@@ -119,6 +120,15 @@ def configure_app(app: Flask) -> tuple[bool, bool]:
         app.config["SOCKETIO_CORS_ORIGINS"] = "*"  # Allow all in dev for ngrok/testing
     else:
         app.config["SOCKETIO_CORS_ORIGINS"] = None  # Same-origin only in production
+
+    # Static asset caching — long-lived browser cache in production so CSS/JS/
+    # fonts/images serve from disk without revalidating on every navigation.
+    # Safe because static URLs are cache-busted with ?v=<version> (see
+    # register_static_cache_busting), so a deploy changes the URL and forces a
+    # refetch. In debug, disable caching so local asset edits show immediately.
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = (
+        timedelta(seconds=0) if debug_mode else timedelta(days=365)
+    )
 
     # Error handling configuration
     app.config["PROPAGATE_EXCEPTIONS"] = False  # Let error handlers catch exceptions

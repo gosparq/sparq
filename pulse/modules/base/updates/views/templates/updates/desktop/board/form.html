@@ -8,7 +8,7 @@
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('sync_bp.static', filename='css/board.css') }}">
 <!-- Quill Editor -->
-<link href="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.snow.css" rel="stylesheet">
+<link href="{{ url_for('static', filename='vendor/css/quill.snow.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block module_content %}
@@ -75,7 +75,7 @@
 {% block scripts %}
 {{ super() }}
 <!-- Quill Editor -->
-<script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/quill@1.3.6/dist/quill.min.js"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/js/quill.min.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Quill

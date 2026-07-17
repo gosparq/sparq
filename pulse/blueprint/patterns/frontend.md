@@ -26,7 +26,7 @@
 - Alpine.js for reactive client-side state
 - HTMX for server-driven updates without page reloads
 - Bootstrap 5 for consistent styling
-- CDN-loaded libraries, no bundling required
+- Self-hosted (vendored) libraries under `/assets/vendor` — no bundling, no CDN dependency
 
 ---
 
@@ -34,10 +34,16 @@
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| Bootstrap | 5.2+ | CSS framework, components |
+| Bootstrap | 5.3.2 | CSS framework, components |
 | Alpine.js | 3.x | Reactive state, DOM manipulation |
-| HTMX | 1.9+ | Server-driven updates, AJAX |
-| FontAwesome | 6.x | Icons |
+| HTMX | 1.9.10 | Server-driven updates, AJAX |
+| FontAwesome | 6.5.1 | Icons |
+
+These libraries are **vendored** into `modules/base/core/views/assets/vendor/`
+(`css/`, `js/`, `webfonts/`) and served locally from `/assets/vendor/…` — no
+CDN is used. Reference them with `url_for('static', ...)` so they inherit the
+app's long-lived caching and `?v=<version>` cache-busting (see
+[Deployment](deployment.md#static-asset-caching)).
 
 ### Loading in base.html
 
@@ -45,10 +51,10 @@
 <!-- In modules/core/views/templates/core/desktop/base.html -->
 <head>
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/css/bootstrap.min.css') }}" rel="stylesheet">
 
-    <!-- FontAwesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- FontAwesome (CSS references ../webfonts/*.woff2, also vendored) -->
+    <link href="{{ url_for('static', filename='vendor/css/fontawesome.min.css') }}" rel="stylesheet">
 
     <!-- Module CSS -->
     <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet">
@@ -57,15 +63,19 @@
     <!-- Content -->
 
     <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/js/bootstrap.bundle.min.js') }}"></script>
 
     <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script nonce="{{ csp_nonce }}" defer src="{{ url_for('static', filename='vendor/js/alpine.min.js') }}"></script>
 
     <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='vendor/js/htmx.min.js') }}"></script>
 </body>
 ```
+
+> **Updating a vendored library:** download the new version into
+> `assets/vendor/`, keeping the same filename (Font Awesome also needs its
+> `webfonts/` directory). No CDN URL or CSP change required.
 
 ---
 
