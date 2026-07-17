@@ -404,14 +404,13 @@ network round-trips.
   immediately.
 - **Cache-busting** (`register_static_cache_busting` in
   `system/startup/templates.py`) registers an `@app.url_defaults` hook that
-  appends `?v=<version>-<git hash>` (e.g. `?v=1.0.4-261ab44`) to every
-  `static` / `<bp>.static` URL. The git hash — not the bare version — is the
-  key: `get_version()` only changes on a manual VERSION bump in
-  production/public-repo builds, so keying on it alone would fail to bust when
-  assets change without a version bump. The git hash changes every
-  commit/build, so any release refetches. (The build timestamp is avoided — its
-  `get_build_info` fallback is `datetime.now()`, which would differ per worker
-  and thrash the cache.)
+  appends `?v=<content hash>` to every `static` / `<bp>.static` URL — a short
+  hash of the file's own bytes, computed once per file and cached for the
+  worker's lifetime. A deploy refetches exactly the files that changed and
+  keeps the rest cached. This is deployment-independent by design: it needs no
+  `BUILD` file, git, or manual VERSION bump (any of which can be absent in a
+  container and silently degrade a version/git-based token to a constant that
+  never busts).
 
 ### Why not just a long cache?
 

@@ -178,36 +178,66 @@ def register_template_filters(app: Flask) -> None:
 
 
 def register_static_cache_busting(app: Flask) -> None:
-    """Append ?v=<version> to every static URL for cache busting.
+    """Append ?v=<content hash> to every static URL for cache busting.
 
     Pairs with SEND_FILE_MAX_AGE_DEFAULT (see config.py): static assets are
-    cached long-term by the browser, and this token changes whenever the build
-    changes so the URL changes and browsers refetch. Covers the app's `static`
-    endpoint and every blueprint's `<bp>.static` endpoint without touching
-    templates. The token is resolved once at startup since it is fixed per
-    build.
+    cached long-term by the browser, and this per-file token is a short hash of
+    the file's own bytes, so a deploy refetches exactly the assets that changed
+    and keeps the rest cached. Covers the app's `static` endpoint and every
+    blueprint's `<bp>.static` endpoint without touching templates.
 
-    The token is ``<version>-<git hash>`` (e.g. ``1.0.4-261ab44``). The git
-    hash is included deliberately: ``get_version()`` alone only changes on a
-    manual VERSION bump in production/public-repo builds, so keying on it would
-    fail to bust the cache when assets change without a version bump. The git
-    hash changes on every commit/build. The build timestamp is intentionally
-    NOT used — its ``get_build_info`` fallback is ``datetime.now()``, which
-    would differ per worker/restart and thrash the cache.
+    Content hashing is deliberate over a version/git token: it is
+    deployment-independent (needs no BUILD file, git, or manual VERSION bump —
+    all of which can be absent in a container and silently degrade to a static
+    token) and busts per file rather than all-or-nothing. Each file is hashed
+    once and cached for the worker's lifetime; assets are immutable within a
+    running container, and a deploy restarts the process, clearing the cache.
 
     Args:
         app: Flask application instance.
     """
-    from system.version import get_build_info, get_version
+    import hashlib
+    import os
 
-    git_hash, _ = get_build_info()
-    static_version = f"{get_version()}-{git_hash}"
+    from system.version import get_version
+
+    # Fallback token when a file can't be read (a url_for to a missing asset is
+    # already a 404, so the value is cosmetic). Resolved once at startup.
+    fallback = get_version()
+    # Lazily filled cache of absolute file path -> content hash.
+    hash_cache: dict[str, str] = {}
+
+    def _static_folder(endpoint: str) -> str | None:
+        """Resolve the on-disk static folder for a static endpoint."""
+        if endpoint == "static":
+            return app.static_folder
+        blueprint = app.blueprints.get(endpoint.rsplit(".", 1)[0])
+        return blueprint.static_folder if blueprint else None
+
+    def _content_hash(endpoint: str, filename: str) -> str:
+        """Short hash of a static file's contents, cached per file."""
+        folder = _static_folder(endpoint)
+        if not folder:
+            return fallback
+        path = os.path.join(folder, filename)
+        cached = hash_cache.get(path)
+        if cached is not None:
+            return cached
+        try:
+            with open(path, "rb") as handle:
+                digest = hashlib.md5(handle.read(), usedforsecurity=False).hexdigest()[:10]
+        except OSError:
+            digest = fallback
+        hash_cache[path] = digest
+        return digest
 
     @app.url_defaults
     def add_static_version(endpoint: str, values: dict) -> None:
-        """Inject the version param into static URLs when not already set."""
+        """Inject a content-hash version param into static URLs."""
         if endpoint == "static" or endpoint.endswith(".static"):
-            values.setdefault("v", static_version)
+            filename = values.get("filename")
+            if filename and "v" not in values:
+                values["v"] = _content_hash(endpoint, filename)
 
 
 def register_context_processors(app: Flask) -> None:
