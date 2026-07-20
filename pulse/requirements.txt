@@ -108,6 +108,8 @@ idna==3.11
     #   httpx
     #   requests
     #   yarl
+imageio-ffmpeg==0.6.0
+    # via -r requirements.in
 iniconfig==2.3.0
     # via pytest
 itsdangerous==2.2.0

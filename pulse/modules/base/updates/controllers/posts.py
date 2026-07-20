@@ -8,7 +8,7 @@
 
 import os
 
-from flask import abort, flash, redirect, render_template, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 
@@ -40,6 +40,15 @@ def _process_text_audio_field(key: str, payload: dict) -> None:
         dur = request.form.get(f"field_{key}_audio_duration", type=int)
         if dur and dur > 0:
             payload[f"{key}_audio_duration"] = dur
+        # iOS/WebKit can't decode Opus/Vorbis (WebM/Ogg); transcode to AAC/MP4 off
+        # the request so playback works on every browser and OS version.
+        from modules.base.resources.services import audio as audio_service
+
+        base_type = (att.mime_type or "").split(";")[0].strip()
+        if base_type in audio_service.TRANSCODE_SOURCE_TYPES and not current_app.config.get("TESTING"):
+            from system.background import submit_task
+
+            submit_task(audio_service.transcode_attachment_async, att.uuid)
     elif request.form.get(f"field_{key}_existing_audio"):
         payload[f"{key}_audio_uuid"] = request.form.get(f"field_{key}_existing_audio")
 
