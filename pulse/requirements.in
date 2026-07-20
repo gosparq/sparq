@@ -23,6 +23,7 @@ reportlab>=4.0
 pypdf2>=3.0
 pypdfium2>=4.0
 openpyxl>=3.1
+imageio-ffmpeg>=0.4  # bundled ffmpeg binary for audio transcoding (iOS-safe AAC/MP4)
 dotenv
 markdown
 pytz

@@ -373,7 +373,12 @@
         var bar = pill.querySelector('.audio-progress-bar');
         var timeEl = pill.querySelector('.audio-time');
         if (audio.paused) {
-            audio.play();
+            var playPromise = audio.play();
+            if (playPromise && playPromise.catch) {
+                playPromise.catch(function() {
+                    if (icon) icon.classList.replace('fa-pause', 'fa-play');
+                });
+            }
             if (icon) icon.classList.replace('fa-play', 'fa-pause');
             audio.ontimeupdate = function() {
                 var dur = _getDur(pill, audio);

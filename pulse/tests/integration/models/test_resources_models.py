@@ -1012,3 +1012,71 @@ class TestResourcesSettings:
         assert ResourcesSettings.is_esign_enabled() is True
         ResourcesSettings.update_settings(esign_enabled=False)
         assert ResourcesSettings.is_esign_enabled() is False
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Audio transcoding
+# ═════════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.integration
+class TestAudioTranscode:
+    """Tests for transcoding WebM/Ogg audio attachments to iOS-safe AAC/MP4."""
+
+    def test_transcode_webm_to_mp4(self, app, db_session, seeded_workspace):
+        import os
+        import subprocess
+
+        from modules.base.resources.models.attachment import Attachment
+        from modules.base.resources.services import audio as audio_service
+        from modules.base.resources.services import storage
+
+        exe = audio_service._ffmpeg_exe()
+        if not exe:
+            pytest.skip("ffmpeg not available in this environment")
+
+        _setup_g(seeded_workspace)
+        storage.ensure_directories()
+
+        # A WebM voice note as recorded by Chrome/Firefox/Android.
+        att = Attachment.create(
+            filename="note.webm",
+            mime_type="audio/webm;codecs=opus",
+            size_bytes=0,
+        )
+        src_path = storage.get_attachment_path(att)
+        synth = subprocess.run(
+            [exe, "-nostdin", "-y", "-f", "lavfi",
+             "-i", "sine=frequency=440:duration=1", src_path],
+            capture_output=True,
+        )
+        if synth.returncode != 0 or not os.path.exists(src_path):
+            pytest.skip("ffmpeg build cannot synthesize a WebM audio fixture")
+        att.size_bytes = os.path.getsize(src_path)
+        db.session.commit()
+
+        assert audio_service.transcode_attachment(att) is True
+        assert att.mime_type == "audio/mp4"
+        assert att.filename.endswith(".m4a")
+
+        dest_path = storage.get_attachment_path(att)
+        assert os.path.exists(dest_path)
+        assert att.size_bytes == os.path.getsize(dest_path)
+        assert not os.path.exists(src_path)  # original removed
+
+        att.destroy()
+
+    def test_transcode_skips_ios_safe_formats(self, app, db_session, seeded_workspace):
+        from modules.base.resources.models.attachment import Attachment
+        from modules.base.resources.services import audio as audio_service
+
+        _setup_g(seeded_workspace)
+
+        att = Attachment.create(
+            filename="note.m4a",
+            mime_type="audio/mp4",
+            size_bytes=1234,
+        )
+        # Already iOS-safe → no work, no mutation, no file required.
+        assert audio_service.transcode_attachment(att) is False
+        assert att.mime_type == "audio/mp4"
+        assert att.filename == "note.m4a"
