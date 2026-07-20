@@ -435,6 +435,29 @@ body.dark .task-feed-pill {
     white-space: nowrap;
 }
 
+.task-activity-more {
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    white-space: nowrap;
+    text-decoration: none;
+    color: var(--color-gray-500);
+}
+
+.task-activity-more:hover {
+    color: var(--color-gray-700);
+    text-decoration: underline;
+}
+
+.task-activity-more:focus {
+    box-shadow: none;
+}
+
+.task-activity-more:focus-visible {
+    outline: 2px solid var(--color-gray-400);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
 .task-status-badge {
     font-size: var(--font-size-2xs);
 }

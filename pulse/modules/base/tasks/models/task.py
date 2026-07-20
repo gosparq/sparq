@@ -283,9 +283,11 @@ class Task(db.Model, WorkspaceMixin):
                 except Exception:
                     pass
 
-            # Log creation
+            # Log creation — store the full title (TaskLog.log caps at 500,
+            # matching the detail column) so the activity entry's "more" toggle
+            # can reveal the complete text on the task detail page.
             from .task_log import TaskLog
-            TaskLog.log(item.id, "created", raised_by_id, title[:100])
+            TaskLog.log(item.id, "created", raised_by_id, title)
 
             ActivityLog.log(
                 action="tasks.created",
