@@ -234,6 +234,15 @@ def _start_schedulers(app: Flask, debug_mode: bool, verbose: bool) -> None:
         except Exception as e:
             app.logger.warning(f"Failed to start action items nudge scheduler: {e}")
 
+        if not debug_mode:
+            try:
+                from system.update_check import start_update_check_scheduler
+                start_update_check_scheduler(app)
+                if verbose:
+                    app.logger.info("Update check scheduler started")
+            except Exception as e:
+                app.logger.warning(f"Failed to start update check: {e}")
+
 
 def _parse_args() -> None:
     """Parse command line arguments and set environment variables.

@@ -113,12 +113,19 @@ Key settings:
 | `OPENAI_API_KEY` | -- | Required for AI features |
 | `MSA_USER` | -- | Admin panel username (disabled if unset) |
 | `MSA_PASS` | -- | Admin panel password (disabled if unset) |
+| `SPARQ_UPDATE_CHECK` | `true` | Anonymous update check (set `false` to disable) |
 
 See [`pulse/.env.example`](pulse/.env.example) for the full list.
 
 ### Server Admin Panel (MSA)
 
 sparQ includes a built-in admin console at `/msa` for managing organizations, workspaces, and users. It is **disabled by default**. Set both `MSA_USER` and `MSA_PASS` in your `.env` to enable it.
+
+### Update Checks
+
+sparQ periodically (about once a day) checks [gosparq.com](https://gosparq.com) for a newer release and logs a notice if your instance is behind. The check **transmits nothing about your instance** — no version, identifier, usage, or content; it's a plain request to a public endpoint that returns the latest version number, compared locally. It never blocks startup and fails silently if offline.
+
+Disable it any time with `SPARQ_UPDATE_CHECK=false`. See [gosparq.com/legal/telemetry](https://gosparq.com/legal/telemetry) for the full disclosure.
 
 ### Email Setup
 
