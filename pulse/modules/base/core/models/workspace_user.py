@@ -664,6 +664,41 @@ class WorkspaceUser(db.Model, WorkspaceMixin, SoftDeleteMixin):
         ).first() is not None
 
     @classmethod
+    def eligible_members(cls, organization_id, workspace_id) -> list:
+        """List active organization members not yet in the given workspace.
+
+        Returns the ``User`` records for active members of the organization who
+        do not already have a membership in ``workspace_id`` — the people
+        eligible to be bulk-added. The user relationship is eager-loaded to
+        avoid per-row lazy loads.
+
+        Args:
+            organization_id: The organization to draw members from.
+            workspace_id: The workspace whose existing members are excluded.
+
+        Returns:
+            A list of User objects eligible to be added to the workspace.
+        """
+        from sqlalchemy.orm import joinedload
+
+        from modules.base.core.models.organization_user import OrganizationUser
+
+        existing_user_ids = {
+            row.user_id
+            for row in cls.query.filter_by(workspace_id=workspace_id)
+            .filter(cls.deleted_at.is_(None))
+            .all()
+        }
+        members = (
+            OrganizationUser.query.filter_by(
+                organization_id=organization_id, is_active=True
+            )
+            .options(joinedload(OrganizationUser.user))
+            .all()
+        )
+        return [m.user for m in members if m.user and m.user_id not in existing_user_ids]
+
+    @classmethod
     def create_from_invite(
         cls,
         email: str,
@@ -733,3 +768,104 @@ class WorkspaceUser(db.Model, WorkspaceMixin, SoftDeleteMixin):
         db.session.add(membership)
         db.session.commit()
         return membership
+
+    @classmethod
+    def add_existing_members(
+        cls,
+        user_ids: list[int],
+        role: str = "member",
+    ) -> list["WorkspaceUser"]:
+        """Add existing organization members to the current workspace.
+
+        Only user ids that are already **active members of the current
+        organization** are added; any other id (a user from another org, or a
+        user with no org membership) is silently ignored. This keeps the
+        operation tenant-safe — an admin cannot pull an arbitrary or foreign
+        user into their organization by submitting a guessed id. For each valid
+        member a ``WorkspaceUser`` membership is created in the current workspace
+        (``g.workspace_id``). Users already in the workspace are skipped, so the
+        call is idempotent. A best-effort in-app notification is posted to each
+        newly added member.
+
+        Must be called within a request that has ``g.workspace_id`` and
+        ``g.organization_id`` set.
+
+        Args:
+            user_ids: User IDs of existing organization members to add.
+            role: Workspace role for the new memberships (default "member").
+
+        Returns:
+            The WorkspaceUser rows created (excludes users already in the workspace
+            and any id that is not an active member of the current organization).
+        """
+        from modules.base.core.models.organization_user import OrganizationUser
+
+        workspace_id = getattr(g, "workspace_id", None)
+        organization_id = getattr(g, "organization_id", None)
+        if not workspace_id or not organization_id or not user_ids:
+            return []
+
+        # Restrict to users who are ALREADY active members of this organization.
+        # We never create an OrganizationUser row here — that would let an admin
+        # import arbitrary/foreign user ids into the org.
+        org_members = {
+            ou.user_id: ou
+            for ou in OrganizationUser.query.filter(
+                OrganizationUser.organization_id == organization_id,
+                OrganizationUser.user_id.in_(user_ids),
+                OrganizationUser.is_active.is_(True),
+            ).all()
+        }
+
+        added: list["WorkspaceUser"] = []
+        for user_id in user_ids:
+            org_user = org_members.get(user_id)
+            if org_user is None:
+                continue
+            if cls.is_member(user_id, workspace_id):
+                continue
+            membership = cls(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                organization_id=organization_id,
+                organization_user_id=org_user.id,
+                role=role,
+                member_type="full",
+                status=EmployeeStatus.ACTIVE,
+            )
+            db.session.add(membership)
+            added.append(membership)
+
+        if added:
+            db.session.commit()
+            cls._notify_added_members(added, workspace_id)
+
+        return added
+
+    @staticmethod
+    def _notify_added_members(memberships: list["WorkspaceUser"], workspace_id) -> None:
+        """Post a best-effort inbox notification to each newly added member."""
+        from modules.base.core.models.notification import NotificationCategory, SystemNotification
+        from modules.base.core.models.workspace import Workspace
+        from system.i18n.translation import translate as _
+
+        workspace = Workspace.query.get(workspace_id)
+        workspace_name = workspace.name if workspace else _("a workspace")
+        for membership in memberships:
+            try:
+                SystemNotification.create(
+                    title=_("Added to workspace"),
+                    message=_("You were added to the {name} workspace.").format(name=workspace_name),
+                    type="info",
+                    target_role="user",
+                    user_id=membership.user_id,
+                    icon="fa-user-plus",
+                    action_url="/people/people",
+                    category=NotificationCategory.SYSTEM,
+                )
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Failed to notify user %s of workspace add", membership.user_id
+                )

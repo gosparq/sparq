@@ -1366,6 +1366,83 @@ class TestOffboarding:
 
 
 @pytest.mark.integration
+class TestWorkspaceMemberAdd:
+    """Tests for WorkspaceUser.add_existing_members (bulk-add existing org members)."""
+
+    def _make_org_only_member(self, ws):
+        """Create a User + OrganizationUser with NO workspace membership."""
+        import uuid
+        from modules.base.core.models.user import User
+        from modules.base.core.models.organization_user import OrganizationUser
+
+        user = User.create(
+            email=f"orgonly-{uuid.uuid4().hex[:8]}@test.com",
+            password="testpass123",
+            first_name="Org",
+            last_name="Only",
+        )
+        OrganizationUser.create(
+            organization_id=ws["organization"].id,
+            user_id=user.id,
+            role="member",
+        )
+        return user
+
+    def test_adds_existing_member(self, app, db_session, seeded_workspace):
+        from modules.base.core.models.workspace_user import WorkspaceUser
+
+        ws = seeded_workspace
+        _set_context(ws)
+        user = self._make_org_only_member(ws)
+        assert WorkspaceUser.is_member(user.id, ws["workspace"].id) is False
+
+        added = WorkspaceUser.add_existing_members([user.id])
+
+        assert len(added) == 1
+        assert added[0].user_id == user.id
+        assert added[0].workspace_id == ws["workspace"].id
+        assert added[0].role == "member"
+        assert WorkspaceUser.is_member(user.id, ws["workspace"].id) is True
+
+    def test_is_idempotent(self, app, db_session, seeded_workspace):
+        from modules.base.core.models.workspace_user import WorkspaceUser
+
+        ws = seeded_workspace
+        _set_context(ws)
+        user = self._make_org_only_member(ws)
+
+        first = WorkspaceUser.add_existing_members([user.id])
+        second = WorkspaceUser.add_existing_members([user.id])
+
+        assert len(first) == 1
+        assert second == []  # already a member -> skipped
+
+    def test_notifies_added_member(self, app, db_session, seeded_workspace):
+        from modules.base.core.models.workspace_user import WorkspaceUser
+        from modules.base.core.models.notification import SystemNotification
+
+        ws = seeded_workspace
+        _set_context(ws)
+        user = self._make_org_only_member(ws)
+
+        WorkspaceUser.add_existing_members([user.id])
+
+        note = SystemNotification.query.filter_by(user_id=user.id).first()
+        assert note is not None
+        assert "workspace" in (note.message or "").lower()
+
+    def test_no_workspace_context_is_safe(self, app, db_session, seeded_workspace):
+        from modules.base.core.models.workspace_user import WorkspaceUser
+
+        ws = seeded_workspace
+        _set_context(ws)
+        user = self._make_org_only_member(ws)
+        g.workspace_id = None  # no active workspace -> must no-op, not error
+
+        assert WorkspaceUser.add_existing_members([user.id]) == []
+
+
+@pytest.mark.integration
 class TestOneOnOne:
     """Tests for OneOnOnePair, OneOnOneSession, OneOnOneAgendaItem."""
 

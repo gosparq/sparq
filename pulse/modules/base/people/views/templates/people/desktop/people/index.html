@@ -24,8 +24,12 @@
                         {% endif %}
                     </button>
                     <a href="{{ url_for('people_bp.new_person') }}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus me-1"></i>{{ _("Add Person") }}
+                        <i class="fas fa-plus me-1"></i>{{ _("New Person") }}
                     </a>
+                    <button type="button" class="btn btn-sm btn-primary"
+                            data-bs-toggle="modal" data-bs-target="#addMembersModal">
+                        <i class="fas fa-user-plus me-1"></i>{{ _("Add Existing") }}
+                    </button>
                 </div>
                 {% endif %}
             </div>
@@ -249,7 +253,7 @@
                 {% elif current_user.is_admin %}
                 <p class="text-muted">{{ _("Get started by adding your first employee") }}</p>
                 <a href="{{ url_for('people_bp.new_person') }}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus me-1"></i>{{ _("Add Person") }}
+                    <i class="fas fa-plus me-1"></i>{{ _("New Person") }}
                 </a>
                 {% endif %}
             </div>
@@ -378,6 +382,59 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Existing Members Modal -->
+<div class="modal fade" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMembersModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>{{ _("Add Existing Members") }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('people_bp.add_members') }}" x-data="{ search: '' }">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div class="modal-body">
+                    {% if eligible_members %}
+                    <p class="text-muted small mb-3">
+                        {{ _("Add people who are already in your organization to this workspace. They're added right away, with no email invite needed.") }}
+                    </p>
+                    <input type="text" class="form-control form-control-sm mb-2" x-model="search"
+                           placeholder="{{ _('Search people...') }}" aria-label="{{ _('Search people') }}">
+                    <div class="border rounded p-2" style="max-height: 260px; overflow-y: auto;">
+                        {% for m in eligible_members %}
+                        <div class="form-check"
+                             x-show="search === '' || $el.textContent.toLowerCase().includes(search.toLowerCase())">
+                            <input class="form-check-input" type="checkbox" name="user_ids"
+                                   value="{{ m.id }}" id="add-member-{{ m.id }}">
+                            <label class="form-check-label" for="add-member-{{ m.id }}">
+                                {{ m.first_name }} {{ m.last_name }}
+                                <span class="text-muted small">{{ m.email }}</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">
+                        {{ _("Everyone in your organization is already in this workspace.") }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                        {{ _("Cancel") }}
+                    </button>
+                    {% if eligible_members %}
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>{{ _("Add Selected") }}
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
         </div>
     </div>
 </div>

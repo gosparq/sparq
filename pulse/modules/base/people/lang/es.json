@@ -835,5 +835,17 @@
     "Your password has been set successfully!": "¡Tu contraseña ha sido establecida exitosamente!",
     "Zip": "CP",
     "ZIP Code": "Código postal",
-    "_comment_hiring": "Hiring translations (merged from hiring module)"
+    "_comment_hiring": "Hiring translations (merged from hiring module)",
+    "Add Selected": "Agregar seleccionados",
+    "Add people who are already in your organization to this workspace. They're added right away, with no email invite needed.": "Agrega a personas que ya están en tu organización a este espacio de trabajo. Se agregan de inmediato, sin necesidad de invitación por correo.",
+    "Added to workspace": "Agregado al espacio de trabajo",
+    "Added {n} member(s) to this workspace.": "Se agregaron {n} miembro(s) a este espacio de trabajo.",
+    "Everyone in your organization is already in this workspace.": "Todas las personas de tu organización ya están en este espacio de trabajo.",
+    "No new members were added.": "No se agregaron miembros nuevos.",
+    "Search people": "Buscar personas",
+    "Select at least one member to add.": "Selecciona al menos un miembro para agregar.",
+    "You were added to the {name} workspace.": "Se te agregó al espacio de trabajo {name}.",
+    "a workspace": "un espacio de trabajo",
+    "Add Existing": "Agregar existentes",
+    "Add Existing Members": "Agregar miembros existentes"
 }

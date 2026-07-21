@@ -835,5 +835,17 @@
     "e.g., Software Developer": "z.B. Softwareentwickler",
     "e.g., Spouse": "z.B. Ehepartner/in",
     "e.g., Spouse, Parent, Sibling": "z.B. Ehepartner/in, Elternteil, Geschwister",
-    "e.g., Zoom link, Conference Room A": "z.B. Zoom-Link, Konferenzraum A"
+    "e.g., Zoom link, Conference Room A": "z.B. Zoom-Link, Konferenzraum A",
+    "Add Selected": "Ausgewählte hinzufügen",
+    "Add people who are already in your organization to this workspace. They're added right away, with no email invite needed.": "Füge Personen hinzu, die bereits in deiner Organisation sind. Sie werden sofort und ohne E-Mail-Einladung zu diesem Arbeitsbereich hinzugefügt.",
+    "Added to workspace": "Zum Arbeitsbereich hinzugefügt",
+    "Added {n} member(s) to this workspace.": "{n} Mitglied(er) zu diesem Arbeitsbereich hinzugefügt.",
+    "Everyone in your organization is already in this workspace.": "Alle in deiner Organisation sind bereits in diesem Arbeitsbereich.",
+    "No new members were added.": "Es wurden keine neuen Mitglieder hinzugefügt.",
+    "Search people": "Personen suchen",
+    "Select at least one member to add.": "Wähle mindestens ein Mitglied zum Hinzufügen aus.",
+    "You were added to the {name} workspace.": "Du wurdest zum Arbeitsbereich {name} hinzugefügt.",
+    "a workspace": "einen Arbeitsbereich",
+    "Add Existing": "Vorhandene hinzufügen",
+    "Add Existing Members": "Vorhandene Mitglieder hinzufügen"
 }

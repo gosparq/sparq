@@ -11,6 +11,12 @@ class TestPeopleRoutes:
             resp = seeded_workspace["client"].get("/people/")
             assert resp.status_code in (200, 302)
 
+    def test_people_directory_has_add_members(self, app_with_sample_data, seeded_workspace):
+        with app_with_sample_data.app_context():
+            resp = seeded_workspace["client"].get("/people/people")
+            assert resp.status_code == 200
+            assert b"addMembersModal" in resp.data
+
     def test_calendar(self, app_with_sample_data, seeded_workspace):
         with app_with_sample_data.app_context():
             resp = seeded_workspace["client"].get("/people/calendar/")
