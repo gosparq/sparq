@@ -17,6 +17,7 @@ from flask import redirect
 from flask import render_template
 from flask import request
 from flask import url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from flask_login import login_required
 
@@ -177,6 +178,11 @@ def people() -> str:
                 .all()
             )
 
+    # Existing org members not yet in this workspace (for the "Add Members" modal).
+    eligible_members: list = []
+    if current_user.is_admin and getattr(g, "workspace_id", None):
+        eligible_members = WorkspaceUser.eligible_members(g.organization_id, g.workspace_id)
+
     return render_device_template(  # type: ignore[no-any-return]
         "people/desktop/people/index.html",
         active_page="people",
@@ -192,8 +198,38 @@ def people() -> str:
         pending_invite_count=pending_invite_count,
         is_organization_admin=is_organization_admin,
         organization_workspaces=organization_workspaces,
+        eligible_members=eligible_members,
         module_home="dashboard_bp.index",
     )
+
+
+@blueprint.route("/people/members/add", methods=["POST"])  # type: ignore[misc]
+@login_required  # type: ignore[misc]
+@admin_required  # type: ignore[misc]
+def add_members() -> ResponseReturnValue:
+    """Add existing organization members to the current workspace.
+
+    Accepts a form field ``user_ids`` (repeated) of existing org members and
+    adds each to the current workspace as a ``member``. Idempotent and
+    admin-only.
+    """
+    user_ids: list[int] = []
+    for raw_id in request.form.getlist("user_ids"):
+        try:
+            user_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not user_ids:
+        flash(_("Select at least one member to add."), "warning")
+        return redirect(url_for("people_bp.people"))
+
+    added = WorkspaceUser.add_existing_members(user_ids)
+    if added:
+        flash(_("Added {n} member(s) to this workspace.").format(n=len(added)), "success")
+    else:
+        flash(_("No new members were added."), "info")
+    return redirect(url_for("people_bp.people"))
 
 
 @blueprint.route("/people/profile/<int:member_id>")  # type: ignore[misc]
