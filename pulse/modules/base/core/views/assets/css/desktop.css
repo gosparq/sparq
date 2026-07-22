@@ -1180,31 +1180,9 @@ body:has(.shell) {
     font-size: 0.8125rem;
 }
 
-/* Dark mode — global search */
-body.dark .global-search {
-    background: var(--color-gray-800);
-}
-body.dark .global-search.is-active {
-    background: var(--color-gray-900);
-    border-color: var(--color-primary);
-}
-body.dark .global-search-input {
-    color: var(--color-gray-200);
-}
-body.dark .global-search-dropdown {
-    background: var(--color-gray-800);
-    border-color: var(--color-gray-700);
-}
-body.dark .global-search-result:hover {
-    background: var(--color-gray-700);
-}
-body.dark .global-search-shortcut {
-    background: var(--color-gray-700);
-    border-color: var(--color-gray-600);
-}
-body.dark .global-search-result-title {
-    color: var(--color-gray-200);
-}
+/* Dark mode — global search: base rules already resolve correctly via the
+   body.dark token remap (surfaces use gray-50..300/white → dark; text uses
+   gray-400..900 → light), so no overrides are needed here. */
 
 /* Workspace selector in header */
 .content-header-workspace {
@@ -1385,8 +1363,8 @@ body.dark .global-search-result-title {
     flex-shrink: 0;
 }
 .header-status-seg button.header-status-seg--active {
-    background: color-mix(in srgb, var(--color-success) 18%, white);
-    color: var(--color-success-dark, #065f46);
+    background: color-mix(in srgb, var(--color-success) 18%, var(--color-white));
+    color: var(--color-success-dark);
 }
 .header-status-seg button.header-status-seg--active .status-dot {
     background: var(--color-success);
