@@ -48,7 +48,7 @@
                     </button>
                     <div x-show="postMenuOpen" x-cloak x-transition.opacity.duration.150ms
                          role="menu"
-                         style="position:absolute;top:calc(100% + 4px);right:0;min-width:200px;background:var(--color-bg, #fff);border:1px solid var(--color-gray-200, #e5e7eb);border-radius:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:1000;padding:0.25rem 0;">
+                         style="position:absolute;top:calc(100% + 4px);right:0;min-width:200px;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:1000;padding:0.25rem 0;">
                         {% for tmpl in templates %}
                         {% if tmpl.name == "I'm blocked" %}
                         <button type="button"
@@ -459,7 +459,7 @@
 .post-footer-btn:hover { color:var(--color-gray-600,#4b5563); }
 .post-footer-btn i { font-size:0.7rem; }
 .reaction-picker-overlay { position:fixed;top:0;left:0;right:0;bottom:0;z-index:999; }
-.post-reaction-picker { position:fixed;z-index:1000;background:white;border:1px solid var(--color-gray-200,#e5e7eb);border-radius:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.1);padding:0.5rem;width:280px; }
+.post-reaction-picker { position:fixed;z-index:1000;background:var(--color-white);border:1px solid var(--color-gray-200);border-radius:0.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.1);padding:0.5rem;width:280px; }
 .post-reaction-picker-grid { display:grid;grid-template-columns:repeat(8,1fr);gap:0.125rem; }
 .post-reaction-picker-btn { display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:none;background:none;border-radius:0.25rem;font-size:1.125rem;cursor:pointer;transition:background 0.1s; }
 .post-reaction-picker-btn:hover { background:var(--color-gray-100,#f3f4f6); }

@@ -155,7 +155,7 @@
 }
 
 .dash-banner.dash-banner-bluf {
-    background: #eff6ff;
+    background: color-mix(in srgb, var(--color-info) 8%, var(--color-white));
 }
 
 .dash-banner-bluf .dash-banner-eyebrow,
