@@ -53,7 +53,7 @@ slack-bolt
 pdoc
 playwright
 pytest
-ruff
+ruff==0.15.8  # pin: CI lint must match the lockfile; unpinned floats ahead and flags a pre-existing backlog
 mypy
 types-requests
 types-python-dateutil
