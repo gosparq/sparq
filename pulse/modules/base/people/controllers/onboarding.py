@@ -642,7 +642,7 @@ def onboarding_approve(record_id):
             employee.activate()
 
         # Transfer onboarding documents to employee record
-        record.transfer_documents_to_employee()
+        record.transfer_documents_to_member()
 
         # Approve the record
         record.approve()
@@ -784,8 +784,9 @@ def onboarding_start(token):
     """
     from flask_login import login_user
 
-    # Find the onboarding record by token
-    record = OnboardingRecord.scoped().filter_by(token=token).first()
+    # PUBLIC route: an anonymous new hire has no workspace context, so look the
+    # record up by its unique token via the (unscoped) model method.
+    record = OnboardingRecord.get_by_token(token)
 
     if not record:
         flash(_("Invalid or expired onboarding link."), "error")
@@ -804,7 +805,8 @@ def onboarding_start(token):
         flash(_("No employee record found for this onboarding."), "error")
         return redirect(url_for("core_bp.login"))
 
-    employee = WorkspaceUser.scoped().options(joinedload(WorkspaceUser.user)).filter_by(id=record.member_id).first()
+    # Use the record's relationship — no workspace scope needed on a public route.
+    employee = record.member
     if not employee or not employee.user:
         flash(_("Account not found. Please contact HR."), "error")
         return redirect(url_for("core_bp.login"))
@@ -911,27 +913,32 @@ def onboarding_save_step():
 
         # Handle specific task types
         if task_key == "personal_info":
-            # Update employee record
+            # phone lives on WorkspaceUser; address / date-of-birth and other
+            # personal fields live on the User record (WorkspaceUser has no
+            # address/birthday columns — see the mapping in WorkspaceUser.create).
+            user = employee.user
             employee.phone = data.get("phone", employee.phone)
-            employee.address = data.get("address", employee.address)
-            employee.address_2 = data.get("address_2", employee.address_2)
-            employee.city = data.get("city", employee.city)
-            employee.state = data.get("state", employee.state)
-            employee.zip_code = data.get("zip_code", employee.zip_code)
+            user.address = data.get("address", user.address)
+            user.address_2 = data.get("address_2", user.address_2)
+            user.city = data.get("city", user.city)
+            user.state = data.get("state", user.state)
+            user.zip_code = data.get("zip_code", user.zip_code)
             if data.get("birthday"):
-                employee.birthday = datetime.strptime(data["birthday"], "%Y-%m-%d").date()
+                user.birthday = datetime.strptime(data["birthday"], "%Y-%m-%d").date()
             db.session.commit()
 
         elif task_key == "emergency_contact":
-            employee.emergency_contact_name = data.get(
-                "emergency_contact_name", employee.emergency_contact_name
+            # Emergency-contact fields live on the User record, not WorkspaceUser.
+            user = employee.user
+            user.emergency_contact_name = data.get(
+                "emergency_contact_name", user.emergency_contact_name
             )
-            employee.emergency_contact_phone = data.get(
-                "emergency_contact_phone", employee.emergency_contact_phone
+            user.emergency_contact_phone = data.get(
+                "emergency_contact_phone", user.emergency_contact_phone
             )
-            employee.emergency_contact_relationship = data.get(
+            user.emergency_contact_relationship = data.get(
                 "emergency_contact_relationship",
-                employee.emergency_contact_relationship,
+                user.emergency_contact_relationship,
             )
             db.session.commit()
 
