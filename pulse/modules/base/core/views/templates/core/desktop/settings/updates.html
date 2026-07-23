@@ -1,0 +1,129 @@
+{% extends "core/desktop/settings/_base.html" %}
+
+{% block page_title %}{{ _("Software Updates") }}{% endblock %}
+{% block page_icon %}<i class="fas fa-arrows-rotate"></i>{% endblock %}
+{% block page_title_display %}{{ _("Software Updates") }}{% endblock %}
+{% block page_description %}<p class="text-muted">{{ _("Software update service status and disclosure") }}</p>{% endblock %}
+
+{% block additional_styles %}
+{{ super() }}
+<style>
+    .updates-card {
+        border: 1px solid var(--color-gray-200);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .updates-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .updates-version {
+        font-size: 1.125rem;
+        font-weight: 600;
+    }
+
+    .updates-meta {
+        font-size: var(--font-size-base);
+        color: var(--color-gray-500);
+    }
+
+    .updates-fields {
+        font-size: var(--font-size-base);
+        color: var(--color-gray-600);
+        margin: 0.5rem 0 0;
+        padding-left: 1.25rem;
+    }
+
+    .updates-modules {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+        margin-top: 0.5rem;
+    }
+
+    .updates-module-chip {
+        font-size: 0.8125rem;
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: 0.375rem;
+        padding: 0.125rem 0.5rem;
+        color: var(--color-gray-600);
+    }
+</style>
+{% endblock %}
+
+{% block settings_content %}
+<div class="updates-card">
+    <div class="updates-status-row">
+        <div>
+            <div class="updates-version">{{ _("sparQ") }} {{ current_version }}</div>
+            <div class="updates-meta">
+                {% if not checks_enabled %}
+                    {{ _("Automatic update checks are disabled.") }}
+                {% elif status and status.update_available %}
+                    {{ _("A newer version is available:") }} {{ status.latest_version }}
+                    {% if status.security_update %}
+                        <span class="badge bg-danger">{{ _("Security update") }}</span>
+                    {% endif %}
+                {% elif status %}
+                    {{ _("Up to date.") }}
+                {% else %}
+                    {{ _("No update check has run yet.") }}
+                {% endif %}
+                {% if status and status.checked_on %}
+                    <span class="text-muted">· {{ _("Last checked") }} {{ status.checked_on }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            {% if status and status.update_available and status.release_url %}
+            <a href="{{ status.release_url }}" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-arrow-up-right-from-square me-1"></i> {{ _("Release notes") }}
+            </a>
+            {% endif %}
+            <form method="POST" action="{{ url_for('core_bp.settings_updates_check') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" {% if not checks_enabled %}disabled{% endif %}>
+                    <i class="fas fa-rotate me-1"></i> {{ _("Check for updates") }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="updates-card">
+    <h6 class="mb-2">{{ _("What sparQ sends") }}</h6>
+    <p class="updates-meta mb-2">
+        {{ _("sparQ periodically contacts the sparQ update service to determine whether updates are available. The request does not include usernames, email addresses, repository names, source code or developer activity, and no persistent installation identifier.") }}
+    </p>
+    <ul class="updates-fields">
+        <li>{{ _("Version and edition") }}: {{ payload.sparq_version }} ({{ payload.edition }})</li>
+        <li>{{ _("Operating system") }}: {{ payload.operating_system }}</li>
+        <li>{{ _("Architecture") }}: {{ payload.architecture }}</li>
+        <li>{{ _("Runtime") }}: {{ payload.runtime_version }}</li>
+        <li>{{ _("Locale") }}: {{ payload.locale }}</li>
+    </ul>
+    {% if payload.installed_modules %}
+    <div class="updates-modules">
+        {% for module in payload.installed_modules %}
+        <span class="updates-module-chip">{{ module.name }} {{ module.version }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="updates-card mb-0">
+    <h6 class="mb-2">{{ _("Disabling update checks") }}</h6>
+    <p class="updates-meta mb-0">
+        {{ _("Administrators operating sparQ in an air-gapped or restricted environment may disable automatic update checks by setting SPARQ_UPDATE_CHECK=false in the environment. Disabling update checks may prevent this installation from receiving security and compatibility notices.") }}
+    </p>
+</div>
+{% endblock %}

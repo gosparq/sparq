@@ -113,7 +113,7 @@ Key settings:
 | `OPENAI_API_KEY` | -- | Required for AI features |
 | `MSA_USER` | -- | Admin panel username (disabled if unset) |
 | `MSA_PASS` | -- | Admin panel password (disabled if unset) |
-| `SPARQ_UPDATE_CHECK` | `true` | Anonymous update check (set `false` to disable) |
+| `SPARQ_UPDATE_CHECK` | `true` | Automatic update check (set `false` to disable) |
 
 See [`pulse/.env.example`](pulse/.env.example) for the full list.
 
@@ -121,11 +121,23 @@ See [`pulse/.env.example`](pulse/.env.example) for the full list.
 
 sparQ includes a built-in admin console at `/msa` for managing organizations, workspaces, and users. It is **disabled by default**. Set both `MSA_USER` and `MSA_PASS` in your `.env` to enable it.
 
-### Update Checks
+### Automatic Update Checks
 
-sparQ periodically (about once a day) checks [gosparq.com](https://gosparq.com) for a newer release and logs a notice if your instance is behind. The check **transmits nothing about your instance** — no version, identifier, usage, or content; it's a plain request to a public endpoint that returns the latest version number, compared locally. It never blocks startup and fails silently if offline.
+**sparQ does not collect or store any information that identifies you or your installation.** The update check is anonymous: it contains no persistent identifier, and the data it sends cannot be connected back to you.
 
-Disable it any time with `SPARQ_UPDATE_CHECK=false`. See [gosparq.com/legal/telemetry](https://gosparq.com/legal/telemetry) for the full disclosure.
+sparQ periodically (about once a day) contacts the sparQ update service to determine whether a newer or security-related version is available.
+
+The update request may include:
+
+- The installed sparQ version and edition
+- Operating system and processor architecture
+- Runtime version
+- Locale
+- Installed sparQ modules and their versions
+
+The request does **not** include usernames, email addresses, customer or repository names, repository contents, source code, commits, pull requests, developer activity, or a persistent installation identifier. As with any internet request, the originating IP address is temporarily visible to the receiving infrastructure; sparQ does not use full IP addresses to identify installations or create profiles. The check never blocks startup and fails silently if offline.
+
+Administrators running sparQ in an air-gapped or restricted environment may disable automatic update checks with `SPARQ_UPDATE_CHECK=false`. Disabling update checks may prevent the installation from receiving security and compatibility notices. See [gosparq.com/legal/telemetry](https://www.gosparq.com/legal/telemetry) for the full disclosure.
 
 ### Email Setup
 

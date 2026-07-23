@@ -1614,6 +1614,56 @@ def about() -> str:
     )
 
 
+@blueprint.route("/settings/updates")  # type: ignore[misc]
+@login_required  # type: ignore[misc]
+@admin_required  # type: ignore[misc]
+def settings_updates() -> str:
+    """Settings → Updates: update-service status and disclosure."""
+    from system import update_check
+
+    return render_device_template(  # type: ignore[no-any-return]
+        "core/desktop/settings/updates.html",
+        status=update_check.read_status(),
+        current_version=get_version(),
+        checks_enabled=update_check.is_enabled(),
+        payload=update_check.build_payload(),
+        active_page="updates",
+        module_name="Settings",
+        module_icon="fa-solid fa-cog",
+        module_home="dashboard_bp.index",
+    )
+
+
+@blueprint.route("/settings/updates/check", methods=["POST"])  # type: ignore[misc]
+@login_required  # type: ignore[misc]
+@admin_required  # type: ignore[misc]
+def settings_updates_check() -> Response:
+    """Manually run an update check (respects the SPARQ_UPDATE_CHECK opt-out)."""
+    from system import update_check
+
+    if not update_check.is_enabled():
+        flash(
+            _(
+                "Automatic update checks are disabled. sparQ may not receive "
+                "security or compatibility update notices."
+            ),
+            "warning",
+        )
+        return redirect(url_for("core_bp.settings_updates"))  # type: ignore[no-any-return]
+
+    status = update_check.run_check(force=True)
+    if status is None:
+        flash(_("Could not reach the update service. Please try again later."), "error")
+    elif status.get("update_available"):
+        flash(
+            _("A newer version of sparQ is available:") + f" {status.get('latest_version') or ''}",
+            "info",
+        )
+    else:
+        flash(_("sparQ is up to date."), "success")
+    return redirect(url_for("core_bp.settings_updates"))  # type: ignore[no-any-return]
+
+
 @blueprint.route("/settings/install-app")  # type: ignore[misc]
 @login_required  # type: ignore[misc]
 def install_app() -> str:
