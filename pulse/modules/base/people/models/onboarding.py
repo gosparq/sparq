@@ -310,9 +310,14 @@ class OnboardingRecord(db.Model, WorkspaceMixin, AuditMixin):
         return cls.scoped().filter_by(id=record_id).first()
 
     @classmethod
-    def get_by_token(cls, token):
-        """Get onboarding record by token."""
-        return cls.scoped().filter_by(token=token).first()
+    def get_by_token(cls, token: str) -> "OnboardingRecord | None":
+        """Get onboarding record by its globally-unique token.
+
+        Unscoped by design: the token is a cryptographic secret, and the
+        onboarding magic-link is a public route where an anonymous new hire
+        has no workspace context. Matches OrganizationInvitation/PendingSignup.
+        """
+        return cls.query.filter_by(token=token).first()
 
     @classmethod
     def get_by_member_id(cls, member_id):

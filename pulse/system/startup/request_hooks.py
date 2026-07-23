@@ -449,7 +449,7 @@ def register_request_hooks(app: Flask) -> None:
             if "/organization" in request.path:
                 return None
 
-        allowed_prefixes = ("/login", "/signup", "/msa", "/static/", "/assets/", "/health", "/api/", "/auth/", "/people/people/invite/accept/", "/logout", "/no-workspace", "/org-landing", "/personal-shell", "/organizations/create", "/invitations/", "/confirm-signup", "/integrations/webhooks/", "/setup")
+        allowed_prefixes = ("/login", "/signup", "/msa", "/static/", "/assets/", "/health", "/api/", "/auth/", "/people/people/invite/accept/", "/people/onboarding/start/", "/logout", "/no-workspace", "/org-landing", "/personal-shell", "/organizations/create", "/invitations/", "/confirm-signup", "/integrations/webhooks/", "/setup")
         if request.path.startswith(allowed_prefixes):
             return None
         if current_user.is_authenticated:
