@@ -3,6 +3,23 @@
 All notable changes to sparQ are documented in this file.
 Format follows [Common Changelog](https://common-changelog.org).
 
+## [1.2.0] - 2026-07-23
+
+### Changed
+
+- **Update service** — the daily update check now reports a small, non-identifying payload (sparQ version and edition, operating system, architecture, runtime version, locale, and installed module versions) so the update service can return compatible release and security information. It still sends no usernames, emails, customer or repository data, source code, or persistent installation identifier, and remains disableable with `SPARQ_UPDATE_CHECK=false`
+
+### Added
+
+- **First-boot update notice** — the setup wizard now discloses what the daily update check collects and how to disable it
+- **Settings → Updates** — a page showing the current version, the latest available release, the exact information sent, and a manual "Check for updates" action
+- **Add existing org members to a workspace** — admins can bulk-add people already in the organization to the current workspace from the People directory, and each added member gets an in-app notification
+
+### Fixed
+
+- **Onboarding magic link** — the Start Onboarding email link now reaches the wizard for anonymous new hires, and later steps save to the correct records so onboarding completes
+- **Dark mode surfaces** — several dashboard, updates, kanban, and inbox surfaces that rendered with light backgrounds or unreadable text now adapt correctly to dark mode
+
 ## [1.1.0] - 2026-07-21
 
 ### Changed

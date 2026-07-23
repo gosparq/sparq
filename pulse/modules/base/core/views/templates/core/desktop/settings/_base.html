@@ -53,6 +53,10 @@
                         {{ _("Integrations") }}
                     </a>
                     {% endif %}
+                    <a href="{{ url_for('core_bp.settings_updates') }}"
+                       class="btn btn-sm text-start {% if request.path.startswith('/settings/updates') %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                        {{ _("Software Updates") }}
+                    </a>
                     <div class="settings-nav-group-label mt-2">{{ _("Account") }}</div>
                     {% endif %}
                     <a href="{{ url_for('core_bp.settings_preferences') }}"

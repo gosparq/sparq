@@ -16,7 +16,8 @@
         <div class="wizard-steps">
             <div class="wizard-dot" :class="{ 'active': step === 1, 'completed': step > 1 }"></div>
             <div class="wizard-dot" :class="{ 'active': step === 2, 'completed': step > 2 }"></div>
-            <div class="wizard-dot" :class="{ 'active': step === 3 }"></div>
+            <div class="wizard-dot" :class="{ 'active': step === 3, 'completed': step > 3 }"></div>
+            <div class="wizard-dot" :class="{ 'active': step === 4 }"></div>
         </div>
 
         <form method="POST" action="{{ url_for('core_bp.instance_setup_submit') }}" @submit="validateForm($event)">
@@ -147,9 +148,34 @@
                     </select>
                 </div>
 
-                <div class="alert alert-success mt-3 text-sm">
-                    <i class="fas fa-check-circle me-2"></i>
-                    {{ _("You're all set! Click \"Complete Setup\" to get started.") }}
+            </div>
+
+            <!-- Step 4: Daily Update Check Notice -->
+            <div class="wizard-panel" :class="{ 'active': step === 4 }">
+                <div class="step-title">
+                    <i class="fas fa-arrows-rotate"></i> {{ _("Daily Update Check") }}
+                </div>
+
+                <p class="text-muted small mb-3">
+                    {{ _("Once a day, sparQ checks whether a newer or security-related version is available.") }}
+                    {{ _("True to the spirit of open source,") }}
+                    <strong>{{ _("we neither capture") }}</strong>
+                    {{ _("nor store any") }}
+                    <strong>{{ _("identifiable information") }}</strong>.
+                    {{ _("The data collected cannot be connected back to you, and we do not know who you are.") }}
+                </p>
+
+                <p class="small mb-2">{{ _("We collect the following:") }}</p>
+                <ul class="small text-muted mb-3">
+                    <li>{{ _("Your sparQ version and edition") }}</li>
+                    <li>{{ _("Operating system, architecture, runtime version, and locale") }}</li>
+                    <li>{{ _("Installed sparQ modules and their versions") }}</li>
+                </ul>
+
+                <div class="alert alert-light border text-sm mb-0">
+                    <i class="fas fa-circle-info me-2"></i>
+                    {{ _("You can disable this anytime by setting SPARQ_UPDATE_CHECK=false in your environment. Continuing confirms you're okay with this.") }}
+                    <a href="https://www.gosparq.com/legal/telemetry" target="_blank" rel="noopener">{{ _("Learn more") }}</a>
                 </div>
             </div>
 
@@ -162,11 +188,11 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-3">
-                    <button type="button" class="btn btn-primary" @click="nextStep()" x-show="step < 3">
+                    <button type="button" class="btn btn-primary" @click="nextStep()" x-show="step < 4">
                         {{ _("Continue") }} <i class="fas fa-arrow-right ms-1"></i>
                     </button>
 
-                    <button type="submit" class="btn btn-primary" x-show="step === 3">
+                    <button type="submit" class="btn btn-primary" x-show="step === 4">
                         <i class="fas fa-check me-1"></i> {{ _("Complete Setup") }}
                     </button>
                 </div>
@@ -218,7 +244,7 @@ function setupWizard() {
                 }
                 this.errors.step2 = '';
             }
-            if (this.step < 3) this.step++;
+            if (this.step < 4) this.step++;
         },
         prevStep() {
             if (this.step > 1) this.step--;
